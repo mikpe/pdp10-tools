@@ -16,7 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-#include "opcode/pdp10.h"
+#include "pdp10-opcodes.h"
 
 /*
  * Instruction set decription for the PDP-10 architecture.
@@ -39,8 +39,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
  * Reference Manual, Revision 02 (updated 1997).
  *
  * These PDP-10 processors are known to exist, but information about
- * them has not been encoded in this table: Xerox MAXC, Foonly F-x,
- * System Concept SC-xx.
+ * them has not been encoded in this table: Xerox MAXC, Foonly F-1 to F-5,
+ * System Concepts SC-20/25/30M/40.
  */
 
 /*
@@ -144,6 +144,26 @@ The other two bits are for specifying previous context for the second
 operand (B in byte instructions) and for the effective address of byte
 instructions.  These also affect the context for EXTEND type instructions.
 */
+
+/* Useful combinations of instruction types. */
+#define PDP10_A_E_UNUSED	(PDP10_A_UNUSED | PDP10_E_UNUSED)
+
+/* Useful combinations of the CPU models. */
+#define PDP6_166_to_PDP10_KI10	(PDP6_166 | PDP10_KA10_to_KI10)
+#define PDP10_KA10any		(PDP10_KA10 | PDP10_KA10_ITS)
+#define PDP10_KA10_to_KI10	(PDP10_KA10 | PDP10_KI10)
+#define PDP10_KA10_to_KL10	(PDP10_KA10_to_KI10 | PDP10_KL10any)
+#define PDP10_KI10_to_KL10	(PDP10_KI10 | PDP10_KL10any)
+#define PDP10_KA10up		(PDP10_KA10any | PDP10_KI10up)
+#define PDP10_KI10up		(PDP10_KI10 | PDP10_KL10up)
+#define PDP10_KL10any		(PDP10_KL10 | PDP10_KL10_ITS | \
+				 PDP10_KL10_271up)
+#define PDP10_KL10up		(PDP10_KL10 | PDP10_KL10_ITS | \
+				 PDP10_KL10_271up | PDP10_KS10)
+#define PDP10_KL10_271up	(PDP10_KL10_271 | PDP10_XKL1)
+#define PDP10_not_KS10_or_XKL1	(PDP10_ALL & ~(PDP10_KS10 | PDP10_XKL1))
+#define PDP10_ITS		(PDP10_KA10_ITS | PDP10_KL10_ITS | \
+				 PDP10_KS10_ITS)
 
 const struct pdp10_instruction pdp10_instruction[] =
 {
@@ -820,9 +840,6 @@ const struct pdp10_instruction pdp10_instruction[] =
    * These should come after the more specific instructions above.
    */
 
-#define PDP10_not_KS10_or_XKL1 (PDP10_ALL & ~(PDP10_KS10 | \
-				PDP10_XKL1))
-
   { "blki",	070000,	PDP10_IO,	PDP10_not_KS10_or_XKL1 },
   { "datai",	070004,	PDP10_IO,	PDP10_not_KS10_or_XKL1 },
   { "blko",	070010,	PDP10_IO,	PDP10_not_KS10_or_XKL1 },
@@ -832,6 +849,9 @@ const struct pdp10_instruction pdp10_instruction[] =
   { "consz",	070030,	PDP10_IO,	PDP10_not_KS10_or_XKL1 },
   { "conso",	070034,	PDP10_IO,	PDP10_not_KS10_or_XKL1 },
 };
+
+const unsigned int pdp10_num_instructions =
+    sizeof pdp10_instruction / sizeof pdp10_instruction[0];
 
 /*
  * Internal devices.
@@ -887,6 +907,9 @@ const struct pdp10_device pdp10_device[] =
 #endif
 };
 
+const unsigned int pdp10_num_devices =
+    sizeof pdp10_device / sizeof pdp10_device[0];
+
 const struct pdp10_instruction pdp10_alias[] =
 {
   /* name,	opcode,	type,		models */
@@ -898,6 +921,9 @@ const struct pdp10_instruction pdp10_alias[] =
   { "iorb",	0437,	PDP10_BASIC,	PDP10_ALL },
   { "hlli",	0501,	PDP10_BASIC,	PDP10_ALL },
 };
+
+const unsigned int pdp10_num_aliases =
+    sizeof pdp10_alias / sizeof pdp10_alias[0];
 
 const struct pdp10_instruction pdp10_extended_instruction[] =
 {
@@ -929,7 +955,5 @@ const struct pdp10_instruction pdp10_extended_instruction[] =
   { "gfsc",	0031,	PDP10_A_UNUSED,		PDP10_KL10_271 },
 };
 
-const int pdp10_num_instructions = sizeof pdp10_instruction /
-                                   sizeof pdp10_instruction[0];
-const int pdp10_num_devices = sizeof pdp10_device / sizeof pdp10_device[0];
-const int pdp10_num_aliases = sizeof pdp10_alias / sizeof pdp10_alias[0];
+const unsigned int pdp10_num_extended_instructions =
+    sizeof pdp10_extended_instruction / sizeof pdp10_extended_instruction[0];
