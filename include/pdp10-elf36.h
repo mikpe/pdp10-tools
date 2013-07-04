@@ -26,10 +26,17 @@ typedef pdp10_uint9_t	Elf36_Word_Ext[4];
 
 /* ELF Header */
 
-#define EI_NIDENT	16	/* Size of e_ident[] */
-
 typedef struct {
-    Elf36_Uchar		e_ident[EI_NIDENT];	/* ELF "magic number" */
+    /* In the standard 32 and 64 bit ELF specifications the ELF header starts
+     * with a 16-octet e_ident[] array, of which the first 9 octets are defined,
+     * and the last 7 octets should be zero.  The enable a binary-compatible
+     * e_ident with Elf36, we pack the first 9 octets in two 36-bit words, and
+     * add two words of padding, making e_ident 16 bits larger in Elf36.
+     */
+    Elf36_Word		e_ident1;		/* e_ident[] indices 0 to 4.5 */
+    Elf36_Word		e_ident2;		/* e_ident[] indices 4.5 to 8 */
+    Elf36_Word		e_ident3;		/* padding zeros */
+    Elf36_Word		e_ident4;		/* padding zeros */
     Elf36_Half		e_type;			/* Identifies object file type */
     Elf36_Half		e_machine;		/* Specifies required architecture */
     Elf36_Word		e_version;		/* Identifies object file version */
@@ -46,7 +53,10 @@ typedef struct {
 } Elf36_Ehdr;
 
 typedef struct {
-    Elf36_Uchar_Ext	e_ident[EI_NIDENT];	/* ELF "magic number" */
+    Elf36_Word_Ext	e_ident1;		/* e_ident[] indices 0 to 4.5 */
+    Elf36_Word_Ext	e_ident2;		/* e_ident[] indices 4.5 to 8 */
+    Elf36_Word_Ext	e_ident3;		/* padding zeros */
+    Elf36_Word_Ext	e_ident4;		/* padding zeros */
     Elf36_Half_Ext	e_type;			/* Identifies object file type */
     Elf36_Half_Ext	e_machine;		/* Specifies required architecture */
     Elf36_Word_Ext	e_version;		/* Identifies object file version */
@@ -83,7 +93,7 @@ typedef struct {
 #define ELFCLASSNONE	      0	/* Invalid class */
 #define ELFCLASS32	      1	/* 32-bit objects */
 #define ELFCLASS64	      2	/* 64-bit objects */
-#define ELFCLASS36	      3	/* 36-bit objects */
+#define ELFCLASS36	     36	/* 36-bit objects */
 
 #define ELFDATANONE	      0	/* Invalid data encoding */
 #define ELFDATA2LSB	      1	/* 2's complement, little endian */
