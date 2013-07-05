@@ -332,6 +332,11 @@ int pdp10_fseeko(PDP10_FILE *pdp10fp, off_t offset, int whence)
     return 0;
 }
 
+off_t pdp10_ftello(PDP10_FILE *pdp10fp)
+{
+    return pdp10fp->nonet_pos;
+}
+
 /*
  * On an octet-based host, in-core data structures representing nonet-based
  * target data will in fact contain oversize octet-based host data.  For

@@ -7,6 +7,7 @@
 #ifndef PDP10_STDIO_H
 #define PDP10_STDIO_H
 
+#include <sys/types.h>	/* off_t */
 #include <stdint.h>
 
 struct pdp10_file;
@@ -26,6 +27,7 @@ enum {
     PDP10_SEEK_END = 2,
 };
 int pdp10_fseeko(PDP10_FILE *pdp10fp, off_t offset, int whence);
+off_t pdp10_ftello(PDP10_FILE *pdp10fp);
 
 /* pdp10_fread() and pdp10_fwrite() deliberately only permit transfers of strings
  * (size == 1), marshalled 9/18/36-bit primitives (nmemb == 1, size == 1, 2, or 4),
