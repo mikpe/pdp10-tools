@@ -298,7 +298,7 @@ typedef struct {
 #define EM_AARCH64	183	/* ARM 64-bit architecture (AARCH64) */
 #define EM_res184	184	/* Reserved by ARM */
 #define EM_AVR32	185	/* Atmel Corporation 32-bit microprocessor family */
-#define EM_STM8	186	/* STMicroeletronics STM8 8-bit microcontroller */
+#define EM_STM8		186	/* STMicroeletronics STM8 8-bit microcontroller */
 #define EM_TILE64	187	/* Tilera TILE64 multicore architecture family */
 #define EM_TILEPRO	188	/* Tilera TILEPro multicore architecture family */
 #define EM_MICROBLAZE	189	/* Xilinx MicroBlaze 32-bit RISC soft processor core */
@@ -313,6 +313,20 @@ typedef struct {
 #define EM_VIDEOCORE5	198	/* Broadcom VideoCore V processor */
 #define EM_78KOR	199	/* Renesas 78KOR family */
 #define EM_56800EX	200	/* Freescale 56800EX Digital Signal Controller (DSC) */
+#define EM_BA1		201	/* Beyond BA1 CPU architecture */
+#define EM_BA2		202	/* Beyond BA2 CPU architecture */
+#define EM_XCORE	203	/* XMOS xCORE processor family */
+#define EM_MCHP_PIC	204	/* Microchip 8-bit PIC(r) family */
+#define EM_res205	205	/* Reserved by Intel */
+#define EM_res206	206	/* Reserved by Intel */
+#define EM_res207	207	/* Reserved by Intel */
+#define EM_res208	208	/* Reserved by Intel */
+#define EM_res209	209	/* Reserved by Intel */
+#define EM_KM32		210	/* KM211 KM32 32-bit processor */
+#define EM_KMX32	211	/* KM211 KMX32 32-bit processor */
+#define EM_KMX16	212	/* KM211 KMX16 16-bit processor */
+#define EM_KMX8		213	/* KM211 KMX8 8-bit processor */
+#define EM_KVARC	214	/* KM211 KVARC processor */
 
 /* If it is necessary to assign new unofficial EM_* values, please pick large
    random numbers (0x8523, 0xa7f2, etc.) to minimize the chances of collision
@@ -515,6 +529,7 @@ typedef struct {
 #define SHF_OS_NONCONFORMING (1 << 8)	/* OS specific processing required */
 #define SHF_GROUP	(1 << 9)	/* Member of a section group */
 #define SHF_TLS		(1 << 10)	/* Thread local storage section */
+#define SHF_COMPRESSED	(1 << 11)	/* Data in this section is compressed */
 
 /* #define SHF_MASKOS	0x0F000000    *//* OS-specific semantics */
 #define SHF_MASKOS	0x0FF00000	/* New value, Oct 4, 1999 Draft */
@@ -535,7 +550,23 @@ typedef struct {
 
 /* Section Group Flags.	 */
 
-#define GRP_COMDAT		0x1	/* A COMDAT group */
+#define GRP_COMDAT	       0x1	/* A COMDAT group */
+#define GRP_MASKOS	0x0ff00000	/* Reserved for OS-specific semantics */
+#define GRP_MASKPROC	0xf0000000	/* Reserved for processor-specific semantics */
+
+/* Compression Header */
+
+typedef struct {
+    Elf36_Word		ch_type;	/* Specifies the compression algorithm */
+    Elf36_Word		ch_size;	/* Size in bytes of the uncompressed data; see sh_size */
+    Elf36_Word		ch_addralign;	/* Alignment for the uncompressed data; see sh_addralign */
+} Elf36_Chdr;
+
+#define ELFCOMPRESS_ZLIB		 1	/* Data is compressed with the ZLIB algorithm */
+#define ELFCOMPRESS_LOOS	0x60000000	/* OS specific semantics, start of range */
+#define ELFCOMPRESS_HIOS	0x6fffffff	/* OS specific semantics, end of range */
+#define ELFCOMPRESS_LOPROC	0x70000000	/* Processor-specific semantics, start of range */
+#define ELFCOMPRESS_HIPROC	0x7fffffff	/* Processor-specific semantics, end of range */
 
 /* Symbol table entry */
 
