@@ -17,13 +17,6 @@ typedef pdp10_int36_t	Elf36_Sword;
 typedef pdp10_uint9_t	Elf36_Uchar;
 typedef pdp10_uint36_t	Elf36_Word;
 
-typedef pdp10_uint9_t	Elf36_Addr_Ext[4];
-typedef pdp10_uint9_t	Elf36_Half_Ext[2];
-typedef pdp10_uint9_t	Elf36_Off_Ext[4];
-typedef pdp10_uint9_t	Elf36_Sword_Ext[4];
-typedef pdp10_uint9_t	Elf36_Uchar_Ext;
-typedef pdp10_uint9_t	Elf36_Word_Ext[4];
-
 /* ELF Header */
 
 typedef struct {
@@ -51,26 +44,6 @@ typedef struct {
     Elf36_Half		e_shnum;		/* Section header table entry count */
     Elf36_Half		e_shstrndx;		/* Section header string table index */
 } Elf36_Ehdr;
-
-typedef struct {
-    Elf36_Word_Ext	e_ident1;		/* e_ident[] indices 0 to 4.5 */
-    Elf36_Word_Ext	e_ident2;		/* e_ident[] indices 4.5 to 8 */
-    Elf36_Word_Ext	e_ident3;		/* padding zeros */
-    Elf36_Word_Ext	e_ident4;		/* padding zeros */
-    Elf36_Half_Ext	e_type;			/* Identifies object file type */
-    Elf36_Half_Ext	e_machine;		/* Specifies required architecture */
-    Elf36_Word_Ext	e_version;		/* Identifies object file version */
-    Elf36_Addr_Ext	e_entry;		/* Entry point virtual address */
-    Elf36_Off_Ext	e_phoff;		/* Program header table file offset */
-    Elf36_Off_Ext	e_shoff;		/* Section header table file offset */
-    Elf36_Word_Ext	e_flags;		/* Processor-specific flags */
-    Elf36_Half_Ext	e_ehsize;		/* ELF header size in bytes */
-    Elf36_Half_Ext	e_phentsize;		/* Program header table entry size */
-    Elf36_Half_Ext	e_phnum;		/* Program header table entry count */
-    Elf36_Half_Ext	e_shentsize;		/* Section header table entry size */
-    Elf36_Half_Ext	e_shnum;		/* Section header table entry count */
-    Elf36_Half_Ext	e_shstrndx;		/* Section header string table index */
-} Elf36_Ehdr_Ext;
 
 /* e_ident[] identification indexes */
 
@@ -470,19 +443,6 @@ typedef struct {
     Elf36_Word		sh_entsize;		/* Entry size if section holds table */
 } Elf36_Shdr;
 
-typedef struct {
-    Elf36_Word_Ext	sh_name;		/* Section name, index in string tbl */
-    Elf36_Word_Ext	sh_type;		/* Type of section */
-    Elf36_Word_Ext	sh_flags;		/* Miscellaneous section attributes */
-    Elf36_Addr_Ext	sh_addr;		/* Section virtual addr at execution */
-    Elf36_Off_Ext	sh_offset;		/* Section file offset */
-    Elf36_Word_Ext	sh_size;		/* Size of section in bytes */
-    Elf36_Word_Ext	sh_link;		/* Index of another section */
-    Elf36_Word_Ext	sh_info;		/* Additional section information */
-    Elf36_Word_Ext	sh_addralign;		/* Section alignment */
-    Elf36_Word_Ext	sh_entsize;		/* Entry size if section holds table */
-} Elf36_Shdr_Ext;
-
 /* Special section indices, which may show up in st_shndx fields, among
    other places.  */
 
@@ -588,15 +548,6 @@ typedef struct {
     Elf36_Half		st_shndx;		/* Associated section index */
 } Elf36_Sym;
 
-typedef struct {
-    Elf36_Word_Ext	st_name;		/* Symbol name, index in string tbl */
-    Elf36_Addr_Ext	st_value;		/* Value of the symbol */
-    Elf36_Word_Ext	st_size;		/* Associated symbol size */
-    Elf36_Uchar_Ext	st_info;		/* Type and binding attributes */
-    Elf36_Uchar_Ext	st_other;		/* No defined meaning, 0 */
-    Elf36_Half_Ext	st_shndx;		/* Associated section index */
-} Elf36_Sym_Ext;
-
 #if 0
 typedef struct {
   pdp10_uint9_t est_shndx[4];		/* Section index */
@@ -667,21 +618,10 @@ typedef struct {
 } Elf36_Rel;
 
 typedef struct {
-    Elf36_Addr_Ext	r_offset;	/* Location at which to apply the action */
-    Elf36_Word_Ext	r_info;		/* index and type of relocation */
-} Elf36_Rel_Ext;
-
-typedef struct {
     Elf36_Addr		r_offset;	/* Location at which to apply the action */
     Elf36_Word		r_info;		/* index and type of relocation */
     Elf36_Sword		r_addend;	/* Constant addend used to compute value */
 } Elf36_Rela;
-
-typedef struct {
-    Elf36_Addr_Ext	r_offset;	/* Location at which to apply the action */
-    Elf36_Word_Ext	r_info;		/* index and type of relocation */
-    Elf36_Sword_Ext	r_addend;	/* Constant addend used to compute value */
-} Elf36_Rela_Ext;
 
 /* Relocation info handling macros.  */
 
@@ -697,13 +637,6 @@ typedef struct {
     Elf36_Word		n_type;		/* Interpretation of the descriptor */
     Elf36_Uchar		n_name[1];	/* Start of the name+desc data */
 } Elf36_Note;
-
-typedef struct {
-    Elf36_Word_Ext 	n_namesz;	/* Size of entry's owner string */
-    Elf36_Word_Ext	n_descsz;	/* Size of the note descriptor */
-    Elf36_Word_Ext	n_type;		/* Interpretation of the descriptor */
-    Elf36_Uchar_Ext	n_name[1];	/* Start of the name+desc data */
-} Elf36_Note_Ext;
 
 /* Values of note segment descriptor types for core files.  */
 
@@ -814,17 +747,6 @@ typedef struct {
     Elf36_Word		p_align;		/* Segment alignment, file & memory */
 } Elf36_Phdr;
 
-typedef struct {
-    Elf36_Word_Ext	p_type;			/* Identifies program segment type */
-    Elf36_Off_Ext	p_offset;		/* Segment file offset */
-    Elf36_Addr_Ext	p_vaddr;		/* Segment virtual address */
-    Elf36_Addr_Ext	p_paddr;		/* Segment physical address */
-    Elf36_Word_Ext	p_filesz;		/* Segment size in file */
-    Elf36_Word_Ext	p_memsz;		/* Segment size in memory */
-    Elf36_Word_Ext	p_flags;		/* Segment flags */
-    Elf36_Word_Ext	p_align;		/* Segment alignment, file & memory */
-} Elf36_Phdr_Ext;
-
 /* Values for program header, p_type field.  */
 
 #define PT_NULL		0		/* Program header table entry unused */
@@ -863,14 +785,6 @@ typedef struct {
 	Elf36_Addr	d_ptr;
     } d_un;
 } Elf36_Dyn;
-
-typedef struct {
-    Elf36_Sword_Ext	d_tag;		/* entry tag value */
-    union {
-	Elf36_Word_Ext	d_val;
-	Elf36_Addr_Ext	d_ptr;
-    } d_un;
-} Elf36_Dyn_Ext;
 
 /* Dynamic section tags.  */
 
@@ -1025,16 +939,6 @@ typedef struct {
     Elf36_Word		vd_next;
 } Elf36_Verdef;
 
-typedef struct {
-    Elf36_Half_Ext	vd_version;
-    Elf36_Half_Ext	vd_flags;
-    Elf36_Half_Ext	vd_ndx;
-    Elf36_Half_Ext	vd_cnt;
-    Elf36_Word_Ext	vd_hash;
-    Elf36_Word_Ext	vd_aux;
-    Elf36_Word_Ext	vd_next;
-} Elf36_Verdef_Ext;
-
 /* These constants are used for the version number of a Elf32_Verdef
    structure.  */
 
@@ -1060,11 +964,6 @@ typedef struct {
     Elf36_Word		vda_next;
 } Elf36_Verdaux;
 
-typedef struct {
-    Elf36_Word_Ext	vda_name;
-    Elf36_Word_Ext	vda_next;
-} Elf36_Verdaux_Ext;
-
 /* This structure appears in a SHT_GNU_verneed section.  */
 
 typedef struct {
@@ -1074,14 +973,6 @@ typedef struct {
     Elf36_Word		vn_aux;
     Elf36_Word		vn_next;
 } Elf36_Verneed;
-
-typedef struct {
-    Elf36_Half_Ext	vn_version;
-    Elf36_Half_Ext	vn_cnt;
-    Elf36_Word_Ext	vn_file;
-    Elf36_Word_Ext	vn_aux;
-    Elf36_Word_Ext	vn_next;
-} Elf36_Verneed_Ext;
 
 /* These constants are used for the version number of a Elf32_Verneed
    structure.  */
@@ -1099,24 +990,12 @@ typedef struct {
     Elf36_Word		vna_next;
 } Elf36_Vernaux;
 
-typedef struct {
-    Elf36_Word_Ext	vna_hash;
-    Elf36_Half_Ext	vna_flags;
-    Elf36_Half_Ext	vna_other;
-    Elf36_Word_Ext	vna_name;
-    Elf36_Word_Ext	vna_next;
-} Elf36_Vernaux_Ext;
-
 /* This structure appears in a SHT_GNU_versym section.  This is not a
    standard ELF structure; ELF just uses Elf32_Half.  */
 
 typedef struct {
     Elf36_Half		vs_vers;
 } Elf36_Versym;
-
-typedef struct {
-    Elf36_Half_Ext	vs_vers;
-} Elf36_Versym_Ext;
 
 /* These special constants can be found in an Elf32_Versym field.  */
 
@@ -1148,12 +1027,6 @@ typedef struct
     Elf36_Half		si_flags;
 } Elf36_Syminfo;
 
-typedef struct
-{
-    Elf36_Half_Ext	si_boundto;
-    Elf36_Half_Ext	si_flags;
-} Elf36_Syminfo_Ext;
-
 /* Possible values for si_boundto.  */
 
 #define SYMINFO_BT_SELF		0xffff	/* Symbol bound to self */
@@ -1179,12 +1052,6 @@ typedef struct
     Elf36_Word		a_type;
     Elf36_Addr		a_val;
 } Elf36_Auxv;
-
-typedef struct
-{
-    Elf36_Word_Ext	a_type;
-    Elf36_Addr_Ext	a_val;
-} Elf36_Auxv_Ext;
 
 /* Auxv a_type values.  */
 
@@ -1241,5 +1108,33 @@ typedef struct
 #define AT_SUN_MMU      2015    /* String for name of MMU module.   */
 #define AT_SUN_LDDATA   2016    /* Dynamic linker's data segment address.  */
 #define AT_SUN_AUXFLAGS	2017	/* AF_SUN_ flags passed from the kernel.  */
+
+/*
+ * Procedures for reading and writing Elf36 files.
+ */
+#include "pdp10-stdio.h"
+
+int pdp10_elf36_write_uint9(PDP10_FILE *pdp10fp, pdp10_uint9_t val);
+int pdp10_elf36_read_uint9(PDP10_FILE *pdp10fp, pdp10_uint9_t *dst);
+int pdp10_elf36_write_uint18(PDP10_FILE *pdp10fp, pdp10_uint18_t val);
+int pdp10_elf36_read_uint18(PDP10_FILE *pdp10fp, pdp10_uint18_t *dst);
+int pdp10_elf36_write_uint36(PDP10_FILE *pdp10fp, pdp10_uint36_t val);
+int pdp10_elf36_read_uint36(PDP10_FILE *pdp10fp, pdp10_uint36_t *dst);
+int pdp10_elf36_write_sint36(PDP10_FILE *pdp10fp, pdp10_int36_t val);
+int pdp10_elf36_read_sint36(PDP10_FILE *pdp10fp, pdp10_int36_t *dst);
+int pdp10_elf36_write_ehdr(PDP10_FILE *pdp10fp, const Elf36_Ehdr *ehdr);
+int pdp10_elf36_read_ehdr(PDP10_FILE *pdp10fp, Elf36_Ehdr *ehdr);
+int pdp10_elf36_write_shdr(PDP10_FILE *pdp10fp, const Elf36_Shdr *shdr);
+int pdp10_elf36_read_shdr(PDP10_FILE *pdp10fp, Elf36_Shdr *shdr);
+int pdp10_elf36_write_sym(PDP10_FILE *pdp10fp, const Elf36_Sym *sym);
+int pdp10_elf36_read_sym(PDP10_FILE *pdp10fp, Elf36_Sym *sym);
+int pdp10_elf36_write_rel(PDP10_FILE *pdp10fp, const Elf36_Rel *rel);
+int pdp10_elf36_read_rel(PDP10_FILE *pdp10fp, Elf36_Rel *rel);
+int pdp10_elf36_write_rela(PDP10_FILE *pdp10fp, const Elf36_Rela *rela);
+int pdp10_elf36_read_rela(PDP10_FILE *pdp10fp, Elf36_Rela *rela);
+int pdp10_elf36_write_phdr(PDP10_FILE *pdp10fp, const Elf36_Phdr *phdr);
+int pdp10_elf36_read_phdr(PDP10_FILE *pdp10fp, Elf36_Phdr *phdr);
+int pdp10_elf36_write_dyn(PDP10_FILE *pdp10fp, const Elf36_Dyn *dyn);
+int pdp10_elf36_read_dyn(PDP10_FILE *pdp10fp, Elf36_Dyn *dyn);
 
 #endif /* PDP10_ELF36_H */
