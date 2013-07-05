@@ -11,18 +11,18 @@
 
 #include "pdp10-stdint.h"
 
-typedef struct {
-    pdp10_uint9_t x[2];
-} pdp10_ext_uint18_t;
+struct pdp10_ext_uint18 {
+    pdp10_uint9_t nonet[2];
+};
 
-void pdp10_uint18_to_ext(pdp10_uint18_t val, pdp10_ext_uint18_t *ext);
-pdp10_uint18_t pdp10_uint18_from_ext(const pdp10_ext_uint18_t *ext);
+void pdp10_uint18_to_ext(pdp10_uint18_t val, struct pdp10_ext_uint18 *ext);
+pdp10_uint18_t pdp10_uint18_from_ext(const struct pdp10_ext_uint18 *ext);
 
-typedef struct {
-    pdp10_uint9_t x[4];
-} pdp10_ext_uint36_t;
+struct pdp10_ext_uint36 {
+    pdp10_uint9_t nonet[4];
+};
 
-void pdp10_uint36_to_ext(pdp10_uint36_t val, pdp10_ext_uint36_t *ext);
-pdp10_uint36_t pdp10_uint36_from_ext(const pdp10_ext_uint36_t *ext);
+void pdp10_uint36_to_ext(pdp10_uint36_t val, struct pdp10_ext_uint36 *ext);
+pdp10_uint36_t pdp10_uint36_from_ext(const struct pdp10_ext_uint36 *ext);
 
 #endif /* PDP10_EXTINT_H */
