@@ -22,7 +22,7 @@ typedef pdp10_uint36_t	Elf36_Word;
 typedef struct {
     /* In the standard 32 and 64 bit ELF specifications the ELF header starts
      * with a 16-octet e_ident[] array, of which the first 9 octets are defined,
-     * and the last 7 octets should be zero.  The enable a binary-compatible
+     * and the last 7 octets should be zero.  To enable a binary-compatible
      * e_ident with Elf36, we pack the first 9 octets in two 36-bit words, and
      * add two words of padding, making e_ident 16 bits larger in Elf36.
      */
@@ -1142,6 +1142,7 @@ typedef struct
 
 /*
  * Procedures for reading and writing Elf36 files.
+ * They all return a non-negative number on success, and a negative number on error.
  */
 #include "pdp10-stdio.h"
 
