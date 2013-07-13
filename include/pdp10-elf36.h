@@ -458,6 +458,8 @@ typedef struct {
     Elf36_Word		sh_entsize;		/* Entry size if section holds table */
 } Elf36_Shdr;
 
+#define ELF36_SHDR_SIZEOF	(10 * 4)
+
 /* Special section indices, which may show up in st_shndx fields, among
    other places.  */
 
@@ -579,6 +581,8 @@ typedef struct {
     Elf36_Uchar		st_other;		/* No defined meaning, 0 */
     Elf36_Half		st_shndx;		/* Associated section index */
 } Elf36_Sym;
+
+#define ELF36_SYM_SIZEOF	((3 * 4) + 2 + 2)
 
 #if 0
 typedef struct {
