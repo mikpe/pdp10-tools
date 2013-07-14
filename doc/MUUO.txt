@@ -1,0 +1,37 @@
+	.text
+	.globl start
+
+	/*
+	 * 000: always invalid
+	 *
+	 * LUUOs:
+	 * 001-037
+	 *
+	 * MUUOs:
+	 * TOPS-20:		104(JSYS); 040-051 and 055-077 in section 0
+	 * TOPS-10 except KA10:	040-051, 055-077
+	 * KA10:		040-051, 055-100
+	 * KC10/KD10:		040-101, 104(JSYS), 130, 131, 141, 151, 161, 171, 247
+	 * XKL-1:		040-101, 104(JSYS), 247
+	 *
+	 * Unassigned codes are not MUUOs, but the processor reacts to them in the same way.
+	 *
+	 * 042-046 are reserved MUUOs.
+	 * 052-054, 101 are unassigned on <= KL10, MUUOs on KC10/KD10/XKL-1.
+	 *
+	 * The kernel-mode target of a MUUO is a function of the context in which the MUUO
+	 * was executed (or the overflow trap occurred), but the opcode of the MUUO is not
+	 * a parameter of that function. (<= KL10, XKL-1).
+	 *
+	 * KA10: 247 and 257 are unassigned but act as NOPs not MUUOs unless special hardware is present.
+	 *
+	 * KC10: MUUOs are first classified into one of six classes (VM traps, unassigned user-mode
+	 * opcodes, unassigned I/O opcodes, unassigned EXTEND opcodes, JSYS, other MUUOs), then
+	 * dispatched via a six-entry vector.
+	 *
+	 * KD10: Like KC10, except the VM traps case does not exist.
+	 */
+start:
+	.word 0201040000000	/* MOVEI 1,0 ; exit status 0 */
+	.word 0104000000136	/* JSYS 0136 ; __NR_exit_group */
+	.word 0254000000000	/* HALT */
