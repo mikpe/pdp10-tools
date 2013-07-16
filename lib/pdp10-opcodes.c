@@ -957,3 +957,29 @@ const struct pdp10_instruction pdp10_extended_instruction[] =
 
 const unsigned int pdp10_num_extended_instructions =
     sizeof pdp10_extended_instruction / sizeof pdp10_extended_instruction[0];
+
+static int pdp10_opcode_matches(unsigned int high13, const struct pdp10_instruction *insn)
+{
+    unsigned int opcode;
+
+    if ((insn->type & PDP10_A_OPCODE) || (insn->type & PDP10_IO))
+	opcode = high13 << 2;	/* table entry has 5 octal digits == 15 bits */
+    else
+	opcode = high13 >> 4;	/* table entry has 3 octal digits == 9 bits */
+    return opcode == insn->opcode;
+}
+
+const struct pdp10_instruction *pdp10_instruction_from_high13(unsigned int high13)
+{
+    unsigned int i;
+
+    for (i = 0; i < pdp10_num_aliases; ++i)
+	if (pdp10_opcode_matches(high13, &pdp10_alias[i]))
+	    return &pdp10_alias[i];
+
+    for (i = 0; i < pdp10_num_instructions; ++i)
+	if (pdp10_opcode_matches(high13, &pdp10_instruction[i]))
+	    return &pdp10_instruction[i];
+
+    return (void*)0;
+}
