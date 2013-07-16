@@ -77,7 +77,7 @@ static int write_elf(PDP10_FILE *pdp10fp)
 	/* start: */
 	PDP10_UINT36_C(0201040000000),	/* MOVEI 1,0 ; exit status = 0 */
 	PDP10_UINT36_C(0104000000136),	/* JSYS 0136 ; SYS_exit_group */
-	PDP10_UINT36_C(0254000000000),	/* HALT */
+	PDP10_UINT36_C(0254200000000),	/* HALT */
     };
     static const pdp10_uint9_t shstrtab[36] = {
 	'\0', '.', 's', 'y', 'm', 't', 'a', 'b', '\0', '.', 's', 't', 'r', 't', 'a', 'b',
