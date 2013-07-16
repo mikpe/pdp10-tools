@@ -292,7 +292,7 @@ static void print_ehdr(const Elf36_Ehdr *ehdr, const unsigned char *e_ident)
     printf("\n");
 }
 
-static const char *sh_type_name(Elf36_Word sh_type)
+static const char *sh_type_name(Elf36_Word sh_type, char *buf)
 {
     switch (sh_type) {
     case SHT_NULL:
@@ -344,7 +344,8 @@ static const char *sh_type_name(Elf36_Word sh_type)
     case SHT_GNU_versym:
 	return "GNU_versym";
     default:
-	return "?";
+	sprintf(buf, "%" PDP10_PRIu36, sh_type);
+	return buf;
     }
 }
 
@@ -352,6 +353,7 @@ static int read_strtab(struct params *params, pdp10_uint36_t i, pdp10_uint9_t **
 {
     pdp10_uint9_t *strtab;
     pdp10_uint36_t strtablen;
+    char sh_type_buf[16];
 
     if (i == 0 || i >= params->shnum) {
 	fprintf(stderr, "%s: %s: invalid index %" PDP10_PRIu36 " for %s string table\n",
@@ -359,8 +361,9 @@ static int read_strtab(struct params *params, pdp10_uint36_t i, pdp10_uint9_t **
 	return -1;
     }
     if (params->shtab[i].sh_type != SHT_STRTAB) {
-	fprintf(stderr, "%s: %s: %s string table at index %" PDP10_PRIu36 " has wrong type %" PDP10_PRIu36 " (%s)\n",
-		params->progname, params->filename, kind, i, params->shtab[i].sh_type, sh_type_name(params->shtab[i].sh_type));
+	fprintf(stderr, "%s: %s: %s string table at index %" PDP10_PRIu36 " has wrong type %s\n",
+		params->progname, params->filename, kind, i,
+		sh_type_name(params->shtab[i].sh_type, sh_type_buf));
 	return -1;
     }
     *strtablen_ptr = strtablen = params->shtab[i].sh_size;
@@ -430,30 +433,33 @@ static int read_shtab(struct params *params)
     return 0;
 }
 
-static char *sh_flags_name(Elf36_Word sh_flags, char *flagsbuf)
+static char *sh_flags_name(Elf36_Word sh_flags, char *buf)
 {
     const char flagnames[12] = "WAXxMSILOGTZ";
     char *p;
     unsigned int i;
+    Elf36_Word tmp;
 
-    p = flagsbuf;
-    if (sh_flags == 0) {
+    p = buf;
+    tmp = sh_flags;
+    if (tmp == 0) {
 	*p++ = '-';
     } else {
 	for (i = 0; i < 12; ++i)
-	    if (sh_flags & (1 << i))
+	    if (i != 3 && tmp & (1 << i)) {
+		tmp ^= (1 << i);
 		*p++ = flagnames[i];
-	if (sh_flags & SHF_EXCLUDE) {
-	    sh_flags ^= SHF_EXCLUDE;
+	    }
+	if (tmp & SHF_EXCLUDE) {
+	    tmp ^= SHF_EXCLUDE;
 	    *p++ = 'E';
 	}
-	if (sh_flags & SHF_MASKOS)
-	    *p++ = 'o';
-	if (sh_flags & SHF_MASKPROC)
-	    *p++ = 'p';
     }
-    *p = '\0';
-    return flagsbuf;
+    if (tmp != 0)
+	sprintf(buf, "0x%" PDP10_PRIx36, sh_flags);
+    else
+	*p = '\0';
+    return buf;
 }
 
 static int print_name(struct params *params, pdp10_uint9_t *strtab, pdp10_uint36_t strtablen, pdp10_uint36_t name, int say_empty)
@@ -488,16 +494,18 @@ static int print_sh_name(struct params *params, pdp10_uint36_t i, int say_empty)
 static int print_shdr(struct params *params, pdp10_uint36_t i)
 {
     Elf36_Shdr *shdr;
-    char flagsbuf[16];
+    char sh_type_buf[16], sh_flags_buf[16];
 
     printf("  [%" PDP10_PRIu36 "] ", i);
     if (print_sh_name(params, i, 1) < 0)
 	return -1;
     shdr = &params->shtab[i];
-    printf(" %" PDP10_PRIu36 " (%s) %" PDP10_PRIx36 " %" PDP10_PRIx36 " %" PDP10_PRIx36 " %" PDP10_PRIx36
-	   " %" PDP10_PRIx36 " (%s) %" PDP10_PRIu36 " %" PDP10_PRIu36 " %" PDP10_PRIu36 "\n",
-	   shdr->sh_type, sh_type_name(shdr->sh_type), shdr->sh_addr, shdr->sh_offset, shdr->sh_size, shdr->sh_entsize,
-	   shdr->sh_flags, sh_flags_name(shdr->sh_flags, flagsbuf), shdr->sh_link, shdr->sh_info, shdr->sh_addralign);
+    printf(" %s 0x%" PDP10_PRIx36 " %" PDP10_PRIu36 " %" PDP10_PRIu36 " %" PDP10_PRIu36
+	   " %s %" PDP10_PRIu36 " %" PDP10_PRIu36 " %" PDP10_PRIu36 "\n",
+	   sh_type_name(shdr->sh_type, sh_type_buf),
+	   shdr->sh_addr, shdr->sh_offset, shdr->sh_size, shdr->sh_entsize,
+	   sh_flags_name(shdr->sh_flags, sh_flags_buf),
+	   shdr->sh_link, shdr->sh_info, shdr->sh_addralign);
     return 0;
 }
 
@@ -506,7 +514,7 @@ static int print_shtab(struct params *params)
     pdp10_uint36_t i;
 
     printf("Section Headers:\n");
-    printf("  [Nr] Name Type Addr Off Size ES Flg Lk Inf Aln\n");
+    printf("  [Nr] Name Type Addr Off Size ES Flg Lk Inf Al\n");
     for (i = 0; i < params->shnum; ++i)
 	if (print_shdr(params, i) < 0) {
 	    fprintf(stderr, "%s: %s: failed to print section header index %" PDP10_PRIu36 "\n",
@@ -581,7 +589,7 @@ static int print_sym_name(struct params *params, pdp10_uint36_t i)
     return print_name(params, params->strtab, params->strtablen, params->symtab[i].st_name, 1);
 }
 
-static const char *st_type_name(unsigned int st_type)
+static const char *st_type_name(unsigned int st_type, char *buf)
 {
     switch (st_type) {
     case STT_NOTYPE:
@@ -605,11 +613,12 @@ static const char *st_type_name(unsigned int st_type)
     case STT_GNU_IFUNC:
 	return "GNU_IFUNC";
     default:
-	return "?";
+	sprintf(buf, "%u", st_type);
+	return buf;
     }
 }
 
-static const char *st_bind_name(unsigned int st_bind)
+static const char *st_bind_name(unsigned int st_bind, char *buf)
 {
     switch (st_bind) {
     case STB_LOCAL:
@@ -621,11 +630,12 @@ static const char *st_bind_name(unsigned int st_bind)
     case STB_GNU_UNIQUE:
 	return "GNU_UNIQUE";
     default:
-	return "?";
+	sprintf(buf, "%u", st_bind);
+	return buf;
     }
 }
 
-static const char *st_vis_name(unsigned int st_vis)
+static const char *st_vis_name(unsigned int st_vis, char *buf)
 {
     switch (st_vis) {
     case STV_DEFAULT:
@@ -637,22 +647,23 @@ static const char *st_vis_name(unsigned int st_vis)
     case STV_PROTECTED:
 	return "PROTECTED";
     default:
-	return "?";
+	sprintf(buf, "%u", st_vis);
+	return buf;
     }
 }
 
 static int print_sym(struct params *params, pdp10_uint36_t i)
 {
     Elf36_Sym *sym;
+    char st_type_buf[16], st_bind_buf[16], st_vis_buf[16];
 
     sym = &params->symtab[i];
-    printf("  %" PDP10_PRIu36 " %" PDP10_PRIx36 " %" PDP10_PRIx36 " %u (%s) %u (%s) %u (%s) %" PDP10_PRIu18 " (",
-	   i, sym->st_value, sym->st_size, ELF36_ST_TYPE(sym->st_info), st_type_name(ELF36_ST_TYPE(sym->st_info)),
-	   ELF36_ST_BIND(sym->st_info), st_bind_name(ELF36_ST_BIND(sym->st_info)), ELF36_ST_VISIBILITY(sym->st_other),
-	   st_vis_name(ELF36_ST_VISIBILITY(sym->st_other)), sym->st_shndx);
-    if (print_sh_name(params, sym->st_shndx, 1) < 0)	/* XXX: NYI: SHN_XINDEX and SHT_SYMTAB_SHNDX */
-	return -1;
-    printf(") ");
+    printf("  %" PDP10_PRIu36 " 0x%" PDP10_PRIx36 " %" PDP10_PRIu36 " %s %s %s %" PDP10_PRIu18 " ",
+	   i, sym->st_value, sym->st_size,
+	   st_type_name(ELF36_ST_TYPE(sym->st_info), st_type_buf),
+	   st_bind_name(ELF36_ST_BIND(sym->st_info), st_bind_buf),
+	   st_vis_name(ELF36_ST_VISIBILITY(sym->st_other), st_vis_buf),
+	   sym->st_shndx);
     if (print_sym_name(params, i) < 0)
 	return -1;
     printf("\n");
