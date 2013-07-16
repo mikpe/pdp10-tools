@@ -11,6 +11,7 @@
 #include <string.h>
 #include "pdp10-elf36.h"
 #include "pdp10-inttypes.h"
+#include "pdp10-opcodes.h"
 #include "pdp10-stdio.h"
 
 struct options {
@@ -50,6 +51,9 @@ struct params {
     pdp10_uint36_t symnum;
     pdp10_uint9_t *strtab;
     pdp10_uint36_t strtablen;
+
+    Elf36_Sym **labels;		/* pointers into ->symtab, only current .text section, sorted on increasing ->st_value */
+    pdp10_uint36_t labelsnum;
 };
 
 static void params_init(struct params *params)
@@ -69,10 +73,13 @@ static void params_file_init(struct params *params)
     params->symnum = 0;
     params->strtab = NULL;
     params->strtablen = 0;
+    params->labels = NULL;
+    params->labelsnum = 0;
 }
 
 static void params_file_fini(struct params *params)
 {
+    free(params->labels);
     free(params->strtab);
     free(params->symtab);
     free(params->shstrtab);
@@ -584,9 +591,9 @@ static int read_symtab(struct params *params)
     return 0;
 }
 
-static int print_sym_name(struct params *params, pdp10_uint36_t i)
+static int print_sym_name(struct params *params, Elf36_Sym *sym)
 {
-    return print_name(params, params->strtab, params->strtablen, params->symtab[i].st_name, 1);
+    return print_name(params, params->strtab, params->strtablen, sym->st_name, 1);
 }
 
 static const char *st_type_name(unsigned int st_type, char *buf)
@@ -664,7 +671,7 @@ static int print_sym(struct params *params, pdp10_uint36_t i)
 	   st_bind_name(ELF36_ST_BIND(sym->st_info), st_bind_buf),
 	   st_vis_name(ELF36_ST_VISIBILITY(sym->st_other), st_vis_buf),
 	   sym->st_shndx);
-    if (print_sym_name(params, i) < 0)
+    if (print_sym_name(params, sym) < 0)
 	return -1;
     printf("\n");
     return 0;
@@ -687,6 +694,142 @@ static int print_symtab(struct params *params)
 	    return -1;
 	}
     printf("\n");
+    return 0;
+}
+
+static int sym_matches_textshndx(struct params *params, pdp10_uint36_t textshndx, Elf36_Sym *sym)
+{
+    return
+	sym->st_shndx == textshndx	/* XXX: NYI: SHN_XINDEX */
+	&& ELF36_ST_TYPE(sym->st_info) == STT_FUNC	/* XXX: labels? */
+	&& (ELF36_ST_BIND(sym->st_info) == STB_GLOBAL
+	    || ELF36_ST_BIND(sym->st_info) == STB_LOCAL
+	    || ELF36_ST_BIND(sym->st_info) == STB_WEAK);
+}
+
+static int labelscmp(const void *p1, const void *p2)
+{
+    Elf36_Sym *sym1 = *(Elf36_Sym**)p1;
+    Elf36_Sym *sym2 = *(Elf36_Sym**)p2;
+
+    if (sym1->st_value < sym2->st_value)
+	return -1;
+    if (sym1->st_value > sym2->st_value)
+	return 1;
+    return 0;
+}
+
+static int init_labels(struct params *params, pdp10_uint36_t textshndx)
+{
+    pdp10_uint36_t symndx, labelsnum;
+
+    free(params->labels);
+    params->labels = NULL;
+
+    labelsnum = 0;
+    for (symndx = 0; symndx < params->symnum; ++symndx)
+	if (sym_matches_textshndx(params, textshndx, &params->symtab[symndx]))
+	    ++labelsnum;
+
+    params->labels = malloc(labelsnum * sizeof(Elf36_Sym*));
+    if (!params->labels) {
+	fprintf(stderr, "%s: %s: failed to allocate %zu bytes for labels table: %s\n",
+		params->progname, params->filename, labelsnum * sizeof(Elf36_Sym*), strerror(errno));
+	return -1;
+    }
+    params->labelsnum = labelsnum;
+
+    labelsnum = 0;
+    for (symndx = 0; symndx < params->symnum; ++symndx)
+	if (sym_matches_textshndx(params, textshndx, &params->symtab[symndx])) {
+	    params->labels[labelsnum] = &params->symtab[symndx];
+	    ++labelsnum;
+	}
+
+    qsort(params->labels, params->labelsnum, sizeof params->labels[0], labelscmp);
+    return 0;
+}
+
+static int disassemble_section(struct params *params, pdp10_uint36_t shndx)
+{
+    Elf36_Shdr *shdr;
+    pdp10_uint36_t labelnr;
+    pdp10_uint36_t i;
+    pdp10_uint36_t insnword;
+    const struct pdp10_instruction *insndesc;
+
+    shdr = &params->shtab[shndx];
+    if (shdr->sh_type != SHT_PROGBITS)
+	return 0;
+    if (shdr->sh_flags != (SHF_ALLOC | SHF_EXECINSTR))
+	return 0;
+
+    printf("Disassembly of section nr %" PDP10_PRIu36 " ", shndx);
+    if (print_sh_name(params, shndx, 1) < 0)
+	return -1;
+    printf(":\n\n");
+
+    if (pdp10_fseeko(params->pdp10fp, shdr->sh_offset, PDP10_SEEK_SET) < 0) {
+	fprintf(stderr, "%s: %s: failed to seek to section %" PDP10_PRIu36 " at %" PDP10_PRIu36 ": %s\n",
+		params->progname, params->filename, shndx, shdr->sh_offset, strerror(errno));
+	return -1;
+    }
+
+    if (init_labels(params, shndx) < 0)
+	return -1;
+    labelnr = 0;
+
+    for (i = 0; i < shdr->sh_size / 4; ++i) {
+	if (pdp10_elf36_read_uint36(params->pdp10fp, &insnword) < 0) {
+	    fprintf(stderr, "%s: %s: failed to read instruction at 0x%" PDP10_PRIx36 ": %s\n",
+		    params->progname, params->filename, i * 4, strerror(errno));
+	    return -1;
+	}
+
+	if (labelnr < params->labelsnum
+	    && (i * 4) == params->labels[labelnr]->st_value) {
+	    printf("0x%09" PDP10_PRIx36 " <", i * 4);
+	    if (print_sym_name(params, params->labels[labelnr]) < 0)
+		return -1;
+	    printf(">:\n");
+	    ++labelnr;
+	}
+
+	printf(" 0x%" PDP10_PRIx36 ":\t0%" PDP10_PRIo36 "\t", i * 4, insnword);
+	insndesc = pdp10_instruction_from_high13(insnword >> (36 - 13));
+	if (!insndesc) {
+	    printf("(bad)\n");
+	    continue;
+	}
+	printf("%s ", insndesc->name);
+
+	if (!((insndesc->type & PDP10_A_OPCODE)
+	      || (((insnword >> 23) & 0xF) == 0
+		  && (insndesc->type & PDP10_A_UNUSED))))
+	    printf("%u,", (unsigned int)(insnword >> 23) & 0xF);
+
+	if (insnword & (1 << 22))
+	    printf("@");
+
+	printf("%u", (unsigned int)insnword & ((1 << 18) - 1));
+
+	if (((insnword >> 18) & 0xF) != 0)
+	    printf("(%u)", (unsigned int)(insnword >> 18) & 0xF);
+
+	printf("\n");
+    }
+
+    return 1;
+}
+
+static int disassemble_all(struct params *params)
+{
+    pdp10_uint36_t shndx;
+
+    for (shndx = 0; shndx < params->shnum; ++shndx)
+	if (disassemble_section(params, shndx) < 0)
+	    return -1;
+
     return 0;
 }
 
@@ -725,6 +868,10 @@ static int readelf(struct params *params)
 
     if (params->opts.symbols
 	&& print_symtab(params) < 0)
+	return -1;
+
+    if (params->opts.disassemble
+	&& disassemble_all(params) < 0)
 	return -1;
 
     return 0;
