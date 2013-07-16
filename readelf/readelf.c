@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <getopt.h>	/* for getopt_long() */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "pdp10-elf36.h"
 #include "pdp10-inttypes.h"
@@ -31,93 +32,52 @@ struct options {
     unsigned char disassemble;		/* local extension */
 };
 
-static void ehdr_unpack_ident(const Elf36_Ehdr *ehdr, unsigned char *e_ident)
+struct params {
+    const char *progname;
+    struct options opts;
+
+    const char *filename;
+    PDP10_FILE *pdp10fp;
+
+    Elf36_Ehdr ehdr;
+    Elf36_Shdr *shtab;
+    pdp10_uint36_t shnum;
+    pdp10_uint9_t *shstrtab;
+    pdp10_uint36_t shstrtablen;
+
+    Elf36_Sym *symtab;
+    pdp10_uint36_t symtabndx;
+    pdp10_uint36_t symnum;
+    pdp10_uint9_t *strtab;
+    pdp10_uint36_t strtablen;
+};
+
+static void params_init(struct params *params)
 {
-    pdp10_uint36_t wident[4];
-    unsigned int w, i, b;
-
-    for (w = 0; w < 4; ++w)
-	wident[w] = ehdr->e_wident[w];
-
-    for (i = 0; i < EI_NIDENT; ++i) {
-	for (w = 0; w < 4; ++w) {
-	    b = (wident[w] >> (36 - 8)) & 0xff;
-	    if (w == 0)
-		e_ident[i] = b;
-	    else
-		wident[w - 1] |= b;
-	    wident[w] = (wident[w] & ((1 << (36 - 8)) - 1)) << 8;
-	}
-    }
+    memset(params, 0, sizeof *params);
 }
 
-static int check_eident(const unsigned char *e_ident, const char *filename)
+static void params_file_init(struct params *params)
 {
-    if (e_ident[EI_MAG0] != ELFMAG0
-	|| e_ident[EI_MAG1] != ELFMAG1
-	|| e_ident[EI_MAG2] != ELFMAG2
-	|| e_ident[EI_MAG3] != ELFMAG3
-	|| e_ident[EI_VERSION] != EV_CURRENT) {
-	fprintf(stderr, "readelf: %s: not an ELF file: wrong magic\n", filename);
-	return -1;
-    }
-
-    if (e_ident[EI_CLASS] != ELFCLASS36) {
-	fprintf(stderr, "readelf: %s: not an ELF36 file: wrong class %u\n", filename, e_ident[EI_CLASS]);
-	return -1;
-    }
-
-    if (e_ident[EI_DATA] != ELFDATA2MSB) {
-	fprintf(stderr, "readelf: %s: not a PDP10 ELF36 file: wrong data %u\n", filename, e_ident[EI_DATA]);
-	return -1;
-    }
-
-    switch (e_ident[EI_OSABI]) {
-    case ELFOSABI_NONE:
-    case ELFOSABI_LINUX:
-	break;
-    default:
-	fprintf(stderr, "readelf: %s: not a PDP10 ELF36 file: wrong osabi %u\n", filename, e_ident[EI_OSABI]);
-	return -1;
-    }
-
-    if (e_ident[EI_ABIVERSION] != 0) {
-	fprintf(stderr, "readelf: %s: not a PDP10 ELF36 file: wrong abiversion %u\n", filename, e_ident[EI_ABIVERSION]);
-	return -1;
-    }
-
-    return 0;
+    params->pdp10fp = NULL;
+    params->shtab = NULL;
+    params->shnum = 0;
+    params->shstrtab = NULL;
+    params->shstrtablen = 0;
+    params->symtab = NULL;
+    params->symtabndx = 0;
+    params->symnum = 0;
+    params->strtab = NULL;
+    params->strtablen = 0;
 }
 
-static int check_ehdr(const Elf36_Ehdr *ehdr, const char *filename)
+static void params_file_fini(struct params *params)
 {
-    switch (ehdr->e_type) {
-    case ET_REL:
-    case ET_EXEC:
-    case ET_DYN:
-    case ET_CORE:
-	break;
-    default:
-	fprintf(stderr, "readelf: %s: not a PDP10 ELF36 file: wrong type %u\n", filename, ehdr->e_type);
-	return -1;
-    }
-
-    if (ehdr->e_machine != EM_PDP10) {
-	fprintf(stderr, "readelf: %s: not a PDP10 ELF36 file: wrong machine %u\n", filename, ehdr->e_machine);
-	return -1;
-    }
-
-    if (ehdr->e_version != EV_CURRENT) {
-	fprintf(stderr, "readelf: %s: not a PDP10 ELF36 file: wrong version %" PDP10_PRIu36 "\n", filename, ehdr->e_version);
-	return -1;
-    }
-
-    if (ehdr->e_ehsize != ELF36_EHDR_SIZEOF) {
-	fprintf(stderr, "readelf: %s: not a PDP10 ELF36 file: wrong ehsize %u\n", filename, ehdr->e_ehsize);
-	return -1;
-    }
-
-    return 0;
+    free(params->strtab);
+    free(params->symtab);
+    free(params->shstrtab);
+    free(params->shtab);
+    pdp10_fclose(params->pdp10fp);
 }
 
 static const char *class_name(unsigned int ei_class)
@@ -189,6 +149,116 @@ static const char *machine_name(unsigned int e_machine)
     }
 }
 
+static void ehdr_unpack_ident(const Elf36_Ehdr *ehdr, unsigned char *e_ident)
+{
+    pdp10_uint36_t wident[4];
+    unsigned int w, i, b;
+
+    for (w = 0; w < 4; ++w)
+	wident[w] = ehdr->e_wident[w];
+
+    for (i = 0; i < EI_NIDENT; ++i) {
+	for (w = 0; w < 4; ++w) {
+	    b = (wident[w] >> (36 - 8)) & 0xff;
+	    if (w == 0)
+		e_ident[i] = b;
+	    else
+		wident[w - 1] |= b;
+	    wident[w] = (wident[w] & ((1 << (36 - 8)) - 1)) << 8;
+	}
+    }
+}
+
+static int check_eident(struct params *params, const unsigned char *e_ident)
+{
+    if (e_ident[EI_MAG0] != ELFMAG0
+	|| e_ident[EI_MAG1] != ELFMAG1
+	|| e_ident[EI_MAG2] != ELFMAG2
+	|| e_ident[EI_MAG3] != ELFMAG3) {
+	fprintf(stderr, "%s: %s: not an ELF file: wrong magic\n", params->progname, params->filename);
+	return -1;
+    }
+
+    if (e_ident[EI_CLASS] != ELFCLASS36) {
+	fprintf(stderr, "%s: %s: not an ELF36 file: wrong class %u (%s)\n",
+		params->progname, params->filename, e_ident[EI_CLASS], class_name(e_ident[EI_CLASS]));
+	return -1;
+    }
+
+    if (e_ident[EI_DATA] != ELFDATA2MSB) {
+	fprintf(stderr, "%s: %s: not a PDP10 ELF36 file: wrong data %u (%s)\n",
+		params->progname, params->filename, e_ident[EI_DATA], data_name(e_ident[EI_DATA]));
+	return -1;
+    }
+
+    if (e_ident[EI_VERSION] != EV_CURRENT) {
+	fprintf(stderr, "%s: %s: not a PDP10 ELF36 file: wrong version %u (%s)\n",
+		params->progname, params->filename, e_ident[EI_VERSION], version_name(e_ident[EI_VERSION]));
+	return -1;
+    }
+
+    switch (e_ident[EI_OSABI]) {
+    case ELFOSABI_NONE:
+    case ELFOSABI_LINUX:
+	break;
+    default:
+	fprintf(stderr, "%s: %s: not a PDP10 ELF36 file: wrong osabi %u (%s)\n",
+		params->progname, params->filename, e_ident[EI_OSABI], osabi_name(e_ident[EI_OSABI]));
+	return -1;
+    }
+
+    if (e_ident[EI_ABIVERSION] != 0) {
+	fprintf(stderr, "%s: %s: not a PDP10 ELF36 file: wrong abiversion %u\n",
+		params->progname, params->filename, e_ident[EI_ABIVERSION]);
+	return -1;
+    }
+
+    return 0;
+}
+
+static int check_ehdr(struct params *params)
+{
+    Elf36_Ehdr *ehdr = &params->ehdr;
+
+    switch (ehdr->e_type) {
+    case ET_REL:
+    case ET_EXEC:
+    case ET_DYN:
+    case ET_CORE:
+	break;
+    default:
+	fprintf(stderr, "%s: %s: not a PDP10 ELF36 file: wrong type %u\n",
+		params->progname, params->filename, ehdr->e_type);
+	return -1;
+    }
+
+    if (ehdr->e_machine != EM_PDP10) {
+	fprintf(stderr, "%s: %s: not a PDP10 ELF36 file: wrong machine %u\n",
+		params->progname, params->filename, ehdr->e_machine);
+	return -1;
+    }
+
+    if (ehdr->e_version != EV_CURRENT) {
+	fprintf(stderr, "%s: %s: not a PDP10 ELF36 file: wrong version %" PDP10_PRIu36 "\n",
+		params->progname, params->filename, ehdr->e_version);
+	return -1;
+    }
+
+    if (ehdr->e_ehsize != ELF36_EHDR_SIZEOF) {
+	fprintf(stderr, "%s: %s: not a PDP10 ELF36 file: wrong ehsize %u\n",
+		params->progname, params->filename, ehdr->e_ehsize);
+	return -1;
+    }
+
+    if (ehdr->e_shoff != 0 && ehdr->e_shentsize != ELF36_SHDR_SIZEOF) {
+	fprintf(stderr, "%s: %s: not a PDP10 ELF36 file: wrong shentsize %u\n",
+		params->progname, params->filename, ehdr->e_shentsize);
+	return -1;
+    }
+
+    return 0;
+}
+
 static void print_ehdr(const Elf36_Ehdr *ehdr, const unsigned char *e_ident)
 {
     unsigned int i;
@@ -222,39 +292,431 @@ static void print_ehdr(const Elf36_Ehdr *ehdr, const unsigned char *e_ident)
     printf("\n");
 }
 
-static int do_readelf_fp(const struct options *options, PDP10_FILE *pdp10fp, const char *filename)
+static const char *sh_type_name(Elf36_Word sh_type)
 {
-    Elf36_Ehdr ehdr;
-    unsigned char e_ident[EI_NIDENT];
+    switch (sh_type) {
+    case SHT_NULL:
+	return "NULL";
+    case SHT_PROGBITS:
+	return "PROGBITS";
+    case SHT_SYMTAB:
+	return "SYMTAB";
+    case SHT_STRTAB:
+	return "STRTAB";
+    case SHT_RELA:
+	return "RELA";
+    case SHT_HASH:
+	return "HASH";
+    case SHT_DYNAMIC:
+	return "DYNAMIC";
+    case SHT_NOTE:
+	return "NOTE";
+    case SHT_NOBITS:
+	return "NOBITS";
+    case SHT_REL:
+	return "REL";
+    case SHT_SHLIB:
+	return "SHLIB";
+    case SHT_DYNSYM:
+	return "DYNSYM";
+    case SHT_INIT_ARRAY:
+	return "INIT_ARRAY";
+    case SHT_FINI_ARRAY:
+	return "FINI_ARRAY";
+    case SHT_PREINIT_ARRAY:
+	return "PREINIT_ARRAY";
+    case SHT_GROUP:
+	return "GROUP";
+    case SHT_SYMTAB_SHNDX:
+	return "SYMTAB_SHNDX";
+    case SHT_GNU_INCREMENTAL_INPUTS:
+	return "GNU_INCREMENTAL_INPUTS";
+    case SHT_GNU_ATTRIBUTES:
+	return "GNU_ATTRIBUTES";
+    case SHT_GNU_HASH:
+	return "GNU_HASH";
+    case SHT_GNU_LIBLIST:
+	return "GNU_LIBLIST";
+    case SHT_GNU_verdef:
+	return "GNU_verdef";
+    case SHT_GNU_verneed:
+	return "GNU_verneed";
+    case SHT_GNU_versym:
+	return "GNU_versym";
+    default:
+	return "?";
+    }
+}
 
-    if (pdp10_elf36_read_ehdr(pdp10fp, &ehdr) < 0) {
-	fprintf(stderr, "readelf: %s: failed to read ELF header: %s\n", filename, strerror(errno));
+static int read_strtab(struct params *params, pdp10_uint36_t i, pdp10_uint9_t **strtab_ptr, pdp10_uint36_t *strtablen_ptr, const char *kind)
+{
+    pdp10_uint9_t *strtab;
+    pdp10_uint36_t strtablen;
+
+    if (i == 0 || i >= params->shnum) {
+	fprintf(stderr, "%s: %s: invalid index %" PDP10_PRIu36 " for %s string table\n",
+		params->progname, params->filename, i, kind);
 	return -1;
     }
-    ehdr_unpack_ident(&ehdr, e_ident);
-    if (check_eident(e_ident, filename) < 0
-	|| check_ehdr(&ehdr, filename) < 0)
+    if (params->shtab[i].sh_type != SHT_STRTAB) {
+	fprintf(stderr, "%s: %s: %s string table at index %" PDP10_PRIu36 " has wrong type %" PDP10_PRIu36 " (%s)\n",
+		params->progname, params->filename, kind, i, params->shtab[i].sh_type, sh_type_name(params->shtab[i].sh_type));
+	return -1;
+    }
+    *strtablen_ptr = strtablen = params->shtab[i].sh_size;
+    *strtab_ptr = strtab = malloc(strtablen * sizeof(pdp10_uint9_t));
+    if (!strtab) {
+	fprintf(stderr, "%s: %s: failed to allocate %zu bytes for %s string table: %s\n",
+		params->progname, params->filename, strtablen * sizeof(pdp10_uint9_t), kind, strerror(errno));
+	return -1;
+    }
+    if (pdp10_fseeko(params->pdp10fp, params->shtab[i].sh_offset, PDP10_SEEK_SET) < 0) {
+	fprintf(stderr, "%s: %s: failed to seek to %s string table at %" PDP10_PRIu36 ": %s\n",
+		params->progname, params->filename, kind, params->shtab[i].sh_offset, strerror(errno));
+	return -1;
+    }
+    for (i = 0; i < strtablen; ++i)
+	if (pdp10_elf36_read_uint9(params->pdp10fp, &strtab[i]) < 0) {
+	    fprintf(stderr, "%s: %s: failed to read %s string table at index %" PDP10_PRIu36 ": %s\n",
+		    params->progname, params->filename, kind, i, strerror(errno));
+	    return -1;
+	}
+    return 0;
+}
+
+static int read_shtab(struct params *params)
+{
+    Elf36_Shdr shdr0;
+    pdp10_uint36_t i;
+
+    if (params->ehdr.e_shoff == 0)
+	return 0;
+
+    params->shnum = params->ehdr.e_shnum;
+
+    if (pdp10_fseeko(params->pdp10fp, params->ehdr.e_shoff, PDP10_SEEK_SET) < 0) {
+	fprintf(stderr, "%s: %s: failed to seek to section header table at %" PDP10_PRIu36 ": %s\n",
+		params->progname, params->filename, params->ehdr.e_shoff, strerror(errno));
+	return -1;
+    }
+    if (pdp10_elf36_read_shdr(params->pdp10fp, &shdr0) < 0) {
+	fprintf(stderr, "%s: %s: failed to read section header index 0: %s\n",
+		params->progname, params->filename, strerror(errno));
+	return -1;
+    }
+    if (params->shnum == 0)
+	params->shnum = shdr0.sh_size;
+    params->shtab = malloc(params->shnum * sizeof(Elf36_Shdr));
+    if (!params->shtab) {
+	fprintf(stderr, "%s: %s: failed to allocate %zu bytes for section header table: %s\n",
+		params->progname, params->filename, params->shnum * sizeof(Elf36_Shdr), strerror(errno));
+	return -1;
+    }
+    params->shtab[0] = shdr0;
+    for (i = 1; i < params->shnum; ++i)
+	if (pdp10_elf36_read_shdr(params->pdp10fp, &params->shtab[i]) < 0) {
+	    fprintf(stderr, "%s: %s: failed to read section header index %" PDP10_PRIu36 ": %s\n",
+		    params->progname, params->filename, i, strerror(errno));
+	    return -1;
+	}
+
+    i = params->ehdr.e_shstrndx;
+    if (i == SHN_UNDEF)
+	return 0;
+    if (i == SHN_XINDEX)
+	i = shdr0.sh_link;
+    if (read_strtab(params, i, &params->shstrtab, &params->shstrtablen, "section header") < 0)
+	return -1;
+    return 0;
+}
+
+static char *sh_flags_name(Elf36_Word sh_flags, char *flagsbuf)
+{
+    const char flagnames[12] = "WAXxMSILOGTZ";
+    char *p;
+    unsigned int i;
+
+    p = flagsbuf;
+    if (sh_flags == 0) {
+	*p++ = '-';
+    } else {
+	for (i = 0; i < 12; ++i)
+	    if (sh_flags & (1 << i))
+		*p++ = flagnames[i];
+	if (sh_flags & SHF_EXCLUDE) {
+	    sh_flags ^= SHF_EXCLUDE;
+	    *p++ = 'E';
+	}
+	if (sh_flags & SHF_MASKOS)
+	    *p++ = 'o';
+	if (sh_flags & SHF_MASKPROC)
+	    *p++ = 'p';
+    }
+    *p = '\0';
+    return flagsbuf;
+}
+
+static int print_name(struct params *params, pdp10_uint9_t *strtab, pdp10_uint36_t strtablen, pdp10_uint36_t name, int say_empty)
+{
+    pdp10_uint36_t i;
+
+    if (name >= strtablen) {
+	fprintf(stderr, "%s: %s: name index %" PDP10_PRIu36 " is larger than the string table\n",
+		params->progname, params->filename, name);
+	return -1;
+    }
+    i = name;
+    while (strtab[i] != '\0') {
+	printf("%c", strtab[i]);
+	++i;
+	if (i >= strtablen) {
+	    fprintf(stderr, "%s: %s: name string at index %" PDP10_PRIu36 " is not NUL-terminated\n",
+		    params->progname, params->filename, name);
+	    return -1;
+	}
+    }
+    if (i == name && say_empty)
+	printf("(empty)");
+    return 0;
+}
+
+static int print_sh_name(struct params *params, pdp10_uint36_t i, int say_empty)
+{
+    return print_name(params, params->shstrtab, params->shstrtablen, params->shtab[i].sh_name, say_empty);
+}
+
+static int print_shdr(struct params *params, pdp10_uint36_t i)
+{
+    Elf36_Shdr *shdr;
+    char flagsbuf[16];
+
+    printf("  [%" PDP10_PRIu36 "] ", i);
+    if (print_sh_name(params, i, 1) < 0)
+	return -1;
+    shdr = &params->shtab[i];
+    printf(" %" PDP10_PRIu36 " (%s) %" PDP10_PRIx36 " %" PDP10_PRIx36 " %" PDP10_PRIx36 " %" PDP10_PRIx36
+	   " %" PDP10_PRIx36 " (%s) %" PDP10_PRIu36 " %" PDP10_PRIu36 " %" PDP10_PRIu36 "\n",
+	   shdr->sh_type, sh_type_name(shdr->sh_type), shdr->sh_addr, shdr->sh_offset, shdr->sh_size, shdr->sh_entsize,
+	   shdr->sh_flags, sh_flags_name(shdr->sh_flags, flagsbuf), shdr->sh_link, shdr->sh_info, shdr->sh_addralign);
+    return 0;
+}
+
+static int print_shtab(struct params *params)
+{
+    pdp10_uint36_t i;
+
+    printf("Section Headers:\n");
+    printf("  [Nr] Name Type Addr Off Size ES Flg Lk Inf Aln\n");
+    for (i = 0; i < params->shnum; ++i)
+	if (print_shdr(params, i) < 0) {
+	    fprintf(stderr, "%s: %s: failed to print section header index %" PDP10_PRIu36 "\n",
+		    params->progname, params->filename, i);
+	    return -1;
+	}
+    printf("Key to Flags:\n");
+    printf("  W (write), A (alloc), X (execute), M (merge), S (strings), Z (compressed)\n");
+    printf("  I (info), L (link order), G (group), T (TLS), E (exclude), x (unknown)\n");
+    printf("  O (extra OS processing required), o (OS specific), p (processor specific)\n");
+    printf("\n");
+    return 0;
+}
+
+static int read_symtab(struct params *params)
+{
+    pdp10_uint36_t i;
+
+    for (i = 1; i < params->shnum; ++i)
+	if (params->shtab[i].sh_type == SHT_SYMTAB)
+	    break;
+
+    if (i >= params->shnum)
+	return 0;
+
+    params->symtabndx = i;
+
+    if (read_strtab(params, params->shtab[i].sh_link, &params->strtab, &params->strtablen, "symtab") < 0)
 	return -1;
 
-    if (options->file_header)
-	print_ehdr(&ehdr, e_ident);
+    if (params->shtab[i].sh_entsize != ELF36_SYM_SIZEOF) {
+	fprintf(stderr, "%s: %s: bogus sh_entsize %" PDP10_PRIu36 " in symbol table section header at index %" PDP10_PRIu36 "\n",
+		params->progname, params->filename, params->shtab[i].sh_entsize, i);
+	return -1;
+    }
+
+    if ((params->shtab[i].sh_size % ELF36_SYM_SIZEOF) != 0) {
+	fprintf(stderr, "%s: %s: bogus sh_size %" PDP10_PRIu36 " in symbol table section header at index %" PDP10_PRIu36 "\n",
+		params->progname, params->filename, params->shtab[i].sh_size, i);
+	return -1;
+    }
+
+    params->symnum = params->shtab[i].sh_size / ELF36_SYM_SIZEOF;
+    if (params->symnum == 0)
+	return 0;
+
+    params->symtab = malloc(params->symnum * sizeof(Elf36_Sym));
+    if (!params->symtab) {
+	fprintf(stderr, "%s: %s: failed to allocate %zu bytes for symbol table: %s\n",
+		params->progname, params->filename, params->symnum * sizeof(Elf36_Sym), strerror(errno));
+	return -1;
+    }
+
+    if (pdp10_fseeko(params->pdp10fp, params->shtab[i].sh_offset, PDP10_SEEK_SET) < 0) {
+	fprintf(stderr, "%s: %s: failed to seek to symbol table at %" PDP10_PRIu36 ": %s\n",
+		params->progname, params->filename, params->shtab[i].sh_offset, strerror(errno));
+	return -1;
+    }
+
+    for (i = 0; i < params->symnum; ++i)
+	if (pdp10_elf36_read_sym(params->pdp10fp, &params->symtab[i]) < 0) {
+	    fprintf(stderr, "%s: %s: failed to read symbol table index %" PDP10_PRIu36 ": %s\n",
+		    params->progname, params->filename, i, strerror(errno));
+	    return -1;
+	}
 
     return 0;
 }
 
-static int do_readelf(const struct options *options, const char *filename)
+static int print_sym_name(struct params *params, pdp10_uint36_t i)
 {
-    PDP10_FILE *pdp10fp;
-    int status;
+    return print_name(params, params->strtab, params->strtablen, params->symtab[i].st_name, 1);
+}
 
-    pdp10fp = pdp10_fopen(filename, "rb");
-    if (!pdp10fp) {
-	fprintf(stderr, "%s: failed to open %s: %s\n", __FUNCTION__, filename, strerror(errno));
+static const char *st_type_name(unsigned int st_type)
+{
+    switch (st_type) {
+    case STT_NOTYPE:
+	return "NOTYPE";
+    case STT_OBJECT:
+	return "OBJECT";
+    case STT_FUNC:
+	return "FUNC";
+    case STT_SECTION:
+	return "SECTION";
+    case STT_FILE:
+	return "FILE";
+    case STT_COMMON:
+	return "COMMON";
+    case STT_TLS:
+	return "TLS";
+    case STT_RELC:
+	return "RELC";
+    case STT_SRELC:
+	return "SRELC";
+    case STT_GNU_IFUNC:
+	return "GNU_IFUNC";
+    default:
+	return "?";
+    }
+}
+
+static const char *st_bind_name(unsigned int st_bind)
+{
+    switch (st_bind) {
+    case STB_LOCAL:
+	return "LOCAL";
+    case STB_GLOBAL:
+	return "GLOBAL";
+    case STB_WEAK:
+	return "WEAK";
+    case STB_GNU_UNIQUE:
+	return "GNU_UNIQUE";
+    default:
+	return "?";
+    }
+}
+
+static const char *st_vis_name(unsigned int st_vis)
+{
+    switch (st_vis) {
+    case STV_DEFAULT:
+	return "DEFAULT";
+    case STV_INTERNAL:
+	return "INTERNAL";
+    case STV_HIDDEN:
+	return "HIDDEN";
+    case STV_PROTECTED:
+	return "PROTECTED";
+    default:
+	return "?";
+    }
+}
+
+static int print_sym(struct params *params, pdp10_uint36_t i)
+{
+    Elf36_Sym *sym;
+
+    sym = &params->symtab[i];
+    printf("  %" PDP10_PRIu36 " %" PDP10_PRIx36 " %" PDP10_PRIx36 " %u (%s) %u (%s) %u (%s) %" PDP10_PRIu18 " (",
+	   i, sym->st_value, sym->st_size, ELF36_ST_TYPE(sym->st_info), st_type_name(ELF36_ST_TYPE(sym->st_info)),
+	   ELF36_ST_BIND(sym->st_info), st_bind_name(ELF36_ST_BIND(sym->st_info)), ELF36_ST_VISIBILITY(sym->st_other),
+	   st_vis_name(ELF36_ST_VISIBILITY(sym->st_other)), sym->st_shndx);
+    if (print_sh_name(params, sym->st_shndx, 1) < 0)	/* XXX: NYI: SHN_XINDEX and SHT_SYMTAB_SHNDX */
+	return -1;
+    printf(") ");
+    if (print_sym_name(params, i) < 0)
+	return -1;
+    printf("\n");
+    return 0;
+}
+
+static int print_symtab(struct params *params)
+{
+    pdp10_uint36_t i;
+
+    printf("Symbol table '");
+    if (print_sh_name(params, params->symtabndx, 0) < 0)
+	return -1;
+    printf("' in section %" PDP10_PRIu36 " contains %" PDP10_PRIu36 " entries:\n",
+	   params->symtabndx, params->symnum);
+    printf("  Num Value Size Type Bind Vis Ndx Name\n");
+    for (i = 0; i < params->symnum; ++i)
+	if (print_sym(params, i) < 0) {
+	    fprintf(stderr, "%s: %s: failed to print symbol table entry %" PDP10_PRIu36 "\n",
+		    params->progname, params->filename, i);
+	    return -1;
+	}
+    printf("\n");
+    return 0;
+}
+
+static int readelf(struct params *params)
+{
+    unsigned char e_ident[EI_NIDENT];
+
+    if (pdp10_elf36_read_ehdr(params->pdp10fp, &params->ehdr) < 0) {
+	fprintf(stderr, "%s: %s: failed to read ELF header: %s\n",
+		params->progname, params->filename, strerror(errno));
 	return -1;
     }
-    status = do_readelf_fp(options, pdp10fp, filename);
-    pdp10_fclose(pdp10fp);
-    return status;
+    ehdr_unpack_ident(&params->ehdr, e_ident);
+    if (check_eident(params, e_ident) < 0
+	|| check_ehdr(params) < 0)
+	return -1;
+
+    if (params->opts.file_header)
+	print_ehdr(&params->ehdr, e_ident);
+
+    if (read_shtab(params) < 0) {
+	fprintf(stderr, "%s: %s: failed to read section header table\n",
+		params->progname, params->filename);
+	return -1;
+    }
+
+    if (params->opts.sections
+	&& print_shtab(params) < 0)
+	return -1;
+
+    if (read_symtab(params) < 0) {
+	fprintf(stderr, "%s: %s: read to read symbol table\n",
+		params->progname, params->filename);
+	return -1;
+    }
+
+    if (params->opts.symbols
+	&& print_symtab(params) < 0)
+	return -1;
+
+    return 0;
 }
 
 /*
@@ -302,11 +764,12 @@ static void usage(const char *progname)
 
 int main(int argc, char **argv)
 {
-    struct options options;
+    struct params params;
     int opt_version;
     int i;
 
-    memset(&options, 0, sizeof options);
+    params_init(&params);
+    params.progname = argv[0];
     opt_version = 0;
 
     for (;;) {
@@ -315,88 +778,104 @@ int main(int argc, char **argv)
 	ch = getopt_long(argc, argv, "ahlSgtesnrudVADcv", long_options, NULL);
 	switch (ch) {
 	case 'a':
-	    options.symbols = 1;
-	    options.relocs = 1;
-	    options.dynamic = 1;
-	    options.notes = 1;
-	    options.version_info = 1;
+	    params.opts.symbols = 1;
+	    params.opts.relocs = 1;
+	    params.opts.dynamic = 1;
+	    params.opts.notes = 1;
+	    params.opts.version_info = 1;
 	    /*FALLTHROUGH*/
 	case 'e':
-	    options.file_header = 1;
-	    options.segments = 1;
-	    options.sections = 1;
+	    params.opts.file_header = 1;
+	    params.opts.segments = 1;
+	    params.opts.sections = 1;
 	    continue;
 	case 'h':
-	    options.file_header = 1;
+	    params.opts.file_header = 1;
 	    continue;
 	case 'l':
-	    options.segments = 1;
+	    params.opts.segments = 1;
 	    continue;
 	case 't':
-	    options.section_details = 1;
+	    params.opts.section_details = 1;
 	    /*FALLTHROUGH*/
 	case 'S':
-	    options.sections = 1;
+	    params.opts.sections = 1;
 	    continue;
 	case 'g':
-	    options.section_groups = 1;
+	    params.opts.section_groups = 1;
 	    continue;
 	case 's':
-	    options.symbols = 1;
+	    params.opts.symbols = 1;
 	    continue;
 	case 'n':
-	    options.notes = 1;
+	    params.opts.notes = 1;
 	    continue;
 	case 'r':
-	    options.relocs = 1;
+	    params.opts.relocs = 1;
 	    continue;
 	case 'u':
-	    options.unwind = 1;
+	    params.opts.unwind = 1;
 	    continue;
 	case 'd':
-	    options.dynamic = 1;
+	    params.opts.dynamic = 1;
 	    continue;
 	case 'V':
-	    options.version_info = 1;
+	    params.opts.version_info = 1;
 	    continue;
 	case 'A':
-	    options.arch_specific = 1;
+	    params.opts.arch_specific = 1;
 	    continue;
 	case 'D':
-	    options.use_dynamic = 1;
+	    params.opts.use_dynamic = 1;
 	    continue;
 	case 'c':
-	    options.archive_index = 1;
+	    params.opts.archive_index = 1;
 	    continue;
 	case 'v':
 	    opt_version = 1;
 	    continue;
 	case LOPT_dyn_syms:
-	    options.dyn_syms = 1;
+	    params.opts.dyn_syms = 1;
 	    continue;
 	case LOPT_disassemble:	/* local extension */
-	    options.disassemble = 1;
+	    params.opts.disassemble = 1;
 	    continue;
 	case -1:
 	    break;
 	default:
-	    usage(argv[0]);
+	    usage(params.progname);
 	    return 1;
 	}
 	break;
     }
 
     if (optind >= argc && !opt_version) {
-	usage(argv[0]);
+	usage(params.progname);
 	return 1;
     }
 
     if (opt_version)
 	printf("pdp10-tools readelf version 0.0 " __DATE__ " " __TIME__ "\n");
 
-    for (i = optind; i < argc; ++i)
-	if (do_readelf(&options, argv[i]) != 0)
+    for (i = optind; i < argc; ++i) {
+	int status;
+
+	params_file_init(&params);
+
+	params.filename = argv[i];
+	params.pdp10fp = pdp10_fopen(params.filename, "rb");
+	if (!params.pdp10fp) {
+	    fprintf(stderr, "%s: failed to open %s: %s\n",
+		    params.progname, params.filename, strerror(errno));
+	    return -1;
+	}
+	status = readelf(&params);
+
+	params_file_fini(&params);
+
+	if (status < 0)
 	    return 1;
+    }
 
     return 0;
 }
