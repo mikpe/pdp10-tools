@@ -14,6 +14,8 @@
 #include "pdp10-opcodes.h"
 #include "pdp10-stdio.h"
 
+#define VERSION "pdp10-tools readelf version 0.1, built " __DATE__ " " __TIME__ "\n"
+
 struct options {
     unsigned char file_header;
     unsigned char segments;
@@ -1013,7 +1015,7 @@ int main(int argc, char **argv)
     }
 
     if (opt_version)
-	printf("pdp10-tools readelf version 0.0 " __DATE__ " " __TIME__ "\n");
+	printf(VERSION);
 
     for (i = optind; i < argc; ++i) {
 	int status;
