@@ -34,4 +34,4 @@
 start:
 	.word 0201040000000	/* MOVEI 1,0 ; exit status 0 */
 	.word 0104000000136	/* JSYS 0136 ; __NR_exit_group */
-	.word 0254000000000	/* HALT */
+	.word 0254200000000	/* HALT */
