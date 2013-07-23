@@ -1,0 +1,84 @@
+/*
+ * token.def
+ *
+ * TOKEN(T_<name>, <print name>, <attribute fmt>)
+ */
+
+/* reserved symbols including directives; MUST come first and MUST be listed in increasing alphanumeric order */
+TOKEN(T_DOT_GLOBL, ".globl", TAFMT_NONE)
+TOKEN(T_DOT_TEXT, ".text", TAFMT_NONE)
+/* non-reserved symbols; T_SYMBOL MUST be the first token after the list of reserved symbols */
+TOKEN(T_SYMBOL, "<symbol>", TAFMT_SYMBOL)
+/* literals */
+TOKEN(T_UINTEGER, "<integer>", TAFMT_UINT)
+/* special symbols including operators and separators */
+TOKEN(T_AT, "@", TAFMT_NONE)
+TOKEN(T_COLON, ":", TAFMT_NONE)
+TOKEN(T_COMMA, ",", TAFMT_NONE)
+TOKEN(T_LPAREN, "(", TAFMT_NONE)
+TOKEN(T_RPAREN, ")", TAFMT_NONE)
+/* synthetic symbols */
+TOKEN(T_NEWLINE, "<newline>", TAFMT_NONE)
+TOKEN(T_EOF, "<eof>", TAFMT_NONE)
+TOKEN(T_ERROR, "<error>", TAFMT_NONE)
+
+/* XXX: old tokens not yet resurrected */
+#if 0
+TOKEN(T_DOT_ALIGN, ".align", TAFMT_NONE)
+TOKEN(T_DOT_ASCII, ".ascii", TAFMT_NONE)
+TOKEN(T_DOT_ASCIZ, ".asciz", TAFMT_NONE)
+TOKEN(T_DOT_BALIGN, ".balign", TAFMT_NONE)
+TOKEN(T_DOT_BSS, ".bss", TAFMT_NONE)
+TOKEN(T_DOT_BYTE, ".byte", TAFMT_NONE)
+TOKEN(T_DOT_COMM, ".comm", TAFMT_NONE)
+TOKEN(T_DOT_DATA, ".data", TAFMT_NONE)
+TOKEN(T_DOT_FILE, ".file", TAFMT_NONE)
+TOKEN(T_DOT_HIDDEN, ".hidden", TAFMT_NONE)
+TOKEN(T_DOT_IDENT, ".ident", TAFMT_NONE)
+TOKEN(T_DOT_INTERNAL, ".internal", TAFMT_NONE)
+TOKEN(T_DOT_LOCAL, ".local", TAFMT_NONE)
+TOKEN(T_DOT_LONG, ".long", TAFMT_NONE)
+TOKEN(T_DOT_ORG, ".org", TAFMT_NONE)
+TOKEN(T_DOT_P2ALIGN, ".p2align", TAFMT_NONE)
+TOKEN(T_DOT_POPSECTION, ".popsection", TAFMT_NONE)
+TOKEN(T_DOT_PREVIOUS, ".previous", TAFMT_NONE)
+TOKEN(T_DOT_PROTECTED, ".protected", TAFMT_NONE)
+TOKEN(T_DOT_PUSHSECTION, ".pushsection", TAFMT_NONE)
+TOKEN(T_DOT_RODATA, ".rodata", TAFMT_NONE)
+TOKEN(T_DOT_SECTION, ".section", TAFMT_NONE)
+TOKEN(T_DOT_SET, ".set", TAFMT_NONE)
+TOKEN(T_DOT_SHORT, ".short", TAFMT_NONE)
+TOKEN(T_DOT_SIZE, ".size", TAFMT_NONE)
+TOKEN(T_DOT_SUBSECTION, ".subsection", TAFMT_NONE)
+TOKEN(T_DOT_SYMVER, ".symver", TAFMT_NONE)
+TOKEN(T_DOT_TYPE, ".type", TAFMT_NONE)
+TOKEN(T_DOT_WEAK, ".weak", TAFMT_NONE)
+TOKEN(T_DOT_WEAKREF, ".weakref", TAFMT_NONE)
+/* other symbols */
+TOKEN(T_REGISTER, "<register>", TAFMT_UINT)
+TOKEN(T_LOCAL_LABEL, "<local label>", TAFMT_UINT)	/* 1f, 2b */
+/* literals */
+TOKEN(T_STRING, "<string>", TAFMT_STRING)
+/* operators, separators */
+TOKEN(T_TILDE, "~", TAFMT_NONE)
+TOKEN(T_MUL, "*", TAFMT_NONE)
+TOKEN(T_DIV, "/", TAFMT_NONE)
+TOKEN(T_REM, "%", TAFMT_NONE)
+TOKEN(T_LSHIFT, "<<", TAFMT_NONE)
+TOKEN(T_RSHIFT, ">>", TAFMT_NONE)
+TOKEN(T_OR, "|", TAFMT_NONE)
+TOKEN(T_AND, "&", TAFMT_NONE)
+TOKEN(T_CARET, "^", TAFMT_NONE)
+TOKEN(T_BANG, "!", TAFMT_NONE)
+TOKEN(T_PLUS, "+", TAFMT_NONE)
+TOKEN(T_MINUS, "-", TAFMT_NONE)
+TOKEN(T_EQ, "=", TAFMT_NONE)
+TOKEN(T_EQEQ, "==", TAFMT_NONE)
+TOKEN(T_NEQ, "!=", TAFMT_NONE)
+TOKEN(T_LT, "<", TAFMT_NONE)
+TOKEN(T_GT, ">", TAFMT_NONE)
+TOKEN(T_GE, ">=", TAFMT_NONE)
+TOKEN(T_LE, "<=", TAFMT_NONE)
+TOKEN(T_ANDAND, "&&", TAFMT_NONE)
+TOKEN(T_OROR, "||", TAFMT_NONE)
+#endif
