@@ -16,6 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
+#include <string.h>
 #include "pdp10-opcodes.h"
 
 /*
@@ -980,6 +981,23 @@ const struct pdp10_instruction *pdp10_instruction_from_high13(unsigned int high1
     for (i = 0; i < pdp10_num_instructions; ++i)
 	if (pdp10_opcode_matches(high13, &pdp10_instruction[i]))
 	    return &pdp10_instruction[i];
+
+    return (void*)0;
+}
+
+const struct pdp10_instruction *pdp10_instruction_from_name(const char *name)
+{
+    unsigned int i;
+
+    for (i = 0; i < pdp10_num_aliases; ++i)
+	if (strcmp(name, pdp10_alias[i].name) == 0)
+	    return &pdp10_alias[i];
+
+    for (i = 0; i < pdp10_num_instructions; ++i)
+	if (strcmp(name, pdp10_instruction[i].name) == 0)
+	    return &pdp10_instruction[i];
+
+    /* XXX: extended opcodes? */
 
     return (void*)0;
 }

@@ -132,4 +132,6 @@ extern const unsigned int pdp10_num_extended_instructions;
 
 const struct pdp10_instruction *pdp10_instruction_from_high13(unsigned int high13);
 
+const struct pdp10_instruction *pdp10_instruction_from_name(const char *name);
+
 #endif /* PDP10_OPCODES_H */
