@@ -2,6 +2,8 @@
  * nm.c
  *
  * nm clone for PDP10 Elf36 files.
+ * This is essentially a copy of readelf.c, adjusted to
+ * process the symbol table differently.
  */
 #define _GNU_SOURCE	/* for getopt_long() */
 #include <errno.h>
