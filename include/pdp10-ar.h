@@ -18,7 +18,7 @@
 
 struct pdp10_ar_hdr {
     pdp10_uint9_t ar_name[16];	/* Member file name, sometimes / terminated.  */
-    pdp10_uint9_t ar_date[12];	/* File date, decminal seconds since Epoch.  */
+    pdp10_uint9_t ar_date[12];	/* File date, decimal seconds since Epoch.  */
     pdp10_uint9_t ar_uid[6];	/* User ID, in ASCII decimal.  */
     pdp10_uint9_t ar_gid[6];	/* Group ID, in ASCII decimal.  */
     pdp10_uint9_t ar_mode[8];	/* File mode, in ASCII octal.  */
@@ -38,7 +38,7 @@ struct pdp10_ar_hdr {
  * '!<arch>' followed by an ASCII linefeed character (see the constant "ARMAG" in the header
  * file <ar.h>).
  * Archive members follow the initial identifying byte sequence.  Each archive member is
- * prefixed by a fixed size heade describing the file attributes associated with the member.
+ * prefixed by a fixed size header describing the file attributes associated with the member.
  *
  * Archive Headers
  *
@@ -79,7 +79,7 @@ struct pdp10_ar_hdr {
  * An archive string table is used in the SVR4/GNU archive format to hold file names that
  * are too large to fit into the constraints of the ar_name field of the archive header.
  * An archive string table contains a sequence of file names.  Each file name in the archive
- * string table is terminated by the sequence 0x2F, 0x0A (the ARCII string "/\n").  No
+ * string table is terminated by the sequence 0x2F, 0x0A (the ASCII string "/\n").  No
  * padding is used to separate adjacent file names.
  *
  * Archive Symbol Tables
