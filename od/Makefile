@@ -11,4 +11,4 @@ od:	$(ODOBJS) $(LIBOBJS)
 od.o:	od.c ../include/pdp10-extint.h ../include/pdp10-inttypes.h ../include/pdp10-stdint.h ../include/pdp10-stdio.h
 
 clean:
-	rm -f $(ODOBJS) a.out core.*
+	rm -f $(ODOBJS) od a.out core.*
