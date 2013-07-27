@@ -29,7 +29,7 @@
  *   operation without an intervening call to pdp10_fseeko, unless the input operation
  *   encountered end-of-file.  (Same restriction as ANSI/ISO C.)
  *
- * - A pdp_fseeko repositions the octet file to the closest octet boundary at or before the
+ * - A pdp10_fseeko repositions the octet file to the closest octet boundary at or before the
  *   requested nonet boundary, and sets shiftreg_nr_bits to the bit difference, as a number
  *   between 0 and -7, inclusive.  A subsequent pdp10_fgetc or pdp10_fputc detects this
  *   special state and reinitializes shiftreg as appropriate for that I/O direction.
