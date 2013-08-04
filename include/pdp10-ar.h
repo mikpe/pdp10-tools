@@ -92,7 +92,7 @@ struct pdp10_ar_hdr {
  * SVR4/GNU
  *	In the SVR4/GNU archive format, the archive symbol table starts with a 4-byte binary
  *	values consisting of the number of entries contained in the archive symbol table.
- *	This could of entries is stored most significant byte first.  Next, there are 'count'
+ *	This count of entries is stored most significant byte first.  Next, there are 'count'
  *	4-byte numbers, each stored most significant byte first.  Each number is a binary
  *	offset to the archive header for the member in the archive file for the corresponding
  *	symbol table entry.  After the binary offset values, there are 'count' NUL-terminated
