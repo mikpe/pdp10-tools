@@ -14,6 +14,7 @@ struct pdp10_file;
 typedef struct pdp10_file PDP10_FILE;
 
 /* append modes are not permitted */
+PDP10_FILE *pdp10_fdopen(int fd, const char *mode);
 PDP10_FILE *pdp10_fopen(const char *path, const char *mode);
 
 int pdp10_fflush(PDP10_FILE *pdp10fp);

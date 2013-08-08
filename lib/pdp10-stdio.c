@@ -38,6 +38,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "pdp10-stdio.h"
 
 struct pdp10_file {
@@ -48,34 +49,53 @@ struct pdp10_file {
     int writing;		/* non-zero if shiftreg may contain pending output data */
 };
 
-PDP10_FILE *pdp10_fopen(const char *path, const char *mode)
+static PDP10_FILE *pdp10_fpopen(FILE *octet_fp, const char *mode)
 {
     PDP10_FILE *pdp10fp;
+    int oerrno;
 
-    /* "a+" won't work, and "a" is not yet implemented */
-    if (mode[0] == 'a') {
+    if (!octet_fp) {
+	return NULL;
+    } else if (mode[0] == 'a') {	/* "a+" won't work, and "a" is not yet implemented */
+	errno = EINVAL;
+    } else {
+	pdp10fp = malloc(sizeof *pdp10fp);
+	if (pdp10fp) {
+	    pdp10fp->octet_fp = octet_fp;
+	    pdp10fp->nonet_pos = 0;
+	    pdp10fp->shiftreg = 0;
+	    pdp10fp->shiftreg_nr_bits = 0;
+	    pdp10fp->writing = 0;
+	    return pdp10fp;
+	}
+    }
+    oerrno = errno;
+    fclose(octet_fp);
+    errno = oerrno;
+    return NULL;
+}
+
+PDP10_FILE *pdp10_fdopen(int fd, const char *mode)
+{
+    off_t octet_pos;
+
+    octet_pos = lseek(fd, 0, SEEK_CUR);
+    if (octet_pos == -1)
+	return NULL;
+
+    /* XXX: for simplicity we require that octet_pos is zero,
+       otherwise we could follow up with a pdp10_fseeko() call */
+    if (octet_pos != 0) {
 	errno = EINVAL;
 	return NULL;
     }
 
-    pdp10fp = malloc(sizeof *pdp10fp);
-    if (!pdp10fp)
-	return NULL;
+    return pdp10_fpopen(fdopen(fd, mode), mode);
+}
 
-    pdp10fp->octet_fp = fopen(path, mode);
-    if (!pdp10fp->octet_fp) {
-	int oerrno = errno;
-	free(pdp10fp);
-	errno = oerrno;
-	return NULL;
-    }
-
-    pdp10fp->nonet_pos = 0;
-    pdp10fp->shiftreg = 0;
-    pdp10fp->shiftreg_nr_bits = 0;
-    pdp10fp->writing = 0;
-
-    return pdp10fp;
+PDP10_FILE *pdp10_fopen(const char *path, const char *mode)
+{
+    return pdp10_fpopen(fopen(path, mode), mode);
 }
 
 static int pdp10_flush_buffered_write(PDP10_FILE *pdp10fp)
