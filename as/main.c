@@ -8,20 +8,23 @@
 #include "assemble.h"
 #include "input.h"
 #include "output.h"
+#include "tunit.h"
 
-#define VERSION "pdp10-tools as version 0.1, built " __DATE__ " " __TIME__ "\n"
+#define VERSION "pdp10-tools as version 0.2, built " __DATE__ " " __TIME__ "\n"
 
 int main(int argc, char **argv)
 {
     const char *outfile = "a.out";
-    struct iunit iunit;
-    struct aunit aunit;
+    struct tunit tunit;
 
     for (;;) {
 	int ch;
 
-	ch = getopt(argc, argv, "vo:");
+	ch = getopt(argc, argv, "vo:VQ:");
 	switch (ch) {
+	case 'Q':	/* SVR4 compat, ignored */
+	    continue;
+	case 'V':	/* SVR4 compat, alias for -v */
 	case 'v':
 	    printf(VERSION);
 	    continue;
@@ -37,16 +40,19 @@ int main(int argc, char **argv)
 	break;
     }
 
-    if (input(argv[0], &argv[optind], argc - optind, &iunit) < 0)
+    if (tunit_init(&tunit, argv[0]) < 0)
 	return 1;
 
-    if (assemble(argv[0], &iunit, &aunit) < 0)
+    if (input(&argv[optind], argc - optind, &tunit) < 0)
 	return 1;
 
-    /* XXX: iunit_fini(&iunit) */
-
-    if (output(argv[0], &aunit, outfile) < 0)
+    if (assemble(&tunit) < 0)
 	return 1;
+
+    if (output(&tunit, outfile) < 0)
+	return 1;
+
+    tunit_fini(&tunit);
 
     return 0;
 }

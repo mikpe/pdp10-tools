@@ -6,6 +6,7 @@
 #include <string.h>
 #include "pdp10-opcodes.h"
 #include "input.h"	/* for struct stmt */
+#include "parse.h"
 #include "scan.h"
 #include "token.h"
 
@@ -16,6 +17,23 @@ static int error(struct scan_state *scan_state, const char *msg, enum token toke
     token_print(stderr, token, token_attr);
     fprintf(stderr, "\n");
     return -1;
+}
+
+static int parse_dot_file(struct scan_state *scan_state, struct stmt *stmt)
+{
+    enum token token;
+    union token_attribute token_attr;
+
+    token = scan_token(scan_state, &token_attr);
+    if (token == T_STRING) {
+	stmt->u.string.text = token_attr.text;
+	token = scan_token(scan_state, &token_attr);
+	if (token == T_NEWLINE) {
+	    stmt->tag = S_DOT_FILE;
+	    return 1;
+	}
+    }
+    return error(scan_state, "junk after .file directive", token, &token_attr);
 }
 
 static int parse_dot_globl(struct scan_state *scan_state, struct stmt *stmt)
@@ -329,6 +347,8 @@ int parse_stmt(struct scan_state *scan_state, struct stmt *stmt)
 	    /*
 	     * directives
 	     */
+	case T_DOT_FILE:
+	    return parse_dot_file(scan_state, stmt);
 	case T_DOT_GLOBL:
 	    return parse_dot_globl(scan_state, stmt);
 	case T_DOT_TEXT:

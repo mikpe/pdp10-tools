@@ -9,6 +9,7 @@
 #include "pdp10-stdint.h"
 #include "pdp10-stdio.h"
 #include "assemble.h"
+#include "hashtab.h"
 #include "output.h"
 
 struct strtab_entry {
@@ -28,7 +29,7 @@ static void strtab_init(struct strtab *strtab)
     strtab->nrbytes = 0;
 }
 
-static pdp10_uint36_t strtab_enter(const char *progname, struct strtab *strtab, const char *name)
+static pdp10_uint36_t strtab_enter(struct tunit *tunit, struct strtab *strtab, const char *name)
 {
     struct strtab_entry *prev, *here;
     pdp10_uint36_t index;
@@ -47,7 +48,7 @@ static pdp10_uint36_t strtab_enter(const char *progname, struct strtab *strtab, 
     here = malloc(sizeof *here);
     if (!here) {
 	fprintf(stderr, "%s: failed to allocate %zu bytes for a strtab_entry: %s\n",
-		progname, sizeof *here, strerror(errno));
+		tunit->progname, sizeof *here, strerror(errno));
 	return 0;
     }
     here->next = NULL;
@@ -67,6 +68,14 @@ static pdp10_uint36_t strtab_enter(const char *progname, struct strtab *strtab, 
     return index;
 }
 
+static int output_padding(PDP10_FILE *pdp10fp, unsigned int nrbytes)
+{
+    for (; nrbytes; --nrbytes)
+	if (pdp10_elf36_write_uint9(pdp10fp, '\0') < 0)
+	    return -1;
+    return 0;
+}
+
 static int strtab_write(PDP10_FILE *pdp10fp, const struct strtab *strtab)
 {
     struct strtab_entry *here;
@@ -80,82 +89,208 @@ static int strtab_write(PDP10_FILE *pdp10fp, const struct strtab *strtab)
 	    if (pdp10_elf36_write_uint9(pdp10fp, here->string[i]) < 0)
 		return -1;
 
-    i = (4 - (strtab->nrbytes & 3)) & 3;
-    while (i != 0) {
-	if (pdp10_elf36_write_uint9(pdp10fp, '\0') < 0)
-	    return -1;
-	--i;
-    }
+    return 0;
+}
+
+struct context {
+    struct tunit *tunit;
+    Elf36_Word shnum;
+    Elf36_Word offset;
+    struct strtab shstrtab;
+    Elf36_Word symnum;
+    struct strtab symstrtab;
+    PDP10_FILE *pdp10fp;
+};
+
+static int append_section(struct context *context, struct section *section)
+{
+    if (section->dot == 0 || section->image_words == NULL)
+	return 0;
+
+    section->st_shndx = context->shnum;
+    ++context->shnum;
+
+    section->sh_offset = (context->offset + (section->sh_addralign - 1)) & ~(section->sh_addralign - 1);
+    context->offset = section->sh_offset + section->dot;
+
+    section->sh_name = strtab_enter(context->tunit, &context->shstrtab, section->name);
+    if (section->sh_name == 0)
+	return -1;
 
     return 0;
 }
 
-int output(const char *progname, struct aunit *aunit, const char *outfile)
+static int process_section(struct hashnode *hashnode, void *data)
 {
-    pdp10_uint36_t shnum, text_shndx, symtab_shndx, strtab_shndx, shstrtab_shndx;
-    pdp10_uint36_t text_shstrndx, symtab_shstrndx, strtab_shstrndx, shstrtab_shstrndx;
+    struct section *section = (struct section*)hashnode;
+    struct context *context = data;
+
+    return append_section(context, section);
+}
+
+static int output_section_prologue(struct context *context, struct section *section)
+{
+    if (section->st_shndx != context->shnum)
+	abort();
+    ++context->shnum;
+
+    if (section->sh_offset < context->offset)
+	abort();
+
+    if (output_padding(context->pdp10fp, section->sh_offset - context->offset) < 0)
+	return -1;
+
+    return 0;
+}
+
+static void output_section_epilogue(struct context *context, struct section *section)
+{
+    context->offset = section->sh_offset + section->dot;
+}
+
+static int output_section(struct hashnode *hashnode, void *data)
+{
+    struct section *section = (struct section*)hashnode;
+    struct context *context = data;
+    unsigned int i;
+
+    if (section->dot == 0 || section->image_words == NULL)
+	return 0;
+
+    if (output_section_prologue(context, section) < 0)
+	return -1;
+
+    /* XXX: ->image_words[] should be uint9_t[] not uint36_t[] */
+    for (i = 0; i < section->dot; i += 4)
+	if (pdp10_elf36_write_uint36(context->pdp10fp, section->image_words[i / 4]) < 0)
+	    return -1;
+
+    output_section_epilogue(context, section);
+
+    return 0;
+}
+
+static int output_section_header(struct context *context, const struct section *section)
+{
+    Elf36_Shdr shdr;
+
+    shdr.sh_name = section->sh_name;
+    shdr.sh_type = section->sh_type;
+    shdr.sh_flags = section->sh_flags;
+    shdr.sh_addr = 0;
+    shdr.sh_offset = section->sh_offset;
+    shdr.sh_size = section->dot;
+    shdr.sh_link = section->sh_link;
+    shdr.sh_info = 0; /* XXX: for symtab, LAST_LOCAL + 1 */
+    shdr.sh_addralign = section->sh_addralign;
+    shdr.sh_entsize = section->sh_entsize;
+
+    return pdp10_elf36_write_shdr(context->pdp10fp, &shdr);
+}
+
+static int output_shdr(struct hashnode *hashnode, void *data)
+{
+    struct section *section = (struct section*)hashnode;
+    struct context *context = data;
+
+
+    if (section->dot == 0 || section->image_words == NULL)
+	return 0;
+
+    return output_section_header(context, section);
+}
+
+static int output_strtab(struct context *context, struct section *section, struct strtab *strtab)
+{
+    if (output_section_prologue(context, section) < 0)
+	return -1;
+    if (strtab_write(context->pdp10fp, strtab) < 0)
+	return -1;
+    output_section_epilogue(context, section);
+    return 0;
+}
+
+static int process_symbol(struct hashnode *hashnode, void *data)
+{
+    struct symbol *symbol = (struct symbol*)hashnode;
+    struct context *context = data;
+
+    ++context->symnum;
+
+    symbol->st_name = strtab_enter(context->tunit, &context->symstrtab, symbol->name);
+    if (symbol->st_name == 0)
+	return -1;
+
+    return 0;
+}
+
+struct finalize_symbol_context {
     Elf36_Sym *symtab;
-    pdp10_uint36_t symnum;
-    struct strtab strtab, shstrtab;
-    struct aunit_symbol *asym;
-    pdp10_uint36_t i;
-    Elf36_Shdr *shtab;
-    pdp10_uint36_t offset;
+    unsigned int i;
+};
+
+static int finalize_symbol(struct hashnode *hashnode, void *data)
+{
+    struct symbol *symbol = (struct symbol*)hashnode;
+    struct finalize_symbol_context *fsctx = data;
+
+    fsctx->symtab[fsctx->i].st_name = symbol->st_name;
+    fsctx->symtab[fsctx->i].st_value = symbol->st_value;
+    fsctx->symtab[fsctx->i].st_size = symbol->st_size;
+    fsctx->symtab[fsctx->i].st_info = symbol->st_info;
+    fsctx->symtab[fsctx->i].st_other = STV_DEFAULT;
+    fsctx->symtab[fsctx->i].st_shndx = symbol->section->st_shndx;
+
+    ++fsctx->i;
+
+    return 0;
+}
+
+int output(struct tunit *tunit, const char *outfile)
+{
+    struct context context;
+    struct section section_symtab;
+    struct section section_strtab;
+    struct section section_shstrtab;
     Elf36_Ehdr ehdr;
-    PDP10_FILE *pdp10fp;
 
-    shnum = 0;
-    shstrtab_shndx = 0;
-    text_shndx = 0;
-    symtab_shndx = 0;
-    strtab_shndx = 0;
-    symtab = NULL;
-    symnum = 0;
-    strtab_init(&strtab);
-    strtab_init(&shstrtab);
-    shtab = NULL;
+    context.tunit = tunit;
+    context.shnum = 1;
+    context.offset = ELF36_EHDR_SIZEOF;
+    strtab_init(&context.shstrtab);
+    context.symnum = 0;
+    strtab_init(&context.symstrtab);
+    context.pdp10fp = NULL;
 
-    shnum = 1;	/* tentative */
+    if (hashtab_enumerate(&tunit->sections, process_section, &context) < 0)
+	return -1;
 
-    if (aunit->text_nr_words != 0) {
-	text_shstrndx = strtab_enter(progname, &shstrtab, ".text");
-	if (text_shstrndx == 0)
+    if (hashtab_enumerate(&tunit->symbols, process_symbol, &context) < 0)
+	return -1;
+
+    section_init(&section_symtab, ".symtab");
+    section_init(&section_strtab, ".strtab");
+    section_init(&section_shstrtab, ".shstrtab");
+
+    /* if we have symbols, synthesize .strtab and .symtab */
+    if (context.symnum) {
+	Elf36_Sym *symtab;
+	struct finalize_symbol_context fsctx;
+
+	section_strtab.sh_type = SHT_STRTAB;
+	section_strtab.sh_addralign = 1;
+	section_strtab.dot = context.symstrtab.nrbytes; /* XXX: fixme */
+	section_strtab.image_words = (pdp10_uint36_t*)4; /* XXX: fixme */
+
+	if (append_section(&context, &section_strtab) < 0)
 	    return -1;
-	text_shndx = shnum;
-	++shnum;
-    }
 
-    for (asym = aunit->symbols; asym; asym = asym->next)
-	++symnum;
-    if (symnum != 0) {
-	symtab_shstrndx = strtab_enter(progname, &shstrtab, ".symtab");
-	if (symtab_shstrndx == 0)
-	    return -1;
-	strtab_shstrndx = strtab_enter(progname, &shstrtab, ".strtab");
-	if (strtab_shstrndx == 0)
-	    return -1;
-	symtab_shndx = shnum;
-	strtab_shndx = shnum + 1;
-	shnum += 2;
-    }
+	++context.symnum;	/* for initial stub entry */
 
-    if (shnum == 1) {
-	shstrtab_shndx = 0;
-	shnum = 0;
-    } else {
-	shstrtab_shstrndx = strtab_enter(progname, &shstrtab, ".shstrtab");
-	if (shstrtab_shstrndx == 0)
-	    return -1;
-	shstrtab_shndx = shnum;
-	++shnum;
-    }
-
-    if (symnum) {
-	++symnum;	/* for initial stub entry */
-	symtab = malloc(symnum * sizeof(Elf36_Sym));
+	symtab = malloc(context.symnum * sizeof(Elf36_Sym));
 	if (!symtab) {
 	    fprintf(stderr, "%s: failed to allocate %zu bytes for Elf36 symbol table: %s\n",
-		    progname, symnum * sizeof(Elf36_Sym), strerror(errno));
+		    tunit->progname, context.symnum * sizeof(Elf36_Sym), strerror(errno));
 	    return -1;
 	}
 
@@ -166,101 +301,50 @@ int output(const char *progname, struct aunit *aunit, const char *outfile)
 	symtab[0].st_other = 0;
 	symtab[0].st_shndx = SHN_UNDEF;
 
-	for (i = 1, asym = aunit->symbols; asym; ++i, asym = asym->next) {
-	    symtab[i].st_name = strtab_enter(progname, &strtab, asym->name);
-	    if (symtab[i].st_name == 0)
-		return -1;
-	    symtab[i].st_value = asym->text_offset;
-	    symtab[i].st_size = 0;
-	    if (asym->is_global)
-		symtab[i].st_info = ELF36_ST_INFO(STB_GLOBAL, STT_NOTYPE);
-	    else
-		symtab[i].st_info = ELF36_ST_INFO(STB_LOCAL, STT_NOTYPE);
-	    symtab[i].st_other = STV_DEFAULT;
-	    symtab[i].st_shndx = text_shndx;
-	}
+	fsctx.symtab = symtab;
+	fsctx.i = 1;
+
+	if (hashtab_enumerate(&tunit->symbols, finalize_symbol, &fsctx) < 0)
+	    return -1;
+
+	section_symtab.sh_type = SHT_SYMTAB;
+	section_symtab.sh_entsize = ELF36_SYM_SIZEOF;
+	section_symtab.sh_link = section_strtab.st_shndx;
+	section_symtab.sh_addralign = 4;	/* XXX: PDP10-specific */
+	section_symtab.dot = context.symnum * ELF36_SYM_SIZEOF; /* XXX: fixme */
+	section_symtab.image_words = (pdp10_uint36_t*)symtab; /* XXX: fixme */
+
+	if (append_section(&context, &section_symtab) < 0)
+	    return -1;
     }
 
-    if (shnum) {
-	shtab = malloc(shnum * sizeof(Elf36_Shdr));
-	if (!shtab) {
-	    fprintf(stderr, "%s: failed to allocate %zu bytes for Elf36 section header table: %s\n",
-		    progname, shnum * sizeof(Elf36_Shdr), strerror(errno));
+    /* if we have sections, synthesize .shstrtab */
+    if (context.shnum > 1) {
+	section_shstrtab.sh_type = SHT_STRTAB;
+	section_shstrtab.sh_addralign = 1;
+
+	/* append_section() open-coded and rearranged to work for this special case */
+
+	section_shstrtab.sh_name = strtab_enter(tunit, &context.shstrtab, ".shstrtab");
+	if (section_shstrtab.sh_name == 0)
 	    return -1;
-	}
 
-	shtab[0].sh_name = 0;
-	shtab[0].sh_type = SHT_NULL;
-	shtab[0].sh_flags = 0;
-	shtab[0].sh_addr = 0;
-	shtab[0].sh_offset = 0;
-	shtab[0].sh_size = 0;
-	shtab[0].sh_link = 0;
-	shtab[0].sh_info = 0;
-	shtab[0].sh_addralign = 0;
-	shtab[0].sh_entsize = 0;
+	section_shstrtab.dot = context.shstrtab.nrbytes; /* XXX: fixme */
+	section_shstrtab.image_words = (pdp10_uint36_t*)4; /* XXX: fixme */
 
-	offset = ELF36_EHDR_SIZEOF;
+	section_shstrtab.st_shndx = context.shnum;
+	++context.shnum;
 
-	if (text_shndx) {
-	    shtab[text_shndx].sh_name = text_shstrndx;
-	    shtab[text_shndx].sh_type = SHT_PROGBITS;
-	    shtab[text_shndx].sh_flags = SHF_ALLOC | SHF_EXECINSTR;
-	    shtab[text_shndx].sh_addr = 0;
-	    shtab[text_shndx].sh_offset = offset;
-	    shtab[text_shndx].sh_size = aunit->text_nr_words * 4;
-	    shtab[text_shndx].sh_link = 0;
-	    shtab[text_shndx].sh_info = 0;
-	    shtab[text_shndx].sh_addralign = 4;
-	    shtab[text_shndx].sh_entsize = 0;
-	    offset += aunit->text_nr_words * 4;
-	}
+	section_shstrtab.sh_offset = context.offset;
+	context.offset = section_shstrtab.sh_offset + section_shstrtab.dot;
 
-	if (symtab_shndx) {
-	    shtab[symtab_shndx].sh_name = symtab_shstrndx;
-	    shtab[symtab_shndx].sh_type = SHT_SYMTAB;
-	    shtab[symtab_shndx].sh_flags = 0;
-	    shtab[symtab_shndx].sh_addr = 0;
-	    shtab[symtab_shndx].sh_offset = offset;
-	    shtab[symtab_shndx].sh_size = symnum * ELF36_SYM_SIZEOF;
-	    shtab[symtab_shndx].sh_link = strtab_shndx;
-	    shtab[symtab_shndx].sh_info = 0 + 1;	/* XXX: LAST_LOCAL + 1 */
-	    shtab[symtab_shndx].sh_addralign = 4;
-	    shtab[symtab_shndx].sh_entsize = ELF36_SYM_SIZEOF;
-	    offset += symnum * ELF36_SYM_SIZEOF;
-	}
+	context.offset = (context.offset + (4 - 1)) & ~(Elf36_Word)(4 - 1);
 
-	if (strtab_shndx) {
-	    shtab[strtab_shndx].sh_name = strtab_shstrndx;
-	    shtab[strtab_shndx].sh_type = SHT_STRTAB;
-	    shtab[strtab_shndx].sh_flags = 0;
-	    shtab[strtab_shndx].sh_addr = 0;
-	    shtab[strtab_shndx].sh_offset = offset;
-	    shtab[strtab_shndx].sh_size = strtab.nrbytes;
-	    shtab[strtab_shndx].sh_link = 0;
-	    shtab[strtab_shndx].sh_info = 0;
-	    shtab[strtab_shndx].sh_addralign = 1;
-	    shtab[strtab_shndx].sh_entsize = 0;
-	    offset += (strtab.nrbytes + 3) & ~3;
-	}
-
-	if (shstrtab_shndx) {
-	    shtab[shstrtab_shndx].sh_name = shstrtab_shstrndx;
-	    shtab[shstrtab_shndx].sh_type = SHT_STRTAB;
-	    shtab[shstrtab_shndx].sh_flags = 0;
-	    shtab[shstrtab_shndx].sh_addr = 0;
-	    shtab[shstrtab_shndx].sh_offset = offset;
-	    shtab[shstrtab_shndx].sh_size = shstrtab.nrbytes;
-	    shtab[shstrtab_shndx].sh_link = 0;
-	    shtab[shstrtab_shndx].sh_info = 0;
-	    shtab[shstrtab_shndx].sh_addralign = 1;
-	    shtab[shstrtab_shndx].sh_entsize = 0;
-	    offset += (shstrtab.nrbytes + 3) & ~3;
-	}
-
-	/* offset is now the offset of the section header table, which is last in the file */
-    } else
-	offset = 0;
+	/* context.offset is now the offset of the section header table, which is last in the file */
+    } else {
+	context.shnum = 0;
+	context.offset = 0;
+    }
 
     ehdr.e_wident[0] = (((pdp10_uint36_t)ELFMAG0 << 28)
 			| (ELFMAG1 << 20)
@@ -279,47 +363,81 @@ int output(const char *progname, struct aunit *aunit, const char *outfile)
     ehdr.e_version = EV_CURRENT;
     ehdr.e_entry = 0;
     ehdr.e_phoff = 0;
-    ehdr.e_shoff = offset;
+    ehdr.e_shoff = context.offset;
     ehdr.e_flags = 0;
     ehdr.e_ehsize = ELF36_EHDR_SIZEOF;
     ehdr.e_phentsize = 0;
     ehdr.e_phnum = 0;
     ehdr.e_shentsize = ELF36_SHDR_SIZEOF;
-    ehdr.e_shnum = shnum;
-    ehdr.e_shstrndx = shstrtab_shndx;
+    ehdr.e_shnum = context.shnum;
+    ehdr.e_shstrndx = section_shstrtab.st_shndx;
 
-    pdp10fp = pdp10_fopen(outfile, "wb");
-    if (!pdp10fp) {
-	fprintf(stderr, "%s: failed to open %s: %s\n", progname, outfile, strerror(errno));
+    context.pdp10fp = pdp10_fopen(outfile, "wb");
+    if (!context.pdp10fp) {
+	fprintf(stderr, "%s: failed to open %s: %s\n", tunit->progname, outfile, strerror(errno));
 	return -1;
     }
 
-    if (pdp10_elf36_write_ehdr(pdp10fp, &ehdr) < 0)
+    if (pdp10_elf36_write_ehdr(context.pdp10fp, &ehdr) < 0)
 	return -1;
 
-    if (text_shndx)
-	for (i = 0; i < aunit->text_nr_words; ++i)
-	    if (pdp10_elf36_write_uint36(pdp10fp, aunit->text_words[i]) < 0)
-		return -1;
+    context.shnum = 1;
+    context.offset = ELF36_EHDR_SIZEOF;
 
-    if (symtab_shndx)
-	for (i = 0; i < symnum; ++i)
-	    if (pdp10_elf36_write_sym(pdp10fp, &symtab[i]) < 0)
-		return -1;
+    if (hashtab_enumerate(&tunit->sections, output_section, &context) < 0)
+	return -1;
 
-    if (strtab_shndx)
-	if (strtab_write(pdp10fp, &strtab) < 0)
+    if (context.symnum) {
+	unsigned int i;
+
+	if (output_strtab(&context, &section_strtab, &context.symstrtab) < 0)
 	    return -1;
 
-    if (shstrtab_shndx)
-	if (strtab_write(pdp10fp, &shstrtab) < 0)
+	if (output_section_prologue(&context, &section_symtab) < 0)
 	    return -1;
 
-    if (shnum)
-	for (i = 0; i < shnum; ++i)
-	    if (pdp10_elf36_write_shdr(pdp10fp, &shtab[i]) < 0)
+	for (i = 0; i < context.symnum; ++i)
+	    if (pdp10_elf36_write_sym(context.pdp10fp,
+				      &((Elf36_Sym*)section_symtab.image_words)[i]) < 0)
 		return -1;
 
-    pdp10_fclose(pdp10fp);
+	output_section_epilogue(&context, &section_symtab);
+    }
+
+    if (context.shnum > 1) {
+	struct section section0;
+
+	if (output_strtab(&context, &section_shstrtab, &context.shstrtab) < 0)
+	    return -1;
+
+	if (ehdr.e_shoff < context.offset)
+	    abort();
+	if (output_padding(context.pdp10fp, ehdr.e_shoff - context.offset) < 0)
+	    return -1;
+	section0.name = "<fake section 0>";
+	section0.sh_name = 0;
+	section0.sh_type = SHT_NULL;
+	section0.sh_flags = 0;
+	section0.sh_offset = 0;
+	section0.dot = 0;
+	section0.sh_link = 0;
+	section0.sh_addralign = 0;
+	section0.sh_entsize = 0;
+	if (output_section_header(&context, &section0) < 0)
+	    return -1;
+	if (hashtab_enumerate(&tunit->sections, output_shdr, &context) < 0)
+	    return -1;
+	if (context.symnum) {
+	    if (output_section_header(&context, &section_strtab) < 0)
+		return -1;
+	    if (output_section_header(&context, &section_symtab) < 0)
+		return -1;
+	}
+	if (output_section_header(&context, &section_shstrtab) < 0)
+	    return -1;
+    }
+
+    pdp10_fclose(context.pdp10fp);
+
     return 0;
 }

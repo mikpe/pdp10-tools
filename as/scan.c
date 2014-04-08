@@ -2,6 +2,7 @@
  * scan.c
  */
 #include <errno.h>
+#include <limits.h>	/* XXX: for UCHAR_MAX, deleteme */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -69,7 +70,7 @@ static void badchar(struct scan_state *scan_state, int ch, const char *context)
 	buf[6] = '\0';
     }
 
-    fprintf(stderr, "%s: %s, line %u: invalid character %s%s\n",
+    fprintf(stderr, "%s: %s line %u: invalid character %s%s\n",
 	    scan_state->progname, scan_state->filename, scan_state->linenr, buf, context);
 }
 
@@ -82,6 +83,107 @@ static unsigned int get_chval(int ch)
     if ('a' <= ch && ch <= 'f')
 	return ch - ('a' - 10);
     return -1U;
+}
+
+static int is_octal_digit(int ch)
+{
+    return ch >= '0' && ch <= '7';
+}
+
+static int do_escape(struct scan_state *scan_state)
+{
+    int ch;
+
+    ch = scan_getchar();
+    switch (ch) {
+    case 'n':
+	return '\n';
+    case 't':
+	return '\t';
+    case 'f':
+	return '\f';
+    case 'r':
+	return '\r';
+    case 'b':
+	return '\b';
+    case '\\':
+    case '\'':
+    case '"':
+	return ch;
+    default:
+	if (is_octal_digit(ch)) {
+	    unsigned int val = ch - '0';
+	    ch = scan_getchar();
+	    if (is_octal_digit(ch)) {
+		val = val * 8 + (ch - '0');
+		ch = scan_getchar();
+		if (is_octal_digit(ch))
+		    val = val * 8 + (ch - '0');
+		else
+		    scan_ungetc(scan_state, ch);
+	    } else
+		scan_ungetc(scan_state, ch);
+	    /* XXX: this should be PDP10_UINT9_MAX, but our string elements are still char not pdp10_uint9_t for now */
+	    if (val > UCHAR_MAX) {
+		fprintf(stderr, "%s: %s line %u: out of range character escape value %#x\n",
+			scan_state->progname, scan_state->filename, scan_state->linenr, val);
+		return EOF;
+	    }
+	    return val & UCHAR_MAX;
+	}
+	break;
+    }
+    badchar(scan_state, ch, "in \\ character escape");
+    if (ch == '\n')
+	++scan_state->linenr;
+    return EOF;
+}
+
+/* XXX: string literals should be sequences of pdp10_uint9_t, not sequences of char */
+
+static enum token do_string(struct scan_state *scan_state, union token_attribute *token_attr)
+{
+    char charbuf[4096];	/* 4095 char + NUL, XXX: make it dynamic */
+    unsigned int len;
+    char *text;
+    int ch;
+
+    len = 0;
+    for (;;) {
+	ch = scan_getchar();
+	switch (ch) {
+	case '"':
+	    text = malloc(len + 1);
+	    if (!text) {
+		fprintf(stderr, "%s: %s line %u: malloc(%u) failed: %s\n",
+			scan_state->progname, scan_state->filename, scan_state->linenr, len + 1, strerror(errno));
+		return T_ERROR;
+	    }
+	    strcpy(text, charbuf);
+	    token_attr->text = text;
+	    return T_STRING;
+	case '\\':
+	    ch = do_escape(scan_state);
+	    if (ch == EOF)
+		return T_ERROR;
+	    break;
+	case EOF:
+	case '\n':
+	    badchar(scan_state, ch, "in string literal");
+	    if (ch == '\n')
+		++scan_state->linenr;
+	    return T_ERROR;
+	default:
+	    break;
+	}
+	if (len >= sizeof charbuf - 1) {
+	    fprintf(stderr, "%s: %s line %u: too long string literal\n",
+		    scan_state->progname, scan_state->filename, scan_state->linenr);
+	    return T_ERROR;
+	}
+	charbuf[len] = ch;
+	++len;
+    }
 }
 
 static int is_symbol_internal_char(int ch)
@@ -218,6 +320,8 @@ enum token scan_token(struct scan_state *scan_state, union token_attribute *toke
 	    return T_LPAREN;
 	case ')':
 	    return T_RPAREN;
+	case '"':
+	    return do_string(scan_state, token_attr);
 	case '.':
 	    /* Dot may start a floating point literal, but tests show that
 	       gcc always outputs floating point values as integer literals,

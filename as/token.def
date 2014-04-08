@@ -5,12 +5,14 @@
  */
 
 /* reserved symbols including directives; MUST come first and MUST be listed in increasing alphanumeric order */
+TOKEN(T_DOT_FILE, ".file", TAFMT_NONE)
 TOKEN(T_DOT_GLOBL, ".globl", TAFMT_NONE)
 TOKEN(T_DOT_TEXT, ".text", TAFMT_NONE)
 /* non-reserved symbols; T_SYMBOL MUST be the first token after the list of reserved symbols */
 TOKEN(T_SYMBOL, "<symbol>", TAFMT_SYMBOL)
 /* literals */
 TOKEN(T_UINTEGER, "<integer>", TAFMT_UINT)
+TOKEN(T_STRING, "<string>", TAFMT_STRING)
 /* special symbols including operators and separators */
 TOKEN(T_AT, "@", TAFMT_NONE)
 TOKEN(T_COLON, ":", TAFMT_NONE)
@@ -32,7 +34,6 @@ TOKEN(T_DOT_BSS, ".bss", TAFMT_NONE)
 TOKEN(T_DOT_BYTE, ".byte", TAFMT_NONE)
 TOKEN(T_DOT_COMM, ".comm", TAFMT_NONE)
 TOKEN(T_DOT_DATA, ".data", TAFMT_NONE)
-TOKEN(T_DOT_FILE, ".file", TAFMT_NONE)
 TOKEN(T_DOT_HIDDEN, ".hidden", TAFMT_NONE)
 TOKEN(T_DOT_IDENT, ".ident", TAFMT_NONE)
 TOKEN(T_DOT_INTERNAL, ".internal", TAFMT_NONE)
@@ -58,7 +59,6 @@ TOKEN(T_DOT_WEAKREF, ".weakref", TAFMT_NONE)
 TOKEN(T_REGISTER, "<register>", TAFMT_UINT)
 TOKEN(T_LOCAL_LABEL, "<local label>", TAFMT_UINT)	/* 1f, 2b */
 /* literals */
-TOKEN(T_STRING, "<string>", TAFMT_STRING)
 /* operators, separators */
 TOKEN(T_TILDE, "~", TAFMT_NONE)
 TOKEN(T_MUL, "*", TAFMT_NONE)
