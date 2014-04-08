@@ -168,18 +168,16 @@ static int write_elf(PDP10_FILE *pdp10fp)
 	},
     };
     static const Elf36_Ehdr ehdr = {
-	.e_wident[0] = (((pdp10_uint36_t)ELFMAG0 << 28)
-			| (ELFMAG1 << 20)
-			| (ELFMAG2 << 12)
-			| (ELFMAG3 << 4)
-			| (ELFCLASS36 >> 4)),
-	.e_wident[1] = (((pdp10_uint36_t)(ELFCLASS36 & 0x0f) << 32)
-			| (ELFDATA2MSB << 24)
-			| (EV_CURRENT << 16)
-			| (ELFOSABI_NONE << 8)
-			| 0),	/* EI_ABIVERSION */
-	.e_wident[2] = 0,
-	.e_wident[3] = 0,
+	.e_ident[EI_MAG0] = ELFMAG0,
+	.e_ident[EI_MAG1] = ELFMAG1,
+	.e_ident[EI_MAG2] = ELFMAG2,
+	.e_ident[EI_MAG3] = ELFMAG3,
+	.e_ident[EI_CLASS] = ELFCLASS36,
+	.e_ident[EI_DATA] = ELFDATA2MSB,
+	.e_ident[EI_VERSION] = EV_CURRENT,
+	.e_ident[EI_OSABI] = ELFOSABI_NONE,
+	.e_ident[EI_ABIVERSION] = 0,
+	.e_ident[EI_PAD ... EI_NIDENT - 1] = 0,
 	.e_type = ET_REL,
 	.e_machine = EM_PDP10,
 	.e_version = EV_CURRENT,

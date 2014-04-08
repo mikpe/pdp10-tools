@@ -81,28 +81,11 @@ static void params_file_fini(struct params *params)
     pdp10_fclose(params->pdp10fp);
 }
 
-static void ehdr_unpack_ident(const Elf36_Ehdr *ehdr, unsigned char *e_ident)
+static int check_ehdr(struct params *params)
 {
-    pdp10_uint36_t wident[4];
-    unsigned int w, i, b;
+    Elf36_Ehdr *ehdr = &params->ehdr;
+    Elf36_Uchar *e_ident = ehdr->e_ident;
 
-    for (w = 0; w < 4; ++w)
-	wident[w] = ehdr->e_wident[w];
-
-    for (i = 0; i < EI_NIDENT; ++i) {
-	for (w = 0; w < 4; ++w) {
-	    b = (wident[w] >> (36 - 8)) & 0xff;
-	    if (w == 0)
-		e_ident[i] = b;
-	    else
-		wident[w - 1] |= b;
-	    wident[w] = (wident[w] & ((1 << (36 - 8)) - 1)) << 8;
-	}
-    }
-}
-
-static int check_eident(struct params *params, const unsigned char *e_ident)
-{
     if (e_ident[EI_MAG0] != ELFMAG0
 	|| e_ident[EI_MAG1] != ELFMAG1
 	|| e_ident[EI_MAG2] != ELFMAG2
@@ -144,13 +127,6 @@ static int check_eident(struct params *params, const unsigned char *e_ident)
 		params->progname, params->filename, e_ident[EI_ABIVERSION]);
 	return -1;
     }
-
-    return 0;
-}
-
-static int check_ehdr(struct params *params)
-{
-    Elf36_Ehdr *ehdr = &params->ehdr;
 
     switch (ehdr->e_type) {
     case ET_REL:
@@ -593,16 +569,12 @@ static int print_symtab(struct params *params)
 
 static int nm1(struct params *params)
 {
-    unsigned char e_ident[EI_NIDENT];
-
     if (pdp10_elf36_read_ehdr(params->pdp10fp, &params->ehdr) < 0) {
 	fprintf(stderr, "%s: %s: failed to read ELF header: %s\n",
 		params->progname, params->filename, strerror(errno));
 	return -1;
     }
-    ehdr_unpack_ident(&params->ehdr, e_ident);
-    if (check_eident(params, e_ident) < 0
-	|| check_ehdr(params) < 0)
+    if (check_ehdr(params) < 0)
 	return -1;
 
     if (read_shtab(params) < 0) {
@@ -677,7 +649,7 @@ static const struct option long_options[] = {
      */
     { "no-demangle",		no_argument,		0,	LOPT_no_demangle },
     { "special-syms",		no_argument,		0,	LOPT_special_syms },
-    { "defined-only",		no_argument,		0, 	LOPT_defined_only },
+    { "defined-only",		no_argument,		0,	LOPT_defined_only },
     /*
      * Long aliases for short options:
      */

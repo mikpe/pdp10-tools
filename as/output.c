@@ -346,18 +346,21 @@ int output(struct tunit *tunit, const char *outfile)
 	context.offset = 0;
     }
 
-    ehdr.e_wident[0] = (((pdp10_uint36_t)ELFMAG0 << 28)
-			| (ELFMAG1 << 20)
-			| (ELFMAG2 << 12)
-			| (ELFMAG3 << 4)
-			| (ELFCLASS36 >> 4));
-    ehdr.e_wident[1] = (((pdp10_uint36_t)(ELFCLASS36 & 0x0f) << 32)
-			| (ELFDATA2MSB << 24)
-			| (EV_CURRENT << 16)
-			| (ELFOSABI_NONE << 8)
-			| 0);	/* EI_ABIVERSION */
-    ehdr.e_wident[2] = 0;
-    ehdr.e_wident[3] = 0;
+    ehdr.e_ident[EI_MAG0] = ELFMAG0;
+    ehdr.e_ident[EI_MAG1] = ELFMAG1;
+    ehdr.e_ident[EI_MAG2] = ELFMAG2;
+    ehdr.e_ident[EI_MAG3] = ELFMAG3;
+    ehdr.e_ident[EI_CLASS] = ELFCLASS36;
+    ehdr.e_ident[EI_DATA] = ELFDATA2MSB;
+    ehdr.e_ident[EI_VERSION] = EV_CURRENT;
+    ehdr.e_ident[EI_OSABI] = ELFOSABI_NONE;
+    ehdr.e_ident[EI_ABIVERSION] = 0;
+    {
+	int i;
+
+	for (i = EI_PAD; i < EI_NIDENT; ++i)
+	    ehdr.e_ident[i] = 0;
+    }
     ehdr.e_type = ET_REL;
     ehdr.e_machine = EM_PDP10;
     ehdr.e_version = EV_CURRENT;

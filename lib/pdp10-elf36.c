@@ -95,11 +95,13 @@ int pdp10_elf36_read_sint36(PDP10_FILE *pdp10fp, pdp10_int36_t *dst)
 
 int pdp10_elf36_write_ehdr(PDP10_FILE *pdp10fp, const Elf36_Ehdr *ehdr)
 {
-    if (pdp10_elf36_write_uint36(pdp10fp, ehdr->e_wident[0]) < 0
-	|| pdp10_elf36_write_uint36(pdp10fp, ehdr->e_wident[1]) < 0
-	|| pdp10_elf36_write_uint36(pdp10fp, ehdr->e_wident[2]) < 0
-	|| pdp10_elf36_write_uint36(pdp10fp, ehdr->e_wident[3]) < 0
-	|| pdp10_elf36_write_uint18(pdp10fp, ehdr->e_type) < 0
+    int i;
+
+    for (i = 0; i < EI_NIDENT; ++i)
+	if (pdp10_elf36_write_uint9(pdp10fp, ehdr->e_ident[i]) < 0)
+	    return -1;
+
+    if (pdp10_elf36_write_uint18(pdp10fp, ehdr->e_type) < 0
 	|| pdp10_elf36_write_uint18(pdp10fp, ehdr->e_machine) < 0
 	|| pdp10_elf36_write_uint36(pdp10fp, ehdr->e_version) < 0
 	|| pdp10_elf36_write_uint36(pdp10fp, ehdr->e_entry) < 0
@@ -118,11 +120,13 @@ int pdp10_elf36_write_ehdr(PDP10_FILE *pdp10fp, const Elf36_Ehdr *ehdr)
 
 int pdp10_elf36_read_ehdr(PDP10_FILE *pdp10fp, Elf36_Ehdr *ehdr)
 {
-    if (pdp10_elf36_read_uint36(pdp10fp, &ehdr->e_wident[0]) < 0
-	|| pdp10_elf36_read_uint36(pdp10fp, &ehdr->e_wident[1]) < 0
-	|| pdp10_elf36_read_uint36(pdp10fp, &ehdr->e_wident[2]) < 0
-	|| pdp10_elf36_read_uint36(pdp10fp, &ehdr->e_wident[3]) < 0
-	|| pdp10_elf36_read_uint18(pdp10fp, &ehdr->e_type) < 0
+    int i;
+
+    for (i = 0; i < EI_NIDENT; ++i)
+	if (pdp10_elf36_read_uint9(pdp10fp, &ehdr->e_ident[i]) < 0)
+	    return -1;
+
+    if (pdp10_elf36_read_uint18(pdp10fp, &ehdr->e_type) < 0
 	|| pdp10_elf36_read_uint18(pdp10fp, &ehdr->e_machine) < 0
 	|| pdp10_elf36_read_uint36(pdp10fp, &ehdr->e_version) < 0
 	|| pdp10_elf36_read_uint36(pdp10fp, &ehdr->e_entry) < 0

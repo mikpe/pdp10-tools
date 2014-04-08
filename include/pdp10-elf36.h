@@ -22,13 +22,7 @@ typedef pdp10_uint36_t	Elf36_Word;
 #define EI_NIDENT	16
 
 typedef struct {
-    /* In the standard 32 and 64 bit ELF specifications the ELF header starts
-     * with a 16-octet e_ident[] array, of which the first 9 octets are defined,
-     * and the last 7 octets should be zero.  To enable a binary-compatible
-     * e_ident with Elf36, we pack the first 9 octets in two 36-bit words, and
-     * add two words of padding, making e_ident 16 bits larger in Elf36.
-     */
-    Elf36_Word		e_wident[4];		/* e_ident[] indices 0 to 4.5 */
+    Elf36_Uchar		e_ident[EI_NIDENT];	/* ELF magic */
     Elf36_Half		e_type;			/* Identifies object file type */
     Elf36_Half		e_machine;		/* Specifies required architecture */
     Elf36_Word		e_version;		/* Identifies object file version */
