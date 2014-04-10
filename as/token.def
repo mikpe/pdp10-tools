@@ -8,6 +8,7 @@
 TOKEN(T_DOT_FILE, ".file", TAFMT_NONE)
 TOKEN(T_DOT_GLOBL, ".globl", TAFMT_NONE)
 TOKEN(T_DOT_TEXT, ".text", TAFMT_NONE)
+TOKEN(T_DOT_TYPE, ".type", TAFMT_NONE)
 /* non-reserved symbols; T_SYMBOL MUST be the first token after the list of reserved symbols */
 TOKEN(T_SYMBOL, "<symbol>", TAFMT_SYMBOL)
 /* literals */
@@ -52,7 +53,6 @@ TOKEN(T_DOT_SHORT, ".short", TAFMT_NONE)
 TOKEN(T_DOT_SIZE, ".size", TAFMT_NONE)
 TOKEN(T_DOT_SUBSECTION, ".subsection", TAFMT_NONE)
 TOKEN(T_DOT_SYMVER, ".symver", TAFMT_NONE)
-TOKEN(T_DOT_TYPE, ".type", TAFMT_NONE)
 TOKEN(T_DOT_WEAK, ".weak", TAFMT_NONE)
 TOKEN(T_DOT_WEAKREF, ".weakref", TAFMT_NONE)
 /* other symbols */

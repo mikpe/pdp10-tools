@@ -66,6 +66,33 @@ static int parse_dot_text(struct scan_state *scan_state, struct stmt *stmt)
     return error(scan_state, "junk after .text directive", token, &token_attr);
 }
 
+static int parse_dot_type(struct scan_state *scan_state, struct stmt *stmt)
+{
+    enum token token;
+    union token_attribute token_attr;
+
+    token = scan_token(scan_state, &token_attr);
+    if (token == T_SYMBOL) {
+	stmt->u.symbol.name = token_attr.text;
+	token = scan_token(scan_state, &token_attr);
+	if (token == T_COMMA) {
+	    token = scan_token(scan_state, &token_attr);
+	    if (token == T_AT) {
+		token = scan_token(scan_state, &token_attr);
+		if (token == T_SYMBOL
+		    && strcmp(token_attr.text, "function") == 0) {
+		    token = scan_token(scan_state, &token_attr);
+		    if (token == T_NEWLINE) {
+			stmt->tag = S_DOT_TYPE_FUNCTION;
+			return 1;
+		    }
+		}
+	    }
+	}
+    }
+    return error(scan_state, "junk after .type directive", token, &token_attr);
+}
+
 /*
  * Recognize:
  *
@@ -353,6 +380,8 @@ int parse_stmt(struct scan_state *scan_state, struct stmt *stmt)
 	    return parse_dot_globl(scan_state, stmt);
 	case T_DOT_TEXT:
 	    return parse_dot_text(scan_state, stmt);
+	case T_DOT_TYPE:
+	    return parse_dot_type(scan_state, stmt);
 	    /*
 	     * other symbols
 	     */

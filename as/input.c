@@ -90,6 +90,25 @@ static int do_dot_text(struct scan_state *scan_state, struct tunit *tunit, struc
     return 0;
 }
 
+static int do_dot_type_function(struct scan_state *scan_state, struct tunit *tunit, struct stmt *stmt)
+{
+    struct symbol *symbol;
+
+    symbol = tunit_symbol_enter(tunit, stmt->u.symbol.name);
+    if (!symbol)
+	return -1;
+
+    if (ELF_ST_TYPE(symbol->st_info) != STT_NOTYPE) {
+	fprintf(stderr, "%s: %s line %u: symbol %s already has non-zero type %u\n",
+		scan_state->progname, scan_state->filename, scan_state->linenr, stmt->u.symbol.name, ELF_ST_TYPE(symbol->st_info));
+	return -1;
+    }
+
+    symbol->st_info = ELF_ST_INFO(ELF_ST_BIND(symbol->st_info), STT_FUNC);
+
+    return 0;
+}
+
 static int do_label(struct scan_state *scan_state, struct tunit *tunit, struct stmt *stmt)
 {
     struct symbol *symbol;
@@ -135,6 +154,8 @@ static int interpret(struct scan_state *scan_state, struct tunit *tunit, struct 
 	return do_dot_globl(scan_state, tunit, stmt);
     case S_DOT_TEXT:
 	return do_dot_text(scan_state, tunit, stmt);
+    case S_DOT_TYPE_FUNCTION:
+	return do_dot_type_function(scan_state, tunit, stmt);
     case S_LABEL:
 	return do_label(scan_state, tunit, stmt);
     case S_INSN:
