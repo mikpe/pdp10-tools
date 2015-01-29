@@ -220,6 +220,9 @@ static enum token do_symbol(struct scan_state *scan_state, union token_attribute
     if (charbuf[0] == '.') {
 	enum token low, high;
 
+	if (charbuf[1] == '\0')
+	    return T_DOT;
+
 	/* see token.def, reserved symbols occupy tokens [0,T_SYMBOL[ */
 	low = 0;
 	high = T_SYMBOL;
@@ -322,6 +325,8 @@ enum token scan_token(struct scan_state *scan_state, union token_attribute *toke
 	    return T_RPAREN;
 	case '"':
 	    return do_string(scan_state, token_attr);
+	case '-':
+	    return T_MINUS;
 	case '.':
 	    /* Dot may start a floating point literal, but tests show that
 	       gcc always outputs floating point values as integer literals,

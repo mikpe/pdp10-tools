@@ -17,6 +17,7 @@ enum stmt_tag {
     /* directives */
     S_DOT_FILE,
     S_DOT_GLOBL,
+    S_DOT_SIZE,
     S_DOT_TEXT,
     S_DOT_TYPE_FUNCTION,
     /* non-directives */
@@ -31,7 +32,7 @@ struct stmt {
 	struct {	/* S_DOT_FILE */
 	    const char *text;	/* XXX: should be pdp10_uint9_t* */
 	} string;
-	struct {	/* S_DOT_GLOBL, S_LABEL, S_DOT_TYPE_FUNCTION */
+	struct {	/* S_DOT_GLOBL, S_LABEL, S_DOT_SIZE, S_DOT_TYPE_FUNCTION */
 	    const char *name;
 	} symbol;
 	struct {	/* S_INSN */

@@ -71,6 +71,36 @@ static int do_dot_globl(struct scan_state *scan_state, struct tunit *tunit, stru
     return 0;
 }
 
+static int do_dot_size(struct scan_state *scan_state, struct tunit *tunit, struct stmt *stmt)
+{
+    struct symbol *symbol;
+
+    symbol = tunit_symbol_enter(tunit, stmt->u.symbol.name);
+    if (!symbol)
+	return -1;
+
+    if (!symbol->section
+	|| !symbol->defined) {
+	fprintf(stderr, "%s: %s line %u: symbol %s undefined\n",
+		scan_state->progname, scan_state->filename, scan_state->linenr, stmt->u.symbol.name);
+	return -1;
+    }
+    if (symbol->st_size) {
+	fprintf(stderr, "%s: %s line %u: size of symbol %s already defined\n",
+		scan_state->progname, scan_state->filename, scan_state->linenr, stmt->u.symbol.name);
+	return -1;
+    }
+    if (symbol->section != tunit->cursect) {
+	fprintf(stderr, "%s: %s line %u: symbol %s is not defined in current section\n",
+		scan_state->progname, scan_state->filename, scan_state->linenr, stmt->u.symbol.name);
+	return -1;
+    }
+
+    symbol->st_size = tunit->cursect->dot - symbol->st_value;
+
+    return 0;
+}
+
 static int do_dot_text(struct scan_state *scan_state, struct tunit *tunit, struct stmt *stmt)
 {
     struct section *section;
@@ -152,6 +182,8 @@ static int interpret(struct scan_state *scan_state, struct tunit *tunit, struct 
 	return do_dot_file(scan_state, tunit, stmt);
     case S_DOT_GLOBL:
 	return do_dot_globl(scan_state, tunit, stmt);
+    case S_DOT_SIZE:
+	return do_dot_size(scan_state, tunit, stmt);
     case S_DOT_TEXT:
 	return do_dot_text(scan_state, tunit, stmt);
     case S_DOT_TYPE_FUNCTION:

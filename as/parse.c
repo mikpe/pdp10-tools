@@ -53,6 +53,37 @@ static int parse_dot_globl(struct scan_state *scan_state, struct stmt *stmt)
     return error(scan_state, "junk after .globl directive", token, &token_attr);
 }
 
+/* for now, accepts: .size <sym>,.-<sym> */
+static int parse_dot_size(struct scan_state *scan_state, struct stmt *stmt)
+{
+    enum token token;
+    union token_attribute token_attr;
+
+    token = scan_token(scan_state, &token_attr);
+    if (token == T_SYMBOL) {
+	stmt->u.symbol.name = token_attr.text;
+	token = scan_token(scan_state, &token_attr);
+	if (token == T_COMMA) {
+	    token = scan_token(scan_state, &token_attr);
+	    if (token == T_DOT) {
+		token = scan_token(scan_state, &token_attr);
+		if (token == T_MINUS) {
+		    token = scan_token(scan_state, &token_attr);
+		    if (token == T_SYMBOL
+			&& strcmp(token_attr.text, stmt->u.symbol.name) == 0) {
+			token = scan_token(scan_state, &token_attr);
+			if (token == T_NEWLINE) {
+			    stmt->tag = S_DOT_SIZE;
+			    return 1;
+			}
+		    }
+		}
+	    }
+	}
+    }
+    return error(scan_state, "junk after .size directive", token, &token_attr);
+}
+
 static int parse_dot_text(struct scan_state *scan_state, struct stmt *stmt)
 {
     enum token token;
@@ -378,6 +409,8 @@ int parse_stmt(struct scan_state *scan_state, struct stmt *stmt)
 	    return parse_dot_file(scan_state, stmt);
 	case T_DOT_GLOBL:
 	    return parse_dot_globl(scan_state, stmt);
+	case T_DOT_SIZE:
+	    return parse_dot_size(scan_state, stmt);
 	case T_DOT_TEXT:
 	    return parse_dot_text(scan_state, stmt);
 	case T_DOT_TYPE:
