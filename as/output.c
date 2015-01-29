@@ -233,13 +233,19 @@ static int finalize_symbol(struct hashnode *hashnode, void *data)
 {
     struct symbol *symbol = (struct symbol*)hashnode;
     struct finalize_symbol_context *fsctx = data;
+    Elf36_Word st_shndx;
 
     fsctx->symtab[fsctx->i].st_name = symbol->st_name;
     fsctx->symtab[fsctx->i].st_value = symbol->st_value;
     fsctx->symtab[fsctx->i].st_size = symbol->st_size;
     fsctx->symtab[fsctx->i].st_info = symbol->st_info;
     fsctx->symtab[fsctx->i].st_other = STV_DEFAULT;
-    fsctx->symtab[fsctx->i].st_shndx = symbol->section->st_shndx;
+
+    if (symbol->section)
+	st_shndx = symbol->section->st_shndx;
+    else
+	st_shndx = SHN_ABS;
+    fsctx->symtab[fsctx->i].st_shndx = st_shndx;
 
     ++fsctx->i;
 
