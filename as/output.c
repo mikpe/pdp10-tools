@@ -397,6 +397,7 @@ int output(struct tunit *tunit, const char *outfile)
 	return -1;
 
     if (context.symnum) {
+	Elf36_Sym *symtab;
 	unsigned int i;
 
 	if (output_strtab(&context, &section_strtab, &context.symstrtab) < 0)
@@ -405,9 +406,10 @@ int output(struct tunit *tunit, const char *outfile)
 	if (output_section_prologue(&context, &section_symtab) < 0)
 	    return -1;
 
+	symtab = (Elf36_Sym*)section_symtab.image_words;
+
 	for (i = 0; i < context.symnum; ++i)
-	    if (pdp10_elf36_write_sym(context.pdp10fp,
-				      &((Elf36_Sym*)section_symtab.image_words)[i]) < 0)
+	    if (pdp10_elf36_write_sym(context.pdp10fp, &symtab[i]) < 0)
 		return -1;
 
 	output_section_epilogue(&context, &section_symtab);
