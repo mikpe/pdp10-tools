@@ -49,7 +49,7 @@ void section_init(struct section *section, const char *name)
     section->head = NULL;
     section->tailptr = &section->head;
     section->dot = 0;
-    section->image_words = NULL;
+    section->image = NULL;
     section->st_shndx = 0;
     section->sh_name = 0;
     section->sh_type = SHT_NULL;

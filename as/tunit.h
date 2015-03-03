@@ -50,7 +50,7 @@ struct section {
     const char *name;
     struct stmt *head, **tailptr;
     unsigned long dot;
-    pdp10_uint36_t *image_words;	/* assigned during assembly */
+    pdp10_uint9_t *image;		/* assigned during assembly */
     Elf36_Word st_shndx;		/* assigned during output */
     Elf36_Word sh_name;			/* assigned during output */
     Elf36_Word sh_type;
