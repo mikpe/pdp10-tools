@@ -104,7 +104,7 @@ struct context {
 
 static int append_section(struct context *context, struct section *section)
 {
-    if (section->dot == 0 || section->image == NULL)
+    if (section->dot == 0)
 	return 0;
 
     section->st_shndx = context->shnum;
@@ -192,8 +192,7 @@ static int output_shdr(struct hashnode *hashnode, void *data)
     struct section *section = (struct section*)hashnode;
     struct context *context = data;
 
-
-    if (section->dot == 0 || section->image == NULL)
+    if (section->dot == 0)
 	return 0;
 
     return output_section_header(context, section);
@@ -254,6 +253,7 @@ static int finalize_symbol(struct hashnode *hashnode, void *data)
 int output(struct tunit *tunit, const char *outfile)
 {
     struct context context;
+    Elf36_Sym *symtab;
     struct section section_symtab;
     struct section section_strtab;
     struct section section_shstrtab;
@@ -273,19 +273,18 @@ int output(struct tunit *tunit, const char *outfile)
     if (hashtab_enumerate(&tunit->symbols, process_symbol, &context) < 0)
 	return -1;
 
+    symtab = NULL;
     section_init(&section_symtab, ".symtab");
     section_init(&section_strtab, ".strtab");
     section_init(&section_shstrtab, ".shstrtab");
 
     /* if we have symbols, synthesize .strtab and .symtab */
     if (context.symnum) {
-	Elf36_Sym *symtab;
 	struct finalize_symbol_context fsctx;
 
 	section_strtab.sh_type = SHT_STRTAB;
 	section_strtab.sh_addralign = 1;
-	section_strtab.dot = context.symstrtab.nrbytes; /* XXX: fixme */
-	section_strtab.image = (pdp10_uint9_t*)4; /* XXX: fixme */
+	section_strtab.dot = context.symstrtab.nrbytes;
 
 	if (append_section(&context, &section_strtab) < 0)
 	    return -1;
@@ -316,8 +315,7 @@ int output(struct tunit *tunit, const char *outfile)
 	section_symtab.sh_entsize = ELF36_SYM_SIZEOF;
 	section_symtab.sh_link = section_strtab.st_shndx;
 	section_symtab.sh_addralign = 4;	/* XXX: PDP10-specific */
-	section_symtab.dot = context.symnum * ELF36_SYM_SIZEOF; /* XXX: fixme */
-	section_symtab.image = (pdp10_uint9_t*)symtab; /* XXX: fixme */
+	section_symtab.dot = context.symnum * ELF36_SYM_SIZEOF;
 
 	if (append_section(&context, &section_symtab) < 0)
 	    return -1;
@@ -334,8 +332,7 @@ int output(struct tunit *tunit, const char *outfile)
 	if (section_shstrtab.sh_name == 0)
 	    return -1;
 
-	section_shstrtab.dot = context.shstrtab.nrbytes; /* XXX: fixme */
-	section_shstrtab.image = (pdp10_uint9_t*)4; /* XXX: fixme */
+	section_shstrtab.dot = context.shstrtab.nrbytes;
 
 	section_shstrtab.st_shndx = context.shnum;
 	++context.shnum;
@@ -396,7 +393,6 @@ int output(struct tunit *tunit, const char *outfile)
 	return -1;
 
     if (context.symnum) {
-	Elf36_Sym *symtab;
 	unsigned int i;
 
 	if (output_strtab(&context, &section_strtab, &context.symstrtab) < 0)
@@ -404,8 +400,6 @@ int output(struct tunit *tunit, const char *outfile)
 
 	if (output_section_prologue(&context, &section_symtab) < 0)
 	    return -1;
-
-	symtab = (Elf36_Sym*)section_symtab.image;
 
 	for (i = 0; i < context.symnum; ++i)
 	    if (pdp10_elf36_write_sym(context.pdp10fp, &symtab[i]) < 0)
