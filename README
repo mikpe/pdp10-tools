@@ -1,0 +1,42 @@
+# README for pdp10-tools
+# Copyright (C) 2013-2015  Mikael Pettersson <mikpelinux@gmail.com>
+#
+# This file is part of pdp10-tools.
+#
+# pdp10-tools is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pdp10-tools is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
+
+
+PDP10-TOOLS
+===========
+
+pdp10-tools is a collection of utilities for manipulating pdp10-elf
+binary files.
+
+ar:		an 'ar' clone for pdp10-elf object files
+as:		a pdp10 assembler producing pdp10-elf object files
+		intended primarily as an assembler for GCC output;
+		the syntax is modelled after normal UNIX/ELF syntax
+		rather than classic TOPS-10, TOPS-20, or ITS syntax
+nm:		an 'nm' clone for pdp10-elf object files
+od:		an 'od' clone for binary files with 9-bit bytes (nonets)
+readelf:	a 'readelf' clone for pdp10-elf object files,
+		extended with an option to disassemble .text sections
+8to9:		a utility to convert octet files to nonet files
+
+pdp10-stdio:	a library for reading and writing nonet-based data
+		on an octet-based host
+pdp10-elf36:	a library for reading and writing Elf36 object files
+
+
+See the TODO file for known omissions and planned improvements.

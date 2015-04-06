@@ -1,3 +1,22 @@
+# TODO notes for pdp10-tools
+# Copyright (C) 2013-2015  Mikael Pettersson <mikpelinux@gmail.com>
+#
+# This file is part of pdp10-tools.
+#
+# pdp10-tools is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pdp10-tools is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
+
+
 Elf36 Specification:
 
 - Do we want to adjust SHN_LORESERVE up to SHN_HIRESERVE, including SHN_XINDEX, to
@@ -20,7 +39,12 @@ Tools:
 - ld: implement it
 - readelf: add support for relocs
 - readelf: add support for program headers
+- pdp10-opcodes.{h,c}: rewrite completely
 - as:
+  * add line-comment character, e.g. '#'
+    + use it in doc/MUUO.txt
+    + use it in as/tests/*.s
+    + add license boilerplate to the above files
   * support .ident:
     + change strtab to have a finalizer which returns an image array,
     + use standard output_section for strtab
