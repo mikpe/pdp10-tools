@@ -293,7 +293,7 @@ static int parse_insn_address_after_at(struct scan_state *scan_state, struct stm
     }
 }
 
-static int parse_insn_address(struct scan_state *scan_state, struct stmt *stmt, const struct pdp10_instruction *insndesc)
+static int parse_insn_address(struct scan_state *scan_state, struct stmt *stmt, const struct pdp10_insn *insndesc)
 {
     enum token token;
     union token_attribute token_attr;
@@ -302,7 +302,7 @@ static int parse_insn_address(struct scan_state *scan_state, struct stmt *stmt, 
     if (token == T_NEWLINE)
 	return 1;
 
-    if (insndesc->type & PDP10_E_UNUSED)
+    if (insndesc->fmt & PDP10_INSN_E_UNUSED)
 	return error(scan_state, "<address> not allowed in this instruction", token, &token_attr);
 
     switch (token) {
@@ -322,7 +322,7 @@ static int parse_insn_address(struct scan_state *scan_state, struct stmt *stmt, 
 }
 
 static int parse_insn_after_symbol_uinteger(
-    struct scan_state *scan_state, struct stmt *stmt, const struct pdp10_instruction *insndesc, union token_attribute *uinteger_attr)
+    struct scan_state *scan_state, struct stmt *stmt, const struct pdp10_insn *insndesc, union token_attribute *uinteger_attr)
 {
     enum token token;
     union token_attribute token_attr;
@@ -331,13 +331,14 @@ static int parse_insn_after_symbol_uinteger(
     if (token == T_COMMA) {	/* the <uinteger> is the <accumulator> */
 	if (uinteger_attr->uint > 0xF)
 	    return error(scan_state, "invalid <accumulator>", T_UINTEGER, uinteger_attr);
-	if (insndesc->type & (PDP10_A_OPCODE | PDP10_A_UNUSED))
+	if ((insndesc->fmt & 3) == PDP10_INSN_A_OPCODE
+	    || (insndesc->fmt & 3) == PDP10_INSN_A_UNUSED)
 	    return error(scan_state, "<accumulator> not allowed in this instruction", T_UINTEGER, uinteger_attr);
 	stmt->u.insn.accumulator = uinteger_attr->uint;
 	return parse_insn_address(scan_state, stmt, insndesc);
     }
 
-    if (insndesc->type & PDP10_E_UNUSED)
+    if (insndesc->fmt & PDP10_INSN_E_UNUSED)
 	return error(scan_state, "<address> not allowed in this instruction", token, &token_attr);
 
     switch (token) {
@@ -360,7 +361,8 @@ static int parse_after_symbol(struct scan_state *scan_state, struct stmt *stmt, 
 {
     enum token token;
     union token_attribute token_attr;
-    const struct pdp10_instruction *insndesc;
+    const struct pdp10_insn *insndesc;
+    const pdp10_cpu_models_t models = PDP10_KL10_271up; /* XXX: make it user-selectable */
 
     token = scan_token(scan_state, &token_attr);
     if (token == T_COLON) {
@@ -369,7 +371,7 @@ static int parse_after_symbol(struct scan_state *scan_state, struct stmt *stmt, 
 	return 1;
     }
 
-    insndesc = pdp10_instruction_from_name(symbol_attr->text);
+    insndesc = pdp10_insn_from_name(models, symbol_attr->text);
     if (!insndesc)
 	return error(scan_state, "invalid instruction name", T_SYMBOL, symbol_attr);
 
@@ -378,12 +380,13 @@ static int parse_after_symbol(struct scan_state *scan_state, struct stmt *stmt, 
     stmt->u.insn.address = 0;
     stmt->u.insn.indexreg = 0;
 
-    if (insndesc->type & PDP10_A_OPCODE) {
-	/* XXX: this is too intimate with quirky ->opcode representation */
-	stmt->u.insn.opcode = (insndesc->opcode >> 6) & 0x1FF;
-	stmt->u.insn.accumulator = (insndesc->opcode >> 2) & 0xF;
+    /* XXX: this is too intimate with quirky ->high13 representation */
+    /* XXX: what about IO insns? should we just store high13 as-is? */
+    if ((insndesc->fmt & 3) == PDP10_INSN_A_OPCODE) {
+	stmt->u.insn.opcode = (insndesc->high13 >> 4) & 0x1FF;
+	stmt->u.insn.accumulator = insndesc->high13 & 0xF;
     } else {
-	stmt->u.insn.opcode = insndesc->opcode & 0x1FF;
+	stmt->u.insn.opcode = (insndesc->high13 >> 4) & 0x1FF;
 	stmt->u.insn.accumulator = 0;
     }
 
@@ -396,7 +399,7 @@ static int parse_after_symbol(struct scan_state *scan_state, struct stmt *stmt, 
 	break;
     }
 
-    if (insndesc->type & PDP10_E_UNUSED)
+    if (insndesc->fmt & PDP10_INSN_E_UNUSED)
 	return error(scan_state, "<address> not allowed in this instruction", token, &token_attr);
 
     switch (token) {

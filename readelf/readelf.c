@@ -749,7 +749,8 @@ static int disassemble_section(struct params *params, pdp10_uint36_t shndx)
     pdp10_uint36_t labelnr;
     pdp10_uint36_t i;
     pdp10_uint36_t insnword;
-    const struct pdp10_instruction *insndesc;
+    const struct pdp10_insn *insndesc;
+    const pdp10_cpu_models_t models = PDP10_KL10_271up; /* XXX: make it user-selectable */
 
     shdr = &params->shtab[shndx];
     if (shdr->sh_type != SHT_PROGBITS)
@@ -789,16 +790,16 @@ static int disassemble_section(struct params *params, pdp10_uint36_t shndx)
 	}
 
 	printf(" 0x%" PDP10_PRIx36 ":\t0%" PDP10_PRIo36 "\t", i * 4, insnword);
-	insndesc = pdp10_instruction_from_high13(insnword >> (36 - 13));
+	insndesc = pdp10_insn_from_high13(models, insnword >> (36 - 13), 0);
 	if (!insndesc) {
 	    printf("(bad)\n");
 	    continue;
 	}
 	printf("%s ", insndesc->name);
 
-	if (!((insndesc->type & PDP10_A_OPCODE)
+	if (!(((insndesc->fmt & 3) == PDP10_INSN_A_OPCODE)
 	      || (((insnword >> 23) & 0xF) == 0
-		  && (insndesc->type & PDP10_A_UNUSED))))
+		  && ((insndesc->fmt & 3) == PDP10_INSN_A_UNUSED))))
 	    printf("%u,", (unsigned int)(insnword >> 23) & 0xF);
 
 	if (insnword & (1 << 22))

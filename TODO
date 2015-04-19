@@ -32,6 +32,9 @@ pdp10-stdio:
 
 - Handle non-seekable output files better (i.e., allow 8to9 to write to stdout)
 
+pdp10-opcodes:
+- change insn->fmt to separate flag bits
+
 Tools:
 
 - size: implement it
@@ -39,12 +42,10 @@ Tools:
 - ld: implement it
 - readelf: add support for relocs
 - readelf: add support for program headers
-- pdp10-opcodes.{h,c}: rewrite completely
 - as:
   * add line-comment character, e.g. '#'
     + use it in doc/MUUO.txt
     + use it in as/tests/*.s
-    + add license boilerplate to the above files
   * support .ident:
     + change strtab to have a finalizer which returns an image array,
     + use standard output_section for strtab
