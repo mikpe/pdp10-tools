@@ -43,9 +43,7 @@ Tools:
 - readelf: add support for relocs
 - readelf: add support for program headers
 - as:
-  * add line-comment character, e.g. '#'
-    + use it in doc/MUUO.txt
-    + use it in as/tests/*.s
+  * add C /* ... */ comments
   * support .ident:
     + change strtab to have a finalizer which returns an image array,
     + use standard output_section for strtab

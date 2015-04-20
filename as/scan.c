@@ -311,6 +311,23 @@ static enum token do_number(struct scan_state *scan_state, union token_attribute
     return T_UINTEGER;
 }
 
+static int do_line_comment(struct scan_state *scan_state)
+{
+    for (;;) {
+	int ch = scan_getchar();
+	switch (ch) {
+	case '\n':
+	    ++scan_state->linenr;
+	    return T_NEWLINE;
+	case EOF:
+	    badchar(scan_state, ch, "in line comment");
+	    return T_ERROR;
+	default:
+	    continue;
+	}
+    }
+}
+
 enum token scan_token(struct scan_state *scan_state, union token_attribute *token_attr)
 {
     int ch;
@@ -327,6 +344,8 @@ enum token scan_token(struct scan_state *scan_state, union token_attribute *toke
 	case '\n':
 	    ++scan_state->linenr;
 	    return T_NEWLINE;
+	case '#':
+	    return do_line_comment(scan_state);
 	case EOF:
 	    return T_EOF;
 	case '@':
