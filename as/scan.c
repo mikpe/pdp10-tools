@@ -232,7 +232,7 @@ static enum token do_symbol(struct scan_state *scan_state, union token_attribute
     } while (is_symbol_internal_char(ch));
     charbuf[len] = '\0';
     scan_ungetc(scan_state, ch);
-    
+
     if (charbuf[0] == '.') {
 	enum token low, high;
 
@@ -328,6 +328,51 @@ static int do_line_comment(struct scan_state *scan_state)
     }
 }
 
+static enum token do_slash(struct scan_state *scan_state)
+{
+    int ch;
+
+    ch = scan_getchar();
+    if (ch != '*') {
+	scan_ungetc(scan_state, ch);
+	return T_ERROR;	/* XXX: NYI: T_DIV */
+    }
+
+    for (;;) {	/* INV: seen comment start but not comment end */
+	ch = scan_getchar();
+	switch (ch) {
+	case EOF:
+	    badchar(scan_state, ch, "in /*...*/-style comment");
+	    return T_ERROR;
+	case '*':
+	    for (;;) {	/* INV: previous character was a '*' */
+		ch = scan_getchar();
+		switch (ch) {
+		case '*':
+		    continue;
+		case '/':
+		    return T_EOF;	/* indicate a C comment */
+		case EOF:
+		    badchar(scan_state, ch, "in /*...*/-style comment");
+		    return T_ERROR;
+		case '\n':
+		    ++scan_state->linenr;
+		    /*FALLTHROUGH*/
+		default:
+		    break;
+		}
+		break;
+	    }
+	    continue;
+	case '\n':
+	    ++scan_state->linenr;
+	    /*FALLTHROUGH*/
+	default:
+	    continue;
+	}
+    }
+}
+
 enum token scan_token(struct scan_state *scan_state, union token_attribute *token_attr)
 {
     int ch;
@@ -358,6 +403,13 @@ enum token scan_token(struct scan_state *scan_state, union token_attribute *toke
 	    return T_LPAREN;
 	case ')':
 	    return T_RPAREN;
+	case '/':
+	{
+	    enum token token = do_slash(scan_state);
+	    if (token == T_EOF)	/* special case to indicate a C comment */
+		continue;
+	    return token;
+	}
 	case '"':
 	    return do_string(scan_state, token_attr);
 	case '-':
