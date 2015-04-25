@@ -36,13 +36,15 @@ struct strtab_entry {
 
 struct strtab {
     struct strtab_entry *head;
-    unsigned int nrbytes;
+    struct section section;
 };
 
-static void strtab_init(struct strtab *strtab)
+static void strtab_init(struct strtab *strtab, const char *name)
 {
     strtab->head = NULL;
-    strtab->nrbytes = 0;
+    section_init(&strtab->section, name);
+    strtab->section.sh_type = SHT_STRTAB;
+    strtab->section.sh_addralign = 1;
 }
 
 static pdp10_uint36_t strtab_enter(struct tunit *tunit, struct strtab *strtab, const char *name)
@@ -76,10 +78,10 @@ static pdp10_uint36_t strtab_enter(struct tunit *tunit, struct strtab *strtab, c
     } else {
 	strtab->head = here;
 	index = 1;
-	strtab->nrbytes = 1;
+	strtab->section.dot = 1;
     }
 
-    strtab->nrbytes += here->nrbytes;
+    strtab->section.dot += here->nrbytes;
 
     return index;
 }
@@ -123,15 +125,16 @@ static int append_section(struct context *context, struct section *section)
     if (section->dot == 0)
 	return 0;
 
+    /* enter name before reading ->dot to allow this to work for .shstrtab too */
+    section->sh_name = strtab_enter(context->tunit, &context->shstrtab, section->name);
+    if (section->sh_name == 0)
+	return -1;
+
     section->st_shndx = context->shnum;
     ++context->shnum;
 
     section->sh_offset = (context->offset + (section->sh_addralign - 1)) & ~(section->sh_addralign - 1);
     context->offset = section->sh_offset + section->dot;
-
-    section->sh_name = strtab_enter(context->tunit, &context->shstrtab, section->name);
-    if (section->sh_name == 0)
-	return -1;
 
     return 0;
 }
@@ -214,13 +217,13 @@ static int output_shdr(struct hashnode *hashnode, void *data)
     return output_section_header(context, section);
 }
 
-static int output_strtab(struct context *context, struct section *section, struct strtab *strtab)
+static int output_strtab(struct context *context, struct strtab *strtab)
 {
-    if (output_section_prologue(context, section) < 0)
+    if (output_section_prologue(context, &strtab->section) < 0)
 	return -1;
     if (strtab_write(context->pdp10fp, strtab) < 0)
 	return -1;
-    output_section_epilogue(context, section);
+    output_section_epilogue(context, &strtab->section);
     return 0;
 }
 
@@ -271,16 +274,14 @@ int output(struct tunit *tunit, const char *outfile)
     struct context context;
     Elf36_Sym *symtab;
     struct section section_symtab;
-    struct section section_strtab;
-    struct section section_shstrtab;
     Elf36_Ehdr ehdr;
 
     context.tunit = tunit;
     context.shnum = 1;
     context.offset = ELF36_EHDR_SIZEOF;
-    strtab_init(&context.shstrtab);
+    strtab_init(&context.shstrtab, ".shstrtab");
     context.symnum = 0;
-    strtab_init(&context.symstrtab);
+    strtab_init(&context.symstrtab, ".strtab");
     context.pdp10fp = NULL;
 
     if (hashtab_enumerate(&tunit->sections, process_section, &context) < 0)
@@ -291,18 +292,12 @@ int output(struct tunit *tunit, const char *outfile)
 
     symtab = NULL;
     section_init(&section_symtab, ".symtab");
-    section_init(&section_strtab, ".strtab");
-    section_init(&section_shstrtab, ".shstrtab");
 
     /* if we have symbols, synthesize .strtab and .symtab */
     if (context.symnum) {
 	struct finalize_symbol_context fsctx;
 
-	section_strtab.sh_type = SHT_STRTAB;
-	section_strtab.sh_addralign = 1;
-	section_strtab.dot = context.symstrtab.nrbytes;
-
-	if (append_section(&context, &section_strtab) < 0)
+	if (append_section(&context, &context.symstrtab.section) < 0)
 	    return -1;
 
 	++context.symnum;	/* for initial stub entry */
@@ -329,7 +324,7 @@ int output(struct tunit *tunit, const char *outfile)
 
 	section_symtab.sh_type = SHT_SYMTAB;
 	section_symtab.sh_entsize = ELF36_SYM_SIZEOF;
-	section_symtab.sh_link = section_strtab.st_shndx;
+	section_symtab.sh_link = context.symstrtab.section.st_shndx;
 	section_symtab.sh_addralign = 4;	/* XXX: PDP10-specific */
 	section_symtab.dot = context.symnum * ELF36_SYM_SIZEOF;
 
@@ -339,26 +334,11 @@ int output(struct tunit *tunit, const char *outfile)
 
     /* if we have sections, synthesize .shstrtab */
     if (context.shnum > 1) {
-	section_shstrtab.sh_type = SHT_STRTAB;
-	section_shstrtab.sh_addralign = 1;
-
-	/* append_section() open-coded and rearranged to work for this special case */
-
-	section_shstrtab.sh_name = strtab_enter(tunit, &context.shstrtab, ".shstrtab");
-	if (section_shstrtab.sh_name == 0)
+	if (append_section(&context, &context.shstrtab.section) < 0)
 	    return -1;
 
-	section_shstrtab.dot = context.shstrtab.nrbytes;
-
-	section_shstrtab.st_shndx = context.shnum;
-	++context.shnum;
-
-	section_shstrtab.sh_offset = context.offset;
-	context.offset = section_shstrtab.sh_offset + section_shstrtab.dot;
-
+	/* align context.offset for the section header table, which is last in the file */
 	context.offset = (context.offset + (4 - 1)) & ~(Elf36_Word)(4 - 1);
-
-	/* context.offset is now the offset of the section header table, which is last in the file */
     } else {
 	context.shnum = 0;
 	context.offset = 0;
@@ -391,7 +371,7 @@ int output(struct tunit *tunit, const char *outfile)
     ehdr.e_phnum = 0;
     ehdr.e_shentsize = ELF36_SHDR_SIZEOF;
     ehdr.e_shnum = context.shnum;
-    ehdr.e_shstrndx = section_shstrtab.st_shndx;
+    ehdr.e_shstrndx = context.shstrtab.section.st_shndx;
 
     context.pdp10fp = pdp10_fopen(outfile, "wb");
     if (!context.pdp10fp) {
@@ -411,7 +391,7 @@ int output(struct tunit *tunit, const char *outfile)
     if (context.symnum) {
 	unsigned int i;
 
-	if (output_strtab(&context, &section_strtab, &context.symstrtab) < 0)
+	if (output_strtab(&context, &context.symstrtab) < 0)
 	    return -1;
 
 	if (output_section_prologue(&context, &section_symtab) < 0)
@@ -427,7 +407,7 @@ int output(struct tunit *tunit, const char *outfile)
     if (context.shnum > 1) {
 	struct section section0;
 
-	if (output_strtab(&context, &section_shstrtab, &context.shstrtab) < 0)
+	if (output_strtab(&context, &context.shstrtab) < 0)
 	    return -1;
 
 	if (ehdr.e_shoff < context.offset)
@@ -448,12 +428,12 @@ int output(struct tunit *tunit, const char *outfile)
 	if (hashtab_enumerate(&tunit->sections, output_shdr, &context) < 0)
 	    return -1;
 	if (context.symnum) {
-	    if (output_section_header(&context, &section_strtab) < 0)
+	    if (output_section_header(&context, &context.symstrtab.section) < 0)
 		return -1;
 	    if (output_section_header(&context, &section_symtab) < 0)
 		return -1;
 	}
-	if (output_section_header(&context, &section_shstrtab) < 0)
+	if (output_section_header(&context, &context.shstrtab.section) < 0)
 	    return -1;
     }
 
