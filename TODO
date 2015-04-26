@@ -44,8 +44,6 @@ Tools:
 - readelf: add support for program headers
 - as:
   * support .ident:
-    + change strtab to have a finalizer which returns an image array,
-    + use standard output_section for strtab
     + move strtab to tunit
     + have .ident append string to .comment strtab
     + finalize .comment strtab before output()

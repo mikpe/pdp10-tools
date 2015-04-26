@@ -21,6 +21,7 @@
 #define TUNIT_H
 
 #include "pdp10-elf36.h"
+#include "pdp10-stdio.h"
 #include "hashtab.h"
 
 /*
@@ -66,7 +67,8 @@ struct section {
     const char *name;
     struct stmt *head, **tailptr;
     unsigned long dot;
-    pdp10_uint9_t *image;		/* assigned during assembly */
+    int (*output)(PDP10_FILE*, const struct section*);	/* must be present if ->image is NULL */
+    pdp10_uint9_t *image;		/* assigned during assembly, must be present if ->output is NULL */
     Elf36_Word st_shndx;		/* assigned during output */
     Elf36_Word sh_name;			/* assigned during output */
     Elf36_Word sh_type;

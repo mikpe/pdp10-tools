@@ -35,17 +35,9 @@ struct strtab_entry {
 };
 
 struct strtab {
+    struct section section;	/* first to simplify mapping &section to &strtab */
     struct strtab_entry *head;
-    struct section section;
 };
-
-static void strtab_init(struct strtab *strtab, const char *name)
-{
-    strtab->head = NULL;
-    section_init(&strtab->section, name);
-    strtab->section.sh_type = SHT_STRTAB;
-    strtab->section.sh_addralign = 1;
-}
 
 static pdp10_uint36_t strtab_enter(struct tunit *tunit, struct strtab *strtab, const char *name)
 {
@@ -94,8 +86,10 @@ static int output_padding(PDP10_FILE *pdp10fp, unsigned int nrbytes)
     return 0;
 }
 
-static int strtab_write(PDP10_FILE *pdp10fp, const struct strtab *strtab)
+static int strtab_section_output(PDP10_FILE *pdp10fp, const struct section *section)
 {
+    /* section is first in strtab, so no need to mess with offsetof */
+    const struct strtab *strtab = (const struct strtab*)section;
     struct strtab_entry *here;
     unsigned int i;
 
@@ -108,6 +102,15 @@ static int strtab_write(PDP10_FILE *pdp10fp, const struct strtab *strtab)
 		return -1;
 
     return 0;
+}
+
+static void strtab_init(struct strtab *strtab, const char *name)
+{
+    strtab->head = NULL;
+    section_init(&strtab->section, name);
+    strtab->section.sh_type = SHT_STRTAB;
+    strtab->section.sh_addralign = 1;
+    strtab->section.output = strtab_section_output;
 }
 
 struct context {
@@ -171,17 +174,23 @@ static int output_section(struct hashnode *hashnode, void *data)
 {
     struct section *section = (struct section*)hashnode;
     struct context *context = data;
-    unsigned int i;
 
-    if (section->dot == 0 || section->image == NULL)
+    if (section->dot == 0 || (section->image == NULL && section->output == NULL))
 	return 0;
 
     if (output_section_prologue(context, section) < 0)
 	return -1;
 
-    for (i = 0; i < section->dot; ++i)
-	if (pdp10_elf36_write_uint9(context->pdp10fp, section->image[i]) < 0)
+    if (section->output) {
+	if (section->output(context->pdp10fp, section) < 0)
 	    return -1;
+    } else {
+	unsigned int i;
+
+	for (i = 0; i < section->dot; ++i)
+	    if (pdp10_elf36_write_uint9(context->pdp10fp, section->image[i]) < 0)
+		return -1;
+    }
 
     output_section_epilogue(context, section);
 
@@ -219,12 +228,7 @@ static int output_shdr(struct hashnode *hashnode, void *data)
 
 static int output_strtab(struct context *context, struct strtab *strtab)
 {
-    if (output_section_prologue(context, &strtab->section) < 0)
-	return -1;
-    if (strtab_write(context->pdp10fp, strtab) < 0)
-	return -1;
-    output_section_epilogue(context, &strtab->section);
-    return 0;
+    return output_section(&strtab->section.hashnode, context);
 }
 
 static int process_symbol(struct hashnode *hashnode, void *data)
