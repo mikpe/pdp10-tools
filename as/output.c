@@ -414,15 +414,8 @@ int output(struct tunit *tunit, const char *outfile)
 	    abort();
 	if (output_padding(context.pdp10fp, ehdr.e_shoff - context.offset) < 0)
 	    return -1;
-	section0.name = "<fake section 0>";
-	section0.sh_name = 0;
-	section0.sh_type = SHT_NULL;
-	section0.sh_flags = 0;
-	section0.sh_offset = 0;
-	section0.dot = 0;
-	section0.sh_link = 0;
+	section_init(&section0, "<fake section 0>");
 	section0.sh_addralign = 0;
-	section0.sh_entsize = 0;
 	if (output_section_header(&context, &section0) < 0)
 	    return -1;
 	if (hashtab_enumerate(&tunit->sections, output_shdr, &context) < 0)
