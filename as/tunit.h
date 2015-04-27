@@ -20,6 +20,7 @@
 #ifndef TUNIT_H
 #define TUNIT_H
 
+#include <stddef.h>
 #include "pdp10-elf36.h"
 #include "pdp10-stdio.h"
 #include "hashtab.h"
@@ -88,7 +89,7 @@ struct strtab_entry {
 };
 
 struct strtab {
-    struct section section;	/* first to simplify mapping &section to &strtab */
+    struct section section;
     struct strtab_entry *head;
 };
 
@@ -124,5 +125,15 @@ struct symbol *tunit_symbol_enter(struct tunit *tunit, const char *name);
 
 pdp10_uint36_t strtab_enter(struct tunit *tunit, struct strtab *strtab, const char *name);
 void strtab_init(struct strtab *strtab, const char *name);
+
+/**
+ * container_of - cast a member of a structure out to the containing structure
+ * @ptr:	the pointer to the member.
+ * @type:	the type of the container struct this is embedded in.
+ * @member:	the name of the member within the struct.
+ */
+#define container_of(ptr, type, member) ({			\
+	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
+	(type *)( (char *)__mptr - offsetof(type,member) );})
 
 #endif /* TUNIT_H */

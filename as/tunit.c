@@ -48,8 +48,7 @@ static uintptr_t string_hash(const char *string)
  */
 static struct section *section_from_hashnode(const struct hashnode *hashnode)
 {
-    /* hashnode is first in section, so no need to mess with offsetof */
-    return (struct section*)hashnode;
+    return container_of(hashnode, struct section, hashnode);
 }
 
 static int section_eq(const struct hashnode *hashnode, const void *data)
@@ -167,8 +166,7 @@ pdp10_uint36_t strtab_enter(struct tunit *tunit, struct strtab *strtab, const ch
 
 static int strtab_section_output(PDP10_FILE *pdp10fp, const struct section *section)
 {
-    /* section is first in strtab, so no need to mess with offsetof */
-    const struct strtab *strtab = (const struct strtab*)section;
+    const struct strtab *strtab = container_of(section, const struct strtab, section);
     struct strtab_entry *here;
     unsigned int i;
 
@@ -197,8 +195,7 @@ void strtab_init(struct strtab *strtab, const char *name)
  */
 static struct symbol *symbol_from_hashnode(const struct hashnode *hashnode)
 {
-    /* hashnode is first in symbol, so no need to mess with offsetof */
-    return (struct symbol*)hashnode;
+    return container_of(hashnode, struct symbol, hashnode);
 }
 
 static int symbol_eq(const struct hashnode *hashnode, const void *data)

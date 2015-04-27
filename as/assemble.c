@@ -28,7 +28,7 @@
 
 static int assemble_section(struct hashnode *hashnode, void *data)
 {
-    struct section *section = (struct section*)hashnode;	/*XXX*/
+    struct section *section = container_of(hashnode, struct section, hashnode);
     struct tunit *tunit = data;
     unsigned long dot;
     struct stmt *stmt;

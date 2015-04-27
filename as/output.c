@@ -67,7 +67,7 @@ static int append_section(struct context *context, struct section *section)
 
 static int process_section(struct hashnode *hashnode, void *data)
 {
-    struct section *section = (struct section*)hashnode;
+    struct section *section = container_of(hashnode, struct section, hashnode);
     struct context *context = data;
 
     return append_section(context, section);
@@ -95,7 +95,7 @@ static void output_section_epilogue(struct context *context, struct section *sec
 
 static int output_section(struct hashnode *hashnode, void *data)
 {
-    struct section *section = (struct section*)hashnode;
+    struct section *section = container_of(hashnode, struct section, hashnode);
     struct context *context = data;
 
     if (section->dot == 0 || (section->image == NULL && section->output == NULL))
@@ -140,7 +140,7 @@ static int output_section_header(struct context *context, const struct section *
 
 static int output_shdr(struct hashnode *hashnode, void *data)
 {
-    struct section *section = (struct section*)hashnode;
+    struct section *section = container_of(hashnode, struct section, hashnode);
     struct context *context = data;
 
     if (section->dot == 0)
@@ -156,7 +156,7 @@ static int output_strtab(struct context *context, struct strtab *strtab)
 
 static int process_symbol(struct hashnode *hashnode, void *data)
 {
-    struct symbol *symbol = (struct symbol*)hashnode;
+    struct symbol *symbol = container_of(hashnode, struct symbol, hashnode);
     struct context *context = data;
 
     ++context->symnum;
@@ -175,7 +175,7 @@ struct finalize_symbol_context {
 
 static int finalize_symbol(struct hashnode *hashnode, void *data)
 {
-    struct symbol *symbol = (struct symbol*)hashnode;
+    struct symbol *symbol = container_of(hashnode, struct symbol, hashnode);
     struct finalize_symbol_context *fsctx = data;
     Elf36_Word st_shndx;
 
