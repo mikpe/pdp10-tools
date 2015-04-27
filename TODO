@@ -44,7 +44,6 @@ Tools:
 - readelf: add support for program headers
 - as:
   * support .ident:
-    + move strtab to tunit
     + have .ident append string to .comment strtab
     + finalize .comment strtab before output()
   * add support for named sections

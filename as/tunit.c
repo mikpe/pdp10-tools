@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "pdp10-elf36.h"
 #include "hashtab.h"
 #include "tunit.h"
 
@@ -120,6 +121,75 @@ static int sections_init(struct tunit *tunit)
     tunit->cursect = section;
 
     return 0;
+}
+
+/*
+ * String tables.
+ */
+pdp10_uint36_t strtab_enter(struct tunit *tunit, struct strtab *strtab, const char *name)
+{
+    struct strtab_entry *prev, *here;
+    pdp10_uint36_t index;
+
+    index = 1;
+    prev = NULL;
+    here = strtab->head;
+    while (here != NULL) {
+	if (strcmp(name, here->string) == 0)
+	    return index;
+	index += here->nrbytes;
+	prev = here;
+	here = here->next;
+    }
+
+    here = malloc(sizeof *here);
+    if (!here) {
+	fprintf(stderr, "%s: failed to allocate %zu bytes for a strtab_entry: %s\n",
+		tunit->progname, sizeof *here, strerror(errno));
+	return 0;
+    }
+    here->next = NULL;
+    here->string = name;
+    here->nrbytes = strlen(name) + 1;
+
+    if (prev) {
+	prev->next = here;
+    } else {
+	strtab->head = here;
+	index = 1;
+	strtab->section.dot = 1;
+    }
+
+    strtab->section.dot += here->nrbytes;
+
+    return index;
+}
+
+static int strtab_section_output(PDP10_FILE *pdp10fp, const struct section *section)
+{
+    /* section is first in strtab, so no need to mess with offsetof */
+    const struct strtab *strtab = (const struct strtab*)section;
+    struct strtab_entry *here;
+    unsigned int i;
+
+    if (pdp10_elf36_write_uint9(pdp10fp, '\0') < 0)
+	return -1;
+
+    for (here = strtab->head; here; here = here->next)
+	for (i = 0; i < here->nrbytes; ++i)
+	    if (pdp10_elf36_write_uint9(pdp10fp, here->string[i]) < 0)
+		return -1;
+
+    return 0;
+}
+
+void strtab_init(struct strtab *strtab, const char *name)
+{
+    section_init(&strtab->section, name);
+    strtab->section.sh_type = SHT_STRTAB;
+    strtab->section.sh_addralign = 1;
+    strtab->section.output = strtab_section_output;
+    strtab->head = NULL;
 }
 
 /*

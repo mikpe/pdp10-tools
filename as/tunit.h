@@ -81,6 +81,17 @@ struct section {
 
 void section_init(struct section *section, const char *name);
 
+struct strtab_entry {
+    struct strtab_entry *next;
+    const char *string;
+    unsigned int nrbytes;	/* strlen(string) + 1 */
+};
+
+struct strtab {
+    struct section section;	/* first to simplify mapping &section to &strtab */
+    struct strtab_entry *head;
+};
+
 struct symbol {
     struct hashnode hashnode;
     const char *name;
@@ -110,5 +121,8 @@ void tunit_fini(struct tunit *tunit);
 struct section *tunit_section_enter(struct tunit *tunit, const char *name);
 struct symbol *tunit_symbol_lookup(struct tunit *tunit, const char *name);
 struct symbol *tunit_symbol_enter(struct tunit *tunit, const char *name);
+
+pdp10_uint36_t strtab_enter(struct tunit *tunit, struct strtab *strtab, const char *name);
+void strtab_init(struct strtab *strtab, const char *name);
 
 #endif /* TUNIT_H */
