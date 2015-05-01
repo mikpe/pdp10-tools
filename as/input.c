@@ -87,6 +87,30 @@ static int do_dot_globl(struct scan_state *scan_state, struct tunit *tunit, stru
     return 0;
 }
 
+static int do_dot_ident(struct scan_state *scan_state, struct tunit *tunit, struct stmt *stmt)
+{
+    struct strtab *strtab;
+
+    strtab = tunit_strtab_section_enter(tunit, ".comment");
+    if (!strtab)
+	return -1;
+
+    if (strtab->section.sh_type == SHT_NULL) {
+	/* The ELF specification doesn't specify attribute values for .comment
+	 * sections, apart from sh_type, but GNU binutils formats them as string
+	 * tables with the following attribute values.
+	 */
+	strtab->section.sh_type = SHT_PROGBITS;
+	strtab->section.sh_flags = SHF_MERGE | SHF_STRINGS;
+	strtab->section.sh_entsize = 1;
+	strtab->section.sh_addralign = 1;
+    }
+
+    (void)strtab_enter(tunit, strtab, stmt->u.string.text);
+
+    return 0;
+}
+
 static int do_dot_size(struct scan_state *scan_state, struct tunit *tunit, struct stmt *stmt)
 {
     struct symbol *symbol;
@@ -198,6 +222,8 @@ static int interpret(struct scan_state *scan_state, struct tunit *tunit, struct 
 	return do_dot_file(scan_state, tunit, stmt);
     case S_DOT_GLOBL:
 	return do_dot_globl(scan_state, tunit, stmt);
+    case S_DOT_IDENT:
+	return do_dot_ident(scan_state, tunit, stmt);
     case S_DOT_SIZE:
 	return do_dot_size(scan_state, tunit, stmt);
     case S_DOT_TEXT:

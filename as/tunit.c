@@ -190,6 +190,39 @@ void strtab_init(struct strtab *strtab, const char *name)
     strtab->head = NULL;
 }
 
+static struct strtab *strtab_from_hashnode(const struct hashnode *hashnode)
+{
+    return hashnode ? container_of(hashnode, struct strtab, section.hashnode) : NULL;
+}
+
+/* XXX: generalize and merge with tunit_section_enter() */
+struct strtab *tunit_strtab_section_enter(struct tunit *tunit, const char *name)
+{
+    uintptr_t hashval;
+    struct strtab *strtab;
+
+    hashval = string_hash(name);
+    strtab = strtab_from_hashnode(hashtab_lookup(&tunit->sections, hashval, name));
+    if (strtab)
+	return strtab;
+
+    strtab = malloc(sizeof *strtab);
+    if (!strtab) {
+	fprintf(stderr, "%s: %s: malloc(%zu) failed: %s\n", tunit->progname, __FUNCTION__, sizeof *strtab, strerror(errno));
+	return NULL;
+    }
+
+    strtab_init(strtab, name);
+    /* XXX: undo stuff strtab_init() did which breaks .ident */
+    strtab->section.sh_type = SHT_NULL;
+
+    strtab->section.hashnode.hashval = hashval;
+    if (hashtab_insert(&tunit->sections, &strtab->section.hashnode) < 0)
+	return NULL;
+
+    return strtab;
+}
+
 /*
  * Symbols hash table.
  */

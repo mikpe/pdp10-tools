@@ -35,6 +35,7 @@ enum stmt_tag {
     /* directives */
     S_DOT_FILE,
     S_DOT_GLOBL,
+    S_DOT_IDENT,
     S_DOT_SIZE,
     S_DOT_TEXT,
     S_DOT_TYPE_FUNCTION,
@@ -47,7 +48,7 @@ struct stmt {
     struct stmt *next;
     enum stmt_tag tag;
     union {
-	struct {	/* S_DOT_FILE */
+	struct {	/* S_DOT_FILE, S_DOT_IDENT */
 	    const char *text;	/* XXX: should be pdp10_uint9_t* */
 	} string;
 	struct {	/* S_DOT_GLOBL, S_LABEL, S_DOT_SIZE, S_DOT_TYPE_FUNCTION */
@@ -62,6 +63,16 @@ struct stmt {
 	} insn;
     } u;
 };
+
+/*
+ * Sections.
+ *
+ * There are several kinds of sections:
+ * - generic sections with an image array
+ *   these contain instructions or initialized data
+ * - strtab sections
+ *   these contain a strtab and a specialised ->output() method
+ */
 
 struct section {
     struct hashnode hashnode;
@@ -79,8 +90,6 @@ struct section {
     Elf36_Word sh_addralign;
     Elf36_Word sh_entsize;		/* assigned during output */
 };
-
-void section_init(struct section *section, const char *name);
 
 struct strtab_entry {
     struct strtab_entry *next;
@@ -119,12 +128,16 @@ struct tunit {
 
 int tunit_init(struct tunit *tunit, const char *progname);
 void tunit_fini(struct tunit *tunit);
+
+void section_init(struct section *section, const char *name);
 struct section *tunit_section_enter(struct tunit *tunit, const char *name);
+struct strtab *tunit_strtab_section_enter(struct tunit *tunit, const char *name);
+
+void strtab_init(struct strtab *strtab, const char *name);
+pdp10_uint36_t strtab_enter(struct tunit *tunit, struct strtab *strtab, const char *name);
+
 struct symbol *tunit_symbol_lookup(struct tunit *tunit, const char *name);
 struct symbol *tunit_symbol_enter(struct tunit *tunit, const char *name);
-
-pdp10_uint36_t strtab_enter(struct tunit *tunit, struct strtab *strtab, const char *name);
-void strtab_init(struct strtab *strtab, const char *name);
 
 /**
  * container_of - cast a member of a structure out to the containing structure

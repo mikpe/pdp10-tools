@@ -43,9 +43,8 @@ Tools:
 - readelf: add support for relocs
 - readelf: add support for program headers
 - as:
-  * support .ident:
-    + have .ident append string to .comment strtab
-    + finalize .comment strtab before output()
+  * tunit_{strtab_,}section_enter() should be generalized and merged
+  * what happens if user defines .comment as say text, and later enters .ident?
   * add support for named sections
   * add support for sub-sections
   * add support for data directives (.word, .asciz, etc)

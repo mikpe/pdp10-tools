@@ -35,7 +35,7 @@ static int error(struct scan_state *scan_state, const char *msg, enum token toke
     return -1;
 }
 
-static int parse_dot_file(struct scan_state *scan_state, struct stmt *stmt)
+static int parse_dot_file_or_ident(struct scan_state *scan_state, struct stmt *stmt, enum stmt_tag tag, const char *errmsg)
 {
     enum token token;
     union token_attribute token_attr;
@@ -45,11 +45,21 @@ static int parse_dot_file(struct scan_state *scan_state, struct stmt *stmt)
 	stmt->u.string.text = token_attr.text;
 	token = scan_token(scan_state, &token_attr);
 	if (token == T_NEWLINE) {
-	    stmt->tag = S_DOT_FILE;
+	    stmt->tag = tag;
 	    return 1;
 	}
     }
-    return error(scan_state, "junk after .file directive", token, &token_attr);
+    return error(scan_state, errmsg, token, &token_attr);
+}
+
+static int parse_dot_file(struct scan_state *scan_state, struct stmt *stmt)
+{
+    return parse_dot_file_or_ident(scan_state, stmt, S_DOT_FILE, "junk after .file directive");
+}
+
+static int parse_dot_ident(struct scan_state *scan_state, struct stmt *stmt)
+{
+    return parse_dot_file_or_ident(scan_state, stmt, S_DOT_IDENT, "junk after .ident directive");
 }
 
 static int parse_dot_globl(struct scan_state *scan_state, struct stmt *stmt)
@@ -428,6 +438,8 @@ int parse_stmt(struct scan_state *scan_state, struct stmt *stmt)
 	    return parse_dot_file(scan_state, stmt);
 	case T_DOT_GLOBL:
 	    return parse_dot_globl(scan_state, stmt);
+	case T_DOT_IDENT:
+	    return parse_dot_ident(scan_state, stmt);
 	case T_DOT_SIZE:
 	    return parse_dot_size(scan_state, stmt);
 	case T_DOT_TEXT:
