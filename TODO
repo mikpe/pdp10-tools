@@ -37,6 +37,7 @@ pdp10-opcodes:
 
 Tools:
 
+- top-level Makefile: subdirs should error out on error in subdir
 - size: implement it
 - strip: implement it
 - ld: implement it
@@ -45,6 +46,8 @@ Tools:
 - as:
   * tunit_{strtab_,}section_enter() should be generalized and merged
   * what happens if user defines .comment as say text, and later enters .ident?
+  * output: move section_symtab into the context
+  * tunit: add symtab sections analagous to strtab sections?
   * add support for named sections
   * add support for sub-sections
   * add support for data directives (.word, .asciz, etc)
