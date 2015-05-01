@@ -48,7 +48,7 @@ static uintptr_t string_hash(const char *string)
  */
 static struct section *section_from_hashnode(const struct hashnode *hashnode)
 {
-    return container_of(hashnode, struct section, hashnode);
+    return hashnode ? container_of(hashnode, struct section, hashnode) : NULL;
 }
 
 static int section_eq(const struct hashnode *hashnode, const void *data)
@@ -195,7 +195,7 @@ void strtab_init(struct strtab *strtab, const char *name)
  */
 static struct symbol *symbol_from_hashnode(const struct hashnode *hashnode)
 {
-    return container_of(hashnode, struct symbol, hashnode);
+    return hashnode ? container_of(hashnode, struct symbol, hashnode) : NULL;
 }
 
 static int symbol_eq(const struct hashnode *hashnode, const void *data)
