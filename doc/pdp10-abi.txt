@@ -1,0 +1,220 @@
+doc/pdp10-abi.txt
+Copyright (C) 2015  Mikael Pettersson
+
+This file is part of pdp10-tools.
+
+pdp10-tools is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+pdp10-tools is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
+
+
+PDP10 ELF Application Binary Interface Supplement
+
+3 LOW-LEVEL SYSTEM INFORMATION
+
+Machine Interface
+
+Processor Architecture
+
+The following documents define the PDP10 architecture:
+[TODO: the 1982 manual]
+[TODO: the KC10 manual]
+[TODO: the XKL-1 manual]
+
+Linux for PDP10 requires the following features introduced with the
+KL10B processor:
+
+* extended addressing
+* G-floating
+
+From now on, an unqualified reference in this document to PDP10
+or "the architecture" means a KL10B or KL10B-compatible processor.
+
+Programs intended to execute directly on the processor use the PDP10
+instruction set, and the instruction encodings and semantics of the architecture.
+
+An application program can assume that all instructions defined by the
+architecture that are neither privileged nor model-specific exist and
+work as documented.
+
+Data Representation.
+
+Byte Ordering
+
+The architecture defines a 9-bit byte, an 18-bit halfword, a 36-bit word, and
+a 72-bit doubleword.
+
+Note - Although the architecture supports other sub-word values via its so-called
+"byte pointers", those are not part of this specification.
+
+Byte ordering defines how the bytes that make up halfwords, words, and doublewords
+are ordered in memory.  Most significant byte (MSB) ordering, or "Big-Endian"
+as it is sometimes called, means that the most significant byte is located in the
+lowest addressed byte position in a storage unit (byte 0).
+
+Figures 3-1 through 3-3 illustrate the conventions for bit and byte numbering
+within storage units of varius widths.  These conventions apply to both integer data
+and floating-point data, where the most significant byte of a floating-point value
+holds the sign and at least the start of the exponent.  (TODO: VERIFY FP REP)
+The figures show big-endian byte numbers in the upper left corners, and bit numbers in the
+lower corners.
+
+Note - In the PDP10 documentation, the bits in a word are numbered from left to
+right (MSB to LSB).
+
+Figure 3-1. Bit and Byte Numbering in Halfwords
+
++---------+---------+
+|0        |1        |
+|   msb   |    lsb  |
+|0       8|9      15|
++---------+---------+
+
+Figure 3-2. Bit and Byte Numbering in Words
+
++---------+---------+---------+---------+
+|0        |1        |2        |3        |
+|   msb   |         |         |   lsb   |
+|0       8|9      17|18     26|27     35|
++---------+---------+---------+---------+
+
+Figure 3-3. Bit and Byte Numbering in Doublewords
+
++---------+---------+---------+---------+
+|0        |1        |2        |3        |
+|   msb   |         |         |         |
+|0       8|9      17|18     26|27     35|
++---------+---------+---------+---------+
+|4        |5        |6        |7        |
+|         |         |         |   lsb   |
+|36     44|45     53|54     62|63     71|
++---------+---------+---------+---------+
+
+Fundamental Types
+
+Table 3-1 shows how ISO C scalar types correspond to those of the PDP10 processor.
+For all types, a NULL pointer has the value zero.
+
+Type             C                  sizeof Alignment PDP10
+-------------------------------------------------------------------------------------------------------
+Boolean        | _bool              1      1         unsigned byte
+---------------|----------------------------------------------------------------------------------------
+Character      | char               1      1         unsigned byte
+               | unsigned char      1      1         TODO: check if signed or unsigned should be default
+               |----------------------------------------------------------------------------------------
+               | signed char        1      1         signed byte
+---------------|----------------------------------------------------------------------------------------
+Short          | short              2      2         signed halfword
+               | signed short       2      2
+               |----------------------------------------------------------------------------------------
+               | unsigned short     2      2         unsigned halfword
+---------------|----------------------------------------------------------------------------------------
+Integral       | int                4      4         signed word
+               | signed int         4      4
+               | long int           4      4
+               | signed long        4      4
+               | enum               4      4
+               |----------------------------------------------------------------------------------------
+               | unsigned int       4      4         unsigned word
+               | unsigned long      4      4
+---------------|----------------------------------------------------------------------------------------
+Long Long      | long long          8      4(8?)     signed doubleword
+               | signed long long   8      4(8?)
+---------------|----------------------------------------------------------------------------------------
+               | unsigned long long 8      4(8?)     unsigned doubleword
+---------------|----------------------------------------------------------------------------------------
+Pointer        | any-type *         4      4         unsigned word
+               | any-type (*) ()    4      4
+---------------|----------------------------------------------------------------------------------------
+Floating-point | TODO
+---------------|----------------------------------------------------------------------------------------
+
+Aggregates and Unions
+
+Aggregates (structures and arrays) and unions assume the alignment of
+their most strictly aligned component, that is, the component with the
+largest alignment.  The size of any object, including aggregates and unions,
+is always a multiple of the alignment of the object.  An array uses the
+same alignment as its elements.  Structure and union objects may require
+padding to meet size and alignment constraints.  The contents of any padding
+is undefined.
+
+* An entire structure or union object is aligned on the same boundary as
+  its most strictly aligned member.
+* Each member is assigned to the lowest available offset with the appropriate
+  alignment.  This may require internal padding, depending on the previous
+  member.
+* If necessary, a structure's size is increased to make it a multiple of
+  the structure's alignment.  This may require tail padding, depending on
+  the last member.
+
+[TODO: standard 5 examples of struct/union layouts]
+
+Bit-fields
+
+C struct and union definitions may have "bit-fields", defining integral objects
+with a specified number of bits.
+
+Figure 3-7: Bit-Field Ranges
+
+Bit-field Type       Width w   Range
+----------------------------------------------------
+signed char        |         | -2^(W-1) to 2^(W-1)-1
+char               | 1 to 9  | 0 to 2^W-1
+unsigned char      |         | 0 to 2^W-1
+----------------------------------------------------
+signed short       |         | -2^(W-1) to 2^(W-1)-1
+short              | 1 to 18 | 0 to 2^W-1
+unsigned short     |         | 0 to 2^W-1
+----------------------------------------------------
+signed int         |         | -2^(W-1) to 2^(W-1)-1
+int                |         | 0 to 2^W-1
+enum               |         | 0 to 2^W-1
+unsigned int       | 1 to 36 | 0 to 2^W-1
+signed long        |         | -2^(W-1) to 2^(W-1)-1
+long               |         | 0 to 2^W-1
+unsigned long      |         | 0 to 2^W-1
+----------------------------------------------------
+signed long long   |         | -2^(W-1) to 2^(W-1)-1
+long long          | 1 to 72 | 0 to 2^W-1
+unsigned long long |         | 0 to 2^W-1
+----------------------------------------------------
+
+"Plain" bit-fields (that is, those neither signed nor unsigned) always have
+non-negative values.  Although they may have
+type char(TODO: depends on char being signed or unsigned by default), short,
+int, long, or long long(?) (which can have negative values), bit-fields of
+these types have the same range as bit-fields of the same size with the
+corresponding unsigned type.  Bit-fields obey the same size and alignment
+rules as other structure and union members, with the following additions:
+
+* Bit-fields are allocated from left to right (most to least significant).
+* A bit-field must entirely reside in a storage unit appropriate for its
+  declared type.  Thus, a bit-field never crosses its unit boundary.
+* Bit-fields must share a storage unit with other structure and union members
+  (either bit-field or non-bit-field) if and only if there is sufficient
+  space within the storage unit.
+* Unnamed bit-fields' types do not affect the alignment of a structure or
+  union, although an individual bit-field's member offsets obey the alignment
+  constraints.  An unnamed, zero-width bit-field shall prevent any further
+  member, bit-field or other, from residing in the storage unit corresponding
+  to the type of the zero-width bit-field.
+
+The following examples (Figures 3-14 through 3-24) show struct and union
+member's byte offsets in the upper left corners.  Bit numbers appear in the
+lower corners.
+
+[TODO: standard 6 examples, adjusted]
+
+As the examples show, int bit-fields (including signed and unsigned) pack more
+densely than smaller base types.  You can use char and short bit-fields to force
+particular alignments, but int is generally more efficient.
