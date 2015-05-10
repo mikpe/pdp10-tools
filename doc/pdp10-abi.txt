@@ -26,18 +26,18 @@ Machine Interface
 Processor Architecture
 
 The following documents define the PDP10 architecture:
-[TODO: the 1982 manual]
-[TODO: the KC10 manual]
-[TODO: the XKL-1 manual]
+* DECsystem-10/DECSYSTEM-20 Processor Reference Manual, AD-H391A-T1, Digital Equipment Corporation, 1982.
+* KC10 Functional Description, Digital Equipment Corporation, 1983.
+* TOAD-1 System Architecture Reference Manual, XKL Systems Corporation, 1996.
 
 Linux for PDP10 requires the following features introduced with the
 KL10B processor:
 
 * extended addressing
-* G-floating
+* "G format" floating point
 
-From now on, an unqualified reference in this document to PDP10
-or "the architecture" means a KL10B or KL10B-compatible processor.
+From now on, an unqualified reference to PDP10 or "the architecture"
+in this document means a KL10B or KL10B-compatible processor.
 
 Programs intended to execute directly on the processor use the PDP10
 instruction set, and the instruction encodings and semantics of the architecture.
@@ -64,7 +64,7 @@ lowest addressed byte position in a storage unit (byte 0).
 Figures 3-1 through 3-3 illustrate the conventions for bit and byte numbering
 within storage units of varius widths.  These conventions apply to both integer data
 and floating-point data, where the most significant byte of a floating-point value
-holds the sign and at least the start of the exponent.  (TODO: VERIFY FP REP)
+holds the sign and at least the start of the exponent.
 The figures show big-endian byte numbers in the upper left corners, and bit numbers in the
 lower corners.
 
@@ -101,7 +101,7 @@ Figure 3-3. Bit and Byte Numbering in Doublewords
 
 Fundamental Types
 
-Table 3-1 shows how ISO C scalar types correspond to those of the PDP10 processor.
+Figure 3-4 shows how ISO C scalar types correspond to those of the PDP10 processor.
 For all types, a NULL pointer has the value zero.
 
 Type             C                  sizeof Alignment PDP10
@@ -109,7 +109,7 @@ Type             C                  sizeof Alignment PDP10
 Boolean        | _bool              1      1         unsigned byte
 ---------------|----------------------------------------------------------------------------------------
 Character      | char               1      1         unsigned byte
-               | unsigned char      1      1         TODO: check if signed or unsigned should be default
+               | unsigned char      1      1
                |----------------------------------------------------------------------------------------
                | signed char        1      1         signed byte
 ---------------|----------------------------------------------------------------------------------------
@@ -127,16 +127,22 @@ Integral       | int                4      4         signed word
                | unsigned int       4      4         unsigned word
                | unsigned long      4      4
 ---------------|----------------------------------------------------------------------------------------
-Long Long      | long long          8      4(8?)     signed doubleword
-               | signed long long   8      4(8?)
+Long Long      | long long          8      4         signed doubleword
+               | signed long long   8      4
 ---------------|----------------------------------------------------------------------------------------
-               | unsigned long long 8      4(8?)     unsigned doubleword
+               | unsigned long long 8      4         unsigned doubleword
 ---------------|----------------------------------------------------------------------------------------
 Pointer        | any-type *         4      4         unsigned word
                | any-type (*) ()    4      4
 ---------------|----------------------------------------------------------------------------------------
-Floating-point | TODO
+Floating-point | float              4      4         single precision
+               |----------------------------------------------------------------------------------------
+               | double             8      4         "G format" double precision
+               | long double        8      4         "G format" double precision
 ---------------|----------------------------------------------------------------------------------------
+
+Note - long long is implemented in software, as the architecture's
+double precision fixed point instructions have unsuitable semantics.
 
 Aggregates and Unions
 
@@ -157,14 +163,75 @@ is undefined.
   the structure's alignment.  This may require tail padding, depending on
   the last member.
 
-[TODO: standard 5 examples of struct/union layouts]
+In the following examples, members' byte offsets appear in the upper left corners.
+
+Figure 3-5: Structure Smaller Than a Word
+
+                 Byte aligned, sizeof is 1
+struct {        +---------+
+    char   c;   |0        |
+};              |    c    |
+                +---------+
+
+Figure 3-6: No Padding
+
+                 Word aligned, sizeof is 8
+struct {       +---------+---------+------------------+
+    char   c;  |0        |1        |2                 |
+    char   d;  |    c    |    d    |         s        |
+    short  s;  +---------+---------+------------------+
+    long   n;  |4                                     |
+};             |                   n                  |
+               +--------------------------------------+
+
+Figure 3-7: Internal Padding
+
+                 Halfword aligned, sizeof is 4
+struct {       +---------+---------+
+    char   c;  |0        |1        |
+    short  s;  |    c    |   pad   |
+};             +---------+---------+
+               |2                  |
+               |         s         |
+               +-------------------+
+
+Figure 3-8: Internal and Tail Padding
+
+                Word aligned, sizeof is 16
+struct {       +---------+---------------------------+
+    char   c;  |0        |1                          |
+    double d;  |    c    |            pad            |
+    short  s;  +---------+---------------------------+
+};             |4                                    |
+               |                 d                   |
+               +-------------------------------------+
+               |8                                    |
+               |                 d                   |
+               +------------------+------------------+
+               |12                |14                |
+               |         s        |       pad        |
+               +------------------+------------------+
+
+Figure 3-9: union Allocation
+
+                Word aligned, sizeof is 4
+union {        +---------+---------------------------+
+    char   c;  |0        |1                          |
+    short  s;  |    c    |            pad            |
+    int    j;  +---------+---------+-----------------+
+};             |0                  |2                |
+               |         s         |       pad       |
+               +-------------------+-----------------+
+               |0                                    |
+               |                  j                  |
+               +-------------------------------------+
 
 Bit-fields
 
 C struct and union definitions may have "bit-fields", defining integral objects
 with a specified number of bits.
 
-Figure 3-7: Bit-Field Ranges
+Figure 3-10: Bit-Field Ranges
 
 Bit-field Type       Width w   Range
 ----------------------------------------------------
@@ -190,9 +257,8 @@ unsigned long long |         | 0 to 2^W-1
 ----------------------------------------------------
 
 "Plain" bit-fields (that is, those neither signed nor unsigned) always have
-non-negative values.  Although they may have
-type char(TODO: depends on char being signed or unsigned by default), short,
-int, long, or long long(?) (which can have negative values), bit-fields of
+non-negative values.  Although they may have type short,
+int, long, or long long (which can have negative values), bit-fields of
 these types have the same range as bit-fields of the same size with the
 corresponding unsigned type.  Bit-fields obey the same size and alignment
 rules as other structure and union members, with the following additions:
@@ -209,11 +275,88 @@ rules as other structure and union members, with the following additions:
   member, bit-field or other, from residing in the storage unit corresponding
   to the type of the zero-width bit-field.
 
-The following examples (Figures 3-14 through 3-24) show struct and union
+The following examples (Figures 3-11 through 3-16) show struct and union
 member's byte offsets in the upper left corners.  Bit numbers appear in the
 lower corners.
 
-[TODO: standard 6 examples, adjusted]
+Figure 3-11: Bit Numbering
+
+               +---------+---------+---------+---------+
+               |0        |1        |2        |3        |
+0111222333444  |  0111   |  0222   |  0333   |  0444   |
+               |0       8|9      17|18     26|27     35|
+               +---------+---------+---------+---------+
+
+Figure 3-12: Left-to-Right Allocation
+
+                   Word aligned, sizeof is 4
+struct {          +-----+------+--------+-----------------+
+    int     j:5;  |0    |      |        |                 |
+    int     k:6;  |  j  |   k  |   m    |       pad       |
+    int     m:8;  |0    |5     |11      |19               |
+};                +-----+------+--------+-----------------+
+
+Figure 3-13: Boundary Alignment
+
+                   Word aligned, sizeof is 12
+struct {          +----------+----------+-------+---------+
+    short  s:10;  |0         |          |       |         |
+    int    j:10;  |     s    |     j    |  pad  |    c    |
+    char   c;     |0         |10        |20     |27       |
+    short  t:10;  +----------+--------+-+-------++--------+
+    short  u:10;  |4         |        |          |        |
+    char   d;     |     t    |  pad   |     u    |   pad  |
+};                |0         |10      |18        |28      |
+                  +---------++--------+----------+--------+
+                  |8        |                             |
+                  |     d   |             pad             |
+                  |0        |9                            |
+                  +---------+-----------------------------+
+
+Figure 3-14: Storage Unit Sharing
+
+                   Halfword aligned, sizeof is 2
+struct {          +---------+---------+
+    char   c;     |0        |1        |
+    short  s:9;   |    c    |     s   |
+};                |0        |9        |
+                  +---------+---------+
+
+Figure 3-15: union Allocation
+
+                   Halfword aligned, sizeof is 2
+union {           +---------+---------+
+    char   c;     |0        |1        |
+    short  s:9;   |    c    |   pad   |
+};                |0        |9        |
+                  +---------+---------+
+                  |0        |1        |
+                  |    s    |   pad   |
+                  |0        |9        |
+                  +---------+---------+
+
+Figure 3-16: Unnamed Bit-Fields
+
+                   Byte aligned, sizeof is 9
+struct {          +---------+---------------------------+
+    char   c;     |0        |1                          |
+    int    :0;    |    c    |            :0             |
+    char   d;     |0        |9                          |
+    short  :10;   +---------+---------+----------+------+
+    char   e;     |4        |5        |6         |      |
+    char   :0;    |    d    |   pad   |    :10   | pad  |
+};                |0        |9        |18        |28    |
+                  +---------+---------+----------+------+
+                  |8        |
+                  |    e    |
+                  |0        |
+                  +---------+
+
+Note - In Figure 3-16, the presence of the unnamed int and short fields do not
+affect the alignment of the structure.  They align the named members relative
+to the beginning of the structure, but the named members may not be aligned in
+memory on suitable boundaries.  For example, the d members in an array of this
+structure will not all be on an int (4-byte) boundary.
 
 As the examples show, int bit-fields (including signed and unsigned) pack more
 densely than smaller base types.  You can use char and short bit-fields to force
