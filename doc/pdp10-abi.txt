@@ -26,8 +26,10 @@ Machine Interface
 Processor Architecture
 
 The following documents define the PDP10 architecture:
+
 * DECsystem-10/DECSYSTEM-20 Processor Reference Manual, AD-H391A-T1, Digital Equipment Corporation, 1982.
 * KC10 Functional Description, Digital Equipment Corporation, 1983.
+* Extended adressing, Digital Equipment Corporation, 1983.
 * TOAD-1 System Architecture Reference Manual, XKL Systems Corporation, 1996.
 
 Linux for PDP10 requires the following features introduced with the
@@ -109,7 +111,7 @@ Type             C                  sizeof Alignment PDP10
 Boolean        | _bool              1      1         unsigned byte
 ---------------|----------------------------------------------------------------------------------------
 Character      | char               1      1         unsigned byte
-               | unsigned char      1      1
+               | unsigned char      1      1         Note: LDB and ILDB zero-extend
                |----------------------------------------------------------------------------------------
                | signed char        1      1         signed byte
 ---------------|----------------------------------------------------------------------------------------
@@ -361,3 +363,469 @@ structure will not all be on an int (4-byte) boundary.
 As the examples show, int bit-fields (including signed and unsigned) pack more
 densely than smaller base types.  You can use char and short bit-fields to force
 particular alignments, but int is generally more efficient.
+
+Function Calling Sequence
+
+This section discusses the standard function calling sequence, including stack
+frame layout, register usage, and parameter passing.
+
+The standard calling sequence requirements apply only to global functions.  Local
+functions that are not reachable from other compilation units may use different
+conventions.  Nevertheless, it is recommended that all functions use the standard
+calling sequence when possible.
+
+Registers
+
+The PDP10 architecture provides 16 general purpose registers, each 36 bits wide,
+and a 13-bit "Program Flags" special purpose register.  By convention, the general
+purpose registers are referred to via the octal numbers 0 through 017.
+All of these registers are global to all procedures active for a given thread.
+Brief register descriptions appear in Figure 3-17, followed by more detailed
+information about the registers.
+
+Figure 3-17: Processor Registers
+
+Register       Call Effect  Usage
+--------------------------------------------------
+0              Volatile     Temporary
+1-4            Volatile     Temporaries, argument passing and return values
+5-7            Volatile     Temporaries
+010-013        Preserved    Local variables
+014            Reserved     Thread pointer [TODO: "Preserved, local variable or static chain" in TOPS-20]
+015            Preserved    Local variable or frame pointer
+016            Preserved    Local variable, GOT pointer for PIC code
+017            Preserved    Stack pointer
+Program Flags  Volatile     Contains special purpose flags
+
+Registers 010 to 013 and 015 to 017 are nonvolatile; that is, they "belong to" the calling
+function.  A called function shall save these registers' values before it changes
+them, restoring their values before it returns.  Registers 0 through 7, and the
+program flags, are volatile; that is, they are not preserved across function calls.
+
+[TODO: may function linkage clobber any register?]
+
+Register 013 is reserved by the system as a thread pointer, and must not be changed
+by application code.
+
+Register 015 may be used as a frame pointer holding the base address for the current
+stack frame.  Consequently, a function has registers pointing to both ends of its frame.
+Incoming arguments reside in the previous frame, referenced as negative offsets from
+register 015, while local variables reside in the current frame, referenced as positive
+offsets from register 015.  A function must preserve this register for its caller.
+
+Register 016 is used as the global offset table base register for position-independent code.
+For absolute code, this register is available as a local variable and has no specified
+role in the function calling sequence.  In either case, a function must preserve this
+register for its caller.
+
+Register 017 contains the current thread's stack pointer, as used by the PUSH,
+PUSHJ, POP, POPJ, and ADJSP instructions.  It shall always point to the top-most,
+valid word of the current stack frame, and grow towards high addresses.
+
+Signals can interrupt processes.  Functions called during signal handling have no
+unusual restrictions on their use of registers.  Moreover, if a signal handling
+function returns, the process resumes its original execution path with all registers
+restored to their original values.  Thus, programs and compilers may freely use all
+registers, except those reserved for system use, without the danger of signal handlers
+inadvertently changing their values.
+
+The Stack Frame
+
+A function will be passed a frame on the runtime stack by the function which called it,
+and may allocate a new stack frame for itself if needed.  This stack grows upwards from
+low to high addresses.  Figure 3-18 shows the stack frame organization.  SP in the figure
+denotes the stack pointer (general purpose register 017) of the called function after it
+has executed code establishing its stack frame.  Old SP denotes the stack pointer before
+the stack frame is established; it points at the word containing the return address, one
+word above the caller's stack frame.  Since the stack pointer is a word pointer, offsets
+are in number of words, not bytes.
+
+Base   Offset Contents          Frame
+-------------+-----------------+---------------
+SP           | argument        | High addresses
+             | build area      |
+             +-----------------+
+             | local variables | Current
+             | and register    |
+         +1W | save area       |
+             +-----------------+
+Old SP   +0W | return address  |
+-------------+-----------------+---------------
+         -1W | argument word 0 |
+             | ...             |
+             | argument word n | Previous
+             +-----------------+
+             | ...             |
+             |                 | Low addresses
+-------------+-----------------+---------------
+
+[TODO: show layout when a frame pointer is used?]
+
+Parameter Passing
+
+All integer-valued arguments are passed as 36-bit words.  A byte or halfword is
+zero- or sign-extended to a word, depending on the signedness of its type.
+
+Structures and unions are passed as sequences of words, left-to-right.  The contents
+of any tail padding is unspecified.
+
+Integers and floats larger that one word are passed as structures.
+
+If the called function returns a structure or union, the caller passes the address
+of an area large enough to hold the result as the first argument to the function,
+shifting remaining arguments one step to the right.  The called function copies the
+returned structure or union into this area before it returns.
+
+The sequence of words that make up the argument list is passed in registers and the stack as follows:
+
+* the first (left-most) four words are passed in registers 1 to 4, in that order; if the argument list
+  is shorter than four words, then only as many argument registers as there are argument words are
+  defined, remaining ones have undefined contents
+
+* remaining argument words after the first four, if any, are passed on the top of the current
+  stack frame, in left-to-right order, at offsets -1, -2, -3, etc from the stack pointer as
+  seen by the called function
+
+[TODO: prevent any individual argument from being split between registers and the stack?]
+[TODO: reserve a 4-word argument home area at the top of the frame, between the return address
+and the stacked arguments -- that would simplify variadic functions]
+
+The return address is passed at the top of the stack, at offset 0 from the stack pointer as
+seen by the called function.
+
+Variable Argument Lists
+
+Portable C programs must use the header file <stdarg.h> to handle variable argument lists
+on the PDP10.
+
+Function Return Values
+
+An integral or pointer return value is returned in register 1.  A long long integer or
+double-precision float is returned in registers 1 and 2.  A byte or halfword is
+zero- or sign-extended to a word, depending on the signedness of its type.
+
+The caller of a function that returns a structure or union passes the address of an
+area large enough to hold the result in the first argument register.  Before the called
+function returns to its caller, it copies the return value to this area; the called
+function also returns this address in register 1.
+
+[TODO: allow small structures to be returned in registers, then rephrase long long and
+double returns to be as if they are structures]
+
+Operating System Interface
+
+Virtual Address Space
+
+Processes execute in an 18, 23, or 30-bit virtual address space, partitioned into sections
+of 256 kilowords (2^18 words) each.  Memory management translates virtual addresses to
+physical addresses, hiding physical addressing and letting a process run anywhere in the
+system's real memory.  Processes typically begin with three logical segments, commonly
+called "text", "data", and "stack".  Dynamic linking creates more segments during execution,
+and a process can create additional segments for itself with system services.
+
+Page Size
+
+Memory is organized into pages, which are the system's smallest units of memory allocation.
+The hardware page size for the PDP10 architecture is 512 words.
+
+Shared Libraries
+
+Shared libraries depend on position-independent code (PIC).  However, the PDP10 supports only
+absolute addressing of both code and data, via 18-bit local addresses (offsets from the current
+section), or via 30- or 36-bit global addresses.
+
+This ABI specifies that each shared library is aligned on a section boundary, as that allows most
+local code references in the shared library to use local absolute addresses.  To retrieve its
+global offset table (GOT) pointer, a function in the shared library executes the following code:
+
+        JSP 0, _GET_GOT_
+
+where _GET_GOT_ is a linker-generated function containing:
+
+_GET_GOT_:
+        HLLZ 016, 0 # copy section number
+        HRRI 016, L # insert local section offset for L
+L:      ADD 016, @[_GLOBAL_OFFSET_TABLE_-.]
+        JRST 0
+
+This places a return address in AC 0, jumps via a local absolute address to the linker-generated
+function _GET_GOT_, which computes into AC 016 the GOT address via the section number in AC 0 and
+the link-time constant offset from _GET_GOT_ to the GOT, and then returns via AC 0.  Each section
+in a shared library must contain its own specific _GET_GOT_ function.
+
+Note -- It is possible to lift the restriction that shared libraries are section-aligned.
+In this case, to compute its GOT a function could execute:
+
+        MOVSI 0, 025400 # assemble "JRST 016" in AC 0
+        HRR 0, 016
+        JSP 016, 0      # place PC in AC 016, jump to AC 0
+        ADD 016, @[_GLOBAL_OFFSET_TABLE_-.]
+
+In this case, even local code references within the shared library would have to be
+indirect via the GOT.  This ABI does not support this model for shared libraries.
+
+Virtual Address Assignments
+
+Conceptually, processes have the full 30-bit (4096 section) address space available.  In practice,
+however, several factors limit the size of a process.
+
+* The processor may only support 32 or 1 sections.  The KC10, XKL-1, and SC-40 support 4096 sections,
+  the KL10B supports 32 sections, and the KA10, KI10, early KL10, and KS10 support only a single section.
+* Section 0 may not contain code in programs compiled for 32 or 4096 sections, due to the
+  differing semantics of executing in section zero versus a non-zero section.
+* Locations 0 to 017 in sections 0 and 1 alias the general purpose registers, and are therefore
+  unavailable for data or code allocation.
+* Shared libraries, as defined by this ABI, must be section-aligned.
+
+The Large Code Model
+
+The large code model provides processes with access to the full 30-bit address space.
+
+             +------------------+
+07777_777777 | ...              |
+             |                  |
+04000_000000 | Dynamic segments |
+             +------------------+
+03777_777777 | ...              |
+             |                  |
+             | BSS segment      |
+             +------------------+
+             | ...              |
+             |                  |
+             | Data segment     |
+             +------------------+
+             | ...              |
+             |                  |
+00001_000020 | Text segment     |
+             +------------------+
+00000_777777 | ...              |
+00000_777000 | Guard page       |
+             +------------------+
+00000_776777 | ...              |
+             |                  |
+00000_001000 | Stack segment    |
+             +------------------+
+00000_000777 |                  |
+00000_000000 | Reserved segment |
+             +------------------
+
+The main program code and data is loaded starting in section 1 at offset 020,
+and the main stack is allocated in section 0 at offset 01000 (page 1).  Pages 0
+and 0777 of section 0 are reserved and unmapped.
+
+The upper half of the address space is reserved for dynamic segments, allowing
+for up to 2048 shared libraries to be mapped into the process.  Unused space there
+is available for dynamic memory allocation.
+
+Programs compiled for the large code model will only run on processors implementing full
+extended addressing.
+
+The Small Code Model
+
+The small code model provides processes with access to a 23-bit address space.
+
+             +------------------+
+00037_777777 | ...              |
+             |                  |
+00020_000000 | Dynamic segments |
+             +------------------+
+00017_777777 | ...              |
+             |                  |
+             | BSS segment      |
+             +------------------+
+             | ...              |
+             |                  |
+             | Data segment     |
+             +------------------+
+             | ...              |
+             |                  |
+00001_000020 | Text segment     |
+             +------------------+
+00000_777777 | ...              |
+00000_777000 | Guard page       |
+             +------------------+
+00000_776777 | ...              |
+             |                  |
+00000_001000 | Stack segment    |
+             +------------------+
+00000_000777 |                  |
+00000_000000 | Reserved segment |
+             +------------------
+
+The small code model is identicial to the large code model, except for the base
+of the dynamic segments, and that the number of shared libraries is limited to
+at most 16.
+
+Programs compiled for the small code model will only run on processors implementing extended addressing.
+
+The Tiny Code Model
+
+The tiny code model provides processes with access to an 18-bit address space in section 0.
+
+             +------------------+
+00000_777777 | Dynamic memory   |
+             | allocation       |
+             | ...              |
+             | BSS segment      |
+             +------------------+
+             | ...              |
+             | Data segment     |
+             +------------------+
+             | ...              |
+00000_400000 | Text segment     |
+             +------------------+
+00000_377777 | Dynamic memory   |
+             | allocation       |
+             | ...              |
+             +------------------+
+             | Guard page       |
+             +------------------+
+             | ...              |
+00000_001000 | Stack segment    |
+             +------------------+
+00000_000777 |                  |
+00000_000000 | Reserved segment |
+             +------------------+
+
+The main program code and data is loaded starting at offset 0400000 (page 0400),
+and the main stack is allocated at offset 01000 (page 1).  Page 0 is reserved
+and unmapped.
+
+Dynamic memory allocation via mmap() proceeds from offset 0777777 and downwards
+towards the BSS segment.  If that area is exhausted, dynamic memory allocation
+then proceeds from offset 0377777 and downwards towards the main stack segment.
+
+An unmapped guard page separates the stack segment from the following segment.
+The location of this page is adjusted as needed if the dynamic memory allocation
+segment grows or shrinks.
+
+Programs compiled for the tiny code model will run on all PDP10 processors.
+However, the tiny code model does not support shared libraries, and code executing
+in section 0 has different behaviour than code executing in non-zero sections.
+
+Process Initialization
+
+This section describes the machine state that exec() creates for "infant" processes,
+including argument passing, register usage, and stack frame layout.  Programming
+language systems use this initial program state to establish a standard environment for
+their application programs.  As an example, a C program begins executing at a function
+named main, conventionally declared in the following way.
+
+Figure 3-??: Declaration for main
+
+        extern int main(int argc, char *argv[], char *envp[]);
+
+Briefly, argc is a non-negative argument count; argv is an array of argument strings, with
+argv[argc] == 0; and envp is an array of environment strings, also terminated by a NULL
+pointer.
+
+Although this section does not describe C program initialization, it gives the information
+necessary to implement the call to main or to the entry point for a program in any other
+language.
+
+Process Stack and Registers
+
+When a process receives control, its stack holds the arguments, environment, and
+auxiliary vector from exec().  Argument strings, environment strings, and the auxiliary
+information appear in no specific order within the information block; the system makes
+no guarantee about their relative arrangement.  The system may also leave an unspecified
+amount of memory between the null auxiliary vector entry and the end of the information block.
+A sample initial stack is shown in Figure 3-??.
+
+Figure 3-??: Initial Process Stack
+
+        +----------------------------------------+
+SP:     | Argument count word                    | High Address
+        +----------------------------------------+
+        | zero word                              |
+        +----------------------------------------+
+        |                                        |
+        | Argument pointers (1 word each)        |
+        |                                        |
+        +----------------------------------------+
+        | zero word                              |
+        +----------------------------------------+
+        |                                        |
+        | Environment pointers (1 word each)     |
+        |                                        |
+        +----------------------------------------+
+        | zero word                              |
+        +----------------------------------------+
+        | AT_NULL auxiliary vector entry         |
+        +----------------------------------------+
+        |                                        |
+        | Auxiliary vector (2 word entries)      |
+        |                                        |
+        +----------------------------------------+
+        | AT_NULL auxiliary vector entry         |
+        +----------------------------------------+
+        | Unspecified                            |
+        +----------------------------------------+
+        | Information block, including argument  |
+        | and environment strings, and auxiliary |
+        | information (size varies)              | Low Address
+        +----------------------------------------+
+
+When a process is first entered (from an exec() system call), the contents of registers
+other than those listed below are unspecified.  Consequently, a program that requires
+registers to have specific values must set them explicitly during process initialization.
+It should not rely on the operating system to set all registers to 0.  Following are the
+registers whose contents are specified:
+
+Figure 3-??
+
+017     The initial stack pointer, pointing to a stack location that contains the
+        argument count.
+
+[TODO: a register e.g. 1 with a function pointer for atexit()?
+ Not all archs use that.  Only if Linux really wants it.]
+
+[TODO: Following PPC64, change to pass all args in regs and leave stack contents unspecified?
+ They are the odd-ball.  Do whatever is most convenient on Linux.]
+
+Every process has a stack, but the system defines no fixed stack address.  Furthermore,
+a program's stack address can change from one system to another -- even from one process
+invocation to another.  This the process initialization code must use the stack address
+in general purpose register 017.  Data in the stack segment at addresses above the stack
+pointer contain undefined values.
+
+Whereas the argument and environment vectors transmit information from one application
+program to another, the auxiliary vector conveys information from the operating system
+to the program.  This vector is an array of structures, which are defined in Figure 3-??.
+
+[TODO: Auxiliary Vector definitions and figures]
+
+Coding Examples
+
+Conventions
+
+Position-Independent Function Prologue
+
+Variable Argument Lists
+
+DWARF Definition
+
+Object Files
+
+ELF Header
+
+Special Sections
+
+Symbol Table
+
+Symbol Values
+
+Relocation
+
+Program Loading and Dynamic Linking
+
+Program Loading
+
+Program Header
+
+Dynamic Linking
+
+Program Interpreter
+
+There is one valid program interpreter for programs conforming to the PDP10 ABI: "/lib/ld-linux.so.1".
+[TODO: /usr/lib/ld.so.1 instead?]
