@@ -100,6 +100,8 @@ typedef struct {
 #define ELFOSABI_NSK	     14	/* Hewlett-Packard Non-Stop Kernel */
 #define ELFOSABI_AROS	     15	/* AROS */
 #define ELFOSABI_FENIXOS     16 /* FenixOS */
+#define ELFOSABI_CLOUDABI    17 /* Nuxi CloudABI */
+#define ELFOSABI_OPENVOS     18 /* Stratus Technologies OpenVOS */
 #define ELFOSABI_C6000_ELFABI 64 /* Bare-metal TMS320C6000 */
 #define ELFOSABI_C6000_LINUX 65 /* Linux TMS320C6000 */
 #define ELFOSABI_ARM	     97	/* ARM */
@@ -127,7 +129,7 @@ typedef struct {
 #define EM_386		  3	/* Intel 80386 */
 #define EM_68K		  4	/* Motorola m68k family */
 #define EM_88K		  5	/* Motorola m88k family */
-#define EM_486		  6	/* Intel 80486 *//* Reserved for future use */
+#define EM_IAMCU	  6	/* Intel MCU (was: Intel 80486) */
 #define EM_860		  7	/* Intel 80860 */
 #define EM_MIPS		  8	/* MIPS R3000 (officially, big-endian only) */
 #define EM_S370		  9	/* IBM System/370 */
@@ -266,8 +268,8 @@ typedef struct {
 #define EM_TI_C6000	140	/* Texas Instruments TMS320C6000 DSP family */
 #define EM_TI_C2000	141	/* Texas Instruments TMS320C2000 DSP family */
 #define EM_TI_C5500	142	/* Texas Instruments TMS320C55x DSP family */
-#define EM_res143	143	/* Reserved */
-#define EM_res144	144	/* Reserved */
+#define EM_TI_ARP32	143	/* Texas Instruments Application Specific RISC Processor, 32bit fetch */
+#define EM_TI_PRU	144	/* Texas Instruments Programmable Realtime Unit */
 #define EM_res145	145	/* Reserved */
 #define EM_res146	146	/* Reserved */
 #define EM_res147	147	/* Reserved */
@@ -339,6 +341,18 @@ typedef struct {
 #define EM_KMX16	212	/* KM211 KMX16 16-bit processor */
 #define EM_KMX8		213	/* KM211 KMX8 8-bit processor */
 #define EM_KVARC	214	/* KM211 KVARC processor */
+#define EM_CDP		215	/* Paneve CDP architecture family */
+#define EM_COGE		216	/* Cognitive Smart Memory Processor */
+#define EM_COOL		217	/* Bluechip Systems CoolEngine */
+#define EM_NORC		218	/* Nanoradio Optimized RISC */
+#define EM_CSR_KALIMBA	219	/* CSR Kalimba architecture family */
+#define EM_Z80		220	/* Zilog Z80 */
+#define EM_VISIUM	221	/* Control and Data Services VISIUMcore processor */
+#define EM_FT32		222	/* FTDI Chip FT32 high performance 32-bit RISC architecture */
+#define EM_MOXIE	223	/* Moxie processor family */
+#define EM_AMDGPU	224	/* AMD GPU architecture */
+/* 225-242: reserved */
+#define EM_RISCV	243	/* RISC-V */
 
 /* If it is necessary to assign new unofficial EM_* values, please pick large
    random numbers (0x8523, 0xa7f2, etc.) to minimize the chances of collision
@@ -869,6 +883,7 @@ typedef struct {
 #define DT_ENCODING	32	/* odd/even encoding rule starts here */
 #define DT_PREINIT_ARRAY   32
 #define DT_PREINIT_ARRAYSZ 33
+#define DT_SYMTAB_SHNDX 34
 
 /* Note, the Oct 4, 1999 draft of the ELF ABI changed the values
    for DT_LOOS and DT_HIOS.  Some implementations however, use
