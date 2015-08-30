@@ -1,0 +1,60 @@
+PDP10 Interrupt Architecture
+============================
+
+The PDP10 interrupt architecture is based on two cooperating systems:
+- the Priority Interrupt system, which determines which interrupts are enabled,
+  and allows software to enable or disable specific interrupt levels; and
+- the Interrupt Dispatch system, which determines how the processor handles an
+  interrupt once it has been accepted.
+
+The Priority Interrupt System
+-----------------------------
+
+The PDP10 has 8 interrupt levels, numbered 0-7, with 0 having highest priority.
+Levels 1-7 can be individually masked or unmasked, level 0 cannot be masked.
+Devices can be assigned any level from 1 to 7 (assigning level 0 disconnects it).
+Devices can share levels.
+
+A device sends an interrupt request by signalling its assigned level to the processor.
+The request is recognized if both the priority interrupt system and the specific level
+are enabled, and the processor it not already handlin a request at the same or higher
+priority.
+
+Once the processor starts handling an interrupt, it is held until dismissed.
+While held, all interrupts at that and lower priority leves are blocked.
+
+WRPI aka "CONO 4, EA" writes to the priority interrupt system.
+RDPI aka "CONI 4, EA" reads the current interrupt mask.
+
+The Interrupt Dispatch System
+-----------------------------
+
+Early processors (PDP6, KA10, KI10, KL10, KS10) handle a recognized interrupt by
+executing an "interrupt instruction" at a level-specific location.  An interrupt
+instruction is encoded as an ordinary PDP10 instruction, but only a subset of PDP10
+instructions are permitted, and the state (PC and registers) is still that of the
+interrupted context.  In practice, this limits the permissible instructions to
+simple I/O transfers or calls to service routines.
+
+On the extended KL10, the preferred interrupt instruction for calling a service
+routine is XPCW, and the service routine should then return with XJEN (JRST 7,).
+On non-extended processors, the instructions to use are JSR and JEN (JRST 12,).
+
+Later processors (KC10, XKL-1) eliminate interrupt instructions and instead require
+vectors of "interrupt control blocks" for use by implicit XPCW instructions.
+
+The different processor generations vary in:
+1. Which instructions, if any, are permitted as interrupt instructions.
+2. The exact locations of the dispatch vectors.  Locations 040-057 are commonly used in
+   early processors, while later processors use different locations in the EPT.
+3. The exact hardware protocol by which the interrupting device informs the processor
+   about how to handle the interrupt (KL10 has additional features here).
+
+References
+----------
+
+- TOAD-1 System Architecture Reference Manual, Chapter 4 "Earlier Processors",
+  Section 4.1 "KL10 System Operations", Subsection 4.1.1 "Priority Interrupt", pages 334-342.
+- TOAD-1 System Architecture Reference Manual, Chapter 3 "TOAD-1 System and
+  XKL-1 Processor Operations", Section 3.1 "Priority Interrupt", pages 212-221.
+- KC10 Exec Mode, Rev. 6
