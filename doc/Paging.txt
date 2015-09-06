@@ -1,0 +1,208 @@
+PDP10 Paging
+============
+
+Before Paging: PDP6 and KA10 "Memory Protection"
+------------------------------------------------
+
+Addresses are 18 bits, allowing up to 262,144 words (256KW) of memory to be addressed.
+
+The processor uses two (PDP6) or four (KA10) 8-bit protection and relocation registers to manage
+the address space of a user-mode task.
+
+- The protection register is compared with the high 8 bits of the user-mode address; if the
+  address is higher a fault is generated.
+
+- The relocation register is added (modulo 2^18) to the high 8 bits of the user-mode address,
+  provided the protection register comparison did not fault.
+
+- The KA10 allows the user-mode address space to contain a low and a high section, each individually
+  limited and relocated.  The high section may also be write-protected.
+
+The "DATAO APR,EA" instruction loads a single word containing the values to assign to the
+registers and the high section write protection flag.
+
+KA10 with the BBN Pager
+-----------------------
+
+- 18-bit virtual addresses with 9-bit page numbers and 9-bit page offsets (256KW)
+- 11-bit physical page numbers, allowing up to 1MW physical memory
+- a TLB caches recent address translations
+- each page table entry is one word, a page table occupies one page
+- separate page tables for user and executive modes
+- three kinds of page table entries:
+  * private: indicates a physical page number, which may be in core or not
+  * shared: indexes via a shared tages table (SPT) to find the physical page number
+  * indirect: indexes another page table at another index
+- there is also a core status table (CST) indexed by physical page numbers
+- similar to KL10 TOPS-20 Paging [see below] but limited to a single section
+
+KI10 Paging
+-----------
+
+Program addresses are 18 bits, allowing up to 256KW of memory to be addressed directly.
+The address space, in both user and executive mode, is divided into pages of 512 words each.
+The high 9 bits of a virtual address specify a page number, and the low 9 bits an offset
+(word) in that page.  Physical memory contains up to 8192 pages (4MW) and uses 22-bit addresses
+consisting of 13-bit page numbers and 9-bit page offsets.
+
+The paging hardware looks up each address in a 512-entry page map, with 18-bit entries
+(13-bit physical page number and 5 flag bits), packed into 256 words.  The page map itself
+is stored in a page called the "Process Table" associated with the current context (the user
+process table, UPT, or the executive process table, EPT).
+
+Layout of Page Map Entry:
+
+--------------------------------------------
+| A | P | W | S | X | Physical page number |
+--------------------------------------------
+  0   1   2   3   4   5                   17
+
+A: Access allowed
+P: Public
+W: Writable
+S: Available for software use
+X: Reserved for future use
+
+In executive mode the first 112KW are not paged but mapped to the same physical locations.
+The remaining 144KW are paged, but their page map is split: the high 128KW (pages 0400-0777)
+are mapped the same way as the high 128KW of a user-mode process (locations 0200-0377 in the
+process table), while the remaining 16KW in the low half (pages 0340-0377) are mapped via
+locations 0400-0417 in the current USER process table.  This allows a portion of the executive
+address space to be specific to the current user process.  (C.f. "u area" in early UNIX.)
+
+Remaining locations in the process tables contain interrupt and trap vectors, and unused or
+reserved areas.
+
+To speed up page translation, the pager keeps recently used mappings in 32-word associative
+memory called the "page table" (a TLB in current terminology).
+
+An error during page translation results in a trap via a vector in the current process table,
+after storing data about the access in the current user process table.  The interrupted instruction
+is fully restartable.
+
+A user-mode process can be in "small user" mode, which causes its virtual address space to
+be limited to two 16KW segments, one at offset 0 and one at offset 128KW.  The pages in these
+segments are then paged as usual.  Unused portions of the page map are then available to software.
+(This appears to be for emulating the low/high segment model of the KA10.)
+
+"DATAO PAG,EA" invalidates the TLB and reloads the UPT and EPT pointers and other paging controls
+from EA.  Other instructions allow software to inspect the state of the page map and the TLB.
+
+The "PCXT" instruction allows another instruction to be executed with some of its memory operations
+(read and read/modify/write operations, write operations, or all) to be executed in the "previous
+context".  Typically, the current context is executive and the previous context is user, and this
+is used to copy parameters and results in MUUOs.
+
+KL10 with TOPS-10 Paging
+------------------------
+
+TOPS-10 Paging on the non-extended (single-section) KL10 (microcode earlier than 271) is very similar
+to KI10 Paging, except:
+- the first 112KW of the executive mode address space are also paged, via locations 0600-0757 in the EPT,
+- there is no "small user" mode,
+- page map entries have been extended with a "cacheable" flag bit,
+- the page table (TLB) is larger and organized differently.
+
+Layout of Page Map Entry:
+
+--------------------------------------------
+| A | P | W | S | C | Physical page number |
+--------------------------------------------
+  0   1   2   3   4   5                   17
+
+A: Access allowed
+P: Public
+W: Writable
+S: Available for software use
+C: Cacheable
+
+KL10 with TOPS-20 Paging
+------------------------
+
+- Physical memory contains up to 8192 pages (4MW) (13-bit page numbers)
+- Virtual memory is 16384 pages (8MW) (14-bit page numbers), regarded as 32 sections of 512 pages each
+- Each section has a separate page map
+- The section table is an array of 32 section pointer words in the context's Process Table
+- The current process tables (UPT and EPT) are physical pages referenced by two registers in the pager
+- A section table entry identifies the page map for that section
+- A page map is an array of 512 page pointer words, stored in a single physical page
+- There is no difference in data structure layout for user-mode and executive-mode paging
+- A 512-word page table (TLB) caches recently use mappings
+- The core memory status table (CST) is an optional table indexed by physical page number, addressed
+  by AC 2 in AC block 6.  On a refill into the page table (TLS) the CST entries for both the page map
+  and the final page are updated.
+- The special page-address table (SPT) is addressed by AC 3 in AC block 6.  Its entries point to section
+  tables or page maps.
+
+There are four kinds of entries in section tables:
+- invalid
+- immediate: points to a page map
+- shared: contains an SPT index, the SPT at that index points to a page map
+- indirect: contains a section table index and an SPT index, the SPT at that index points
+  to another section table, which is indexed by the section table index stored in this entry
+  
+There are four kinds of entries in page maps:
+- invalid
+- immediate: points to a physical page
+- shared: contains an SPT index, the SPT at that index points to a physical page
+- indirect: contains a page map index and an SPT index, the SPT at that index points
+  to another page map, which is indexed by the page map index stored in this entry
+
+KS10 with TOPS-10 Paging
+------------------------
+
+TOPS-10 Paging on the KS10 is very similar to TOPS-10 Paging on the KL10, except:
+- physical memory contains up to 1024 pages (512KW) and uses 10-bit physical page numbers
+
+KS10 with TOPS-20 Paging
+------------------------
+
+TOPS-20 Paging on the KS10 is similar to TOPS-20 Paging on the KL10, except:
+- physical memory contains up to 1024 pages (512KW) and uses 10-bit physical page numbers
+- virtual addresses are 18 bits, allowing up to 512 pages of 512 words each
+- although the address space is considered to be composed of sections of 512 pages each,
+  only section 0 exists, and each section table only contains a single entry
+
+Dolphin/KXF10 with Full 30-bit Extended Addressing (NEVER BUILT, DIFFERENT FROM JUPITER)
+----------------------------------------------------------------------------------------
+
+Similar to TOPS-20 Paging on the KL10, except:
+- virtual address space is extended to 4096 sections (30-bit addressing)
+- high 3 address bits index an 8-entry Super Section Table (SST) in the Process Table
+- if the SST entry is of the Small User type, the section pointer is fetched from another
+  location in the Process Table, computed from the next 9 address bits and base and offset
+  fields in the SST entry; afterwards address translation proceeds as on the KL10
+- if the SST entry is of the Shared type, it points to a physical page containing a 512-entry
+  section table, this is indexed by the next 9 address bits to yield a section pointer;
+  afterwards address translation proceeds as on the KL10
+
+Jupiter/KC10/KD10 with Full 30-bit Extended Addressing (NEVER BUILT)
+--------------------------------------------------------------------
+
+Based on TOPS-20 Paging on the KL10, with the following extensions:
+- virtual address space is extended to 4096 sections: 30-bit addresses with
+  3 bit super section number (highest bits), 9 bit section number, 9 bit page number,
+  and 9 bit page offset (lowest bits)
+- the Process Table contains an 8-entry Super Section Table (SST) indexed by
+  the high 3 address bits
+- physical page numbers are 18 bits, allowing up to 128MW of physical memory
+
+There are five kinds of entries in super section tables:
+- invalid
+- immediate: points to a section table
+- shared: contains an SPT index, the SPT at that index points to a section table
+- indirect: contains an SST index and in SPT index, the SPT at that index points
+  to another SST, which is indexed by the SST index stored in this entry
+- KL-compatible: when stored in the SST at index 0, and the high 7 address bits are zero,
+  uses the next 5 address bits to index a section table in the Process Table, as a KL10 would
+
+XKL-1 / TOAD-1
+--------------
+
+Paging on the XKL-1 is similar to the Jupiter specification, with the following changes:
+- physical page numbers in supersection, section, and page map tables are 24 bits,
+  theoretically allowing for up to 8GW of physical memory, although the TOAD-1 only
+  supports up to 128MW
+- the KL-compatible supersection entry type is not supported
+- entries in supersection, section, and page map tables are formatted differently,
+  to make room for larger physical page number fields
