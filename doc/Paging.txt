@@ -186,6 +186,9 @@ Based on TOPS-20 Paging on the KL10, with the following extensions:
 - the Process Table contains an 8-entry Super Section Table (SST) indexed by
   the high 3 address bits
 - physical page numbers are 18 bits, allowing up to 128MW of physical memory
+  (some instructions specify only 16 bits for PPNs or 25 bits for PAs, e.g.
+  WRCTX and WRSPB, but this looks like a documentation oversight; the KD10
+  specification appears to correct some of those)
 
 There are five kinds of entries in super section tables:
 - invalid
