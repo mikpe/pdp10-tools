@@ -1,0 +1,66 @@
+PDP10 Timers
+============
+
+PDP6 / KA10 / KI10
+------------------
+
+- there is a clock tied to the AC power line frequency (50 or 60 Hz)
+- the clock is part of the "processor conditions"
+- CONO APR,E allows the clock interrupt to be enabled or disabled, and the entire group
+  of processor conditions to be assigned an interrupt priority level
+- on KI10, the clock has its own interrupt priority level assignment
+- on PDP6 and KA10, the clock shares interrupt priority level with the other processor conditions
+- CONI APR,E allows the current state of the processor conditions to be inspected
+- KI10 also has a "timer", but it functions like a watchdog and is not usable as a clock
+
+KL10
+----
+
+- 1 MHz time base, recorded in two words in the EPT
+- 12-bit 100 kHz interval timer able to raise interrupts with programmable period
+- CONO MTR,E assigns interrupt level to the interval timer, and enables or disables the time base
+- CONO TIM,E assigns interrupt period to the interval timer, and enables or disables it
+- CONI TIM,E reads the current contents of the interval timer, as well as it configuration data
+- KL10 also has a "metering" system, similar to programmable performance monitoring counters
+
+KS10/KD10
+---------
+
+- a 12-bit hardware millisecond counter, running at 4.1 MHz, overflow represents just under 1 ms
+- a "time base" doubleword (36+35 bits) in "the workspace", with the low 12 bits corresponding
+  to the hardware counter
+- an "interval" word in "the workspace" able to represent intervals up to 2^23 ms (almost 140 minutes)
+- WRTIM writes a doubleword to the time base (clearing the low 12 bits)
+- RDTIM reads the time base, adds the hardware counter, and writes a doubleword
+- WRINT writes a word to the interval register
+- RDINT reads the interval register and writes a word
+- WRAPR allows the interval done interrupt to be enabled, if so it shares priority level with
+  several other "system conditions"
+
+Jupiter/KC10
+------------
+
+- 12-bit 100 kHz interval timer able to raise interrupts with programmable period, identical to KL10
+- WRTMB E similar to KL10 CONO MTR,E
+- WRINT E equivalent to KL10 CONO TIM,E
+- RDINT E equivalent to KL10 CONI TIM,E
+- doubleword timebase, updated via a 16 bits 1usec hardware counter
+
+XKL-1 / Toad-1
+--------------
+
+- interval timer: 8-bit hardware counter incremented every 128 usec, on overflow signals interrupt and
+  reloads the interval (between 1 and 127, inclusive)
+- WRITM E loads a new interval, assigns priority level, and optionally clears the timer
+- interrupt vectors via an emulated XPCW using locations 100-103 in the EPT
+- RDITM E reads the state of the timer (except for its current count)
+
+- time base: a 60-bit count updated via a 16 bit 500 ns (2 MHz) hardware counter
+- RDTIME E reads the time base as a doubleword
+- WRTIME E writes a doubleword to the time base, except for the bits corresponding to the hardware counter
+- looks Jupiter-like
+
+- watchdog: a hardware decrementer with 32.8 millisecond intervals, except when the processor is halted
+  or the watchdog is disabled (via WCTRLF E)
+- WRKPA Y writes 18-bit immediate to the decrementer
+- if the decrementer reaches zero, it signals a "keep-alive" interrupt which is very much like an NMI
