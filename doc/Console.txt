@@ -1,0 +1,105 @@
+doc/Console.txt
+Copyright (C) 2015  Mikael Pettersson
+
+This file is part of pdp10-tools.
+
+pdp10-tools is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+pdp10-tools is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
+
+
+PDP10 Console I/O
+=================
+
+PDP6 / KA10
+-----------
+
+The console is a Teletype Model KSR 33, 35, or 37.
+Transfer speed is 10 (Model 33, 35) or 15 (Model 37) characters per second.
+Signalling uses one start bit, eight data bits, and two stop bits per character.
+Character codes are 8-bit with the high bit being even parity -- some models
+require correct parity even for output.
+The character set is 7-bit ASCII, but the Model 35 converts lower case letters to
+upper case on printing.  The Model 33 does not support lower case letters.
+The internal device code is 0120, aka TTY.
+
+A CONO is needed to assign a priority interrupt level to the device.
+
+Output: DATAO TTY, places data in output buffer, sets Output Busy and starts transmitter.
+Completion of transmission clears Output Busy, Sets Output Done, and requests an interrupt.
+
+Input: At start of input transmission Input Busy is set, at completion Input Busy is cleared
+and Input Done is set, and an interrupt is requested.  A DATAI then reads the character
+and clears Input Done.
+
+Sending a TAB requires sending a rubout (DEL) and waiting for completion.
+
+KI10
+----
+
+[TBD, but believed to be similar to PDP6 and KA10]
+
+KL10
+----
+
+From one to four PDP11-compatible interface processors (DTE20s) for low-speed I/O.
+Device code 0120 dropped, must use DTE20 for console.
+
+A PDP11-owned communication region is defined by the EPTDPW word in the EPT, and is written to
+by the PDP11 and read from by the PDP10.
+
+A PDP10-owned communication region is defined by PDP10 software, and is written to
+by the PDP10 and read from by the PDP11.
+
+A restricted front end can only read from a PDP10-owned communication region, and can only
+write to a PDP11-owned communication region.
+
+The console hangs off a DL11 interface on the PDP11 UNIBUS.
+
+[Most details TBD.  Need to check in monitor sources.]
+
+Dolphin / KXF10
+---------------
+
+PDP-11/34A based (Toby SBC with Fonz-11 chipset) console microprocessor with a VT100.
+
+[No more details known at this time.]
+
+KS10 / KD10
+-----------
+
+The console is an LA36 terminal and is handled by an 8080 microprocessor attached to the KS10 bus.
+
+See module SCNSER in the TOPS-10 monitor sources.
+
+A character typed on the console is deposited by the 8080 into KS10 physical memory location 32,
+and then an APR interrupt with the 8080 as source is generated.
+
+A character sent to the console is deposited by the KS10 into KS10 physical memory location 33,
+and then the 8080 is interrupted.  The 8080 reads the character, clears location 33, and interrupts
+the KS10.
+
+Jupiter / KC10
+--------------
+
+[TBD]
+
+XKL-1 TOAD-1
+------------
+
+The console is an RS-232 serial port connected directly to the XKL-1 processor and handled
+directly by the XKL-1 processor's microcode.
+
+Use RDCTY and WRCTY instructions for reading from or writing to the console.
+Use WRCTYS and RDCTYS instructions for writing or reading console status and control.
+
+I/O is by a single character at a time.  Both input and output can be interrupt-driven.
