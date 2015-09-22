@@ -1,0 +1,123 @@
+doc/Booting.txt
+Copyright (C) 2015  Mikael Pettersson
+
+This file is part of pdp10-tools.
+
+pdp10-tools is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+pdp10-tools is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
+
+
+PDP10 Boot Sequence
+===================
+
+PDP6 / KA10 / KI10
+------------------
+
+See http://www.inwap.com/pdp10/rim10b.html and the 1970 PDP-10 Reference Manual.
+The PDP6 appears to be similar except the the bootstrap loader has to be entered
+manually rather than being read from paper tape.
+
+* a 14-word bootstrap loader is entered into locations 1 to 016 via the data and address
+  switches on the console and then started at location 1 (PDP6), or loaded and started
+  via paper tape (KA10 / KI10 "readin mode")
+* the bootstrap loader reads data blocks from the paper tape:
+  - an IOWD, which contains a negated word count and a destination address minus one
+  - a block of data words, as many as indicated by the initial word count
+  - a checksum
+  - a JRST instruction, which is executed to jump to the entry point in the block,
+    or a new IOWD, which signals the start of another data block
+
+So the data on the paper tape would be:
+
+; the RIM10B bootstrap loader (not PDP6)
+<word count, starting address>
+<data 0>
+...
+<data 12>
+<checksum>
+<jrst 2>
+
+; bootstrap program
+; first block
+<word count, starting address>
+<data 0>
+...
+<data (word count)-1>
+<checksum>
+; second block
+...
+; initial instruction
+<jrst entrypoint>
+
+KL10
+----
+
+- console loads and runs KLINIT (KL INIT)
+- KLINIT does:
+  1. loads KL microcode
+  2. configures the cache
+  3. configured the memory
+  4. loads KL bootstrap program from BOOT.EXB located on the book device
+- the KL bootstrap program loads and starts the monitor, e.g. PS:<SYSTEM>MONITR.EXE
+
+KS10 / KD10
+-----------
+
+The 8080 console's code resides in PROM.  The console boots the KS10 by reading microcode and monitor
+from disk (UBA 1, RH11 @ 0776700, unit 0) or tape (UBA 3, RH11 @ 0772440, unit 0), and then starting
+the KS10 at address 01000.
+
+Dolphin / KXF10
+---------------
+
+Not specified in available documentation, but the console hardware has similarities
+with Jupiter/KC10's console, whose software is based on the KL10 console software,
+so it is likely similar in operation.
+
+Jupiter / KC10
+--------------
+
+- console is a PDP-11 compatible microprocessor (Fonz-11 chipset implementing the PDP-11/34 ISA)
+- console software based on existing KL10 console software, with adjustments for changes in the
+  KC10 processor and I/O devices compared to the KL10
+- "hard-core" console stored in 12KB of ROM, loads 38KB "loadable" console from the boot device into RAM
+- the loadable console loads a "run-time support program" (RSP) which provides additional functionality
+
+XKL-1 / Toad-1
+--------------
+
+See Chapter 3.3, Processor Initializaition, and Appendix E, TDBoot Command Summary,
+in the TOAD-1 System Architecture Reference Manual.
+
+- microcode loaded from ROM on power-on
+- POST
+- 256KW Boot ROM at slot 0 section 10, contains TDBoot, DDT, diagnostics and tests
+- TDBoot loads an .EXE file, into section 0 (pages 0 to 0777 inclusive), or
+  pages 01000 up to the highest mentioned in the .EXE; TDBoot sets up a paged address
+  space, EPT, UPT, SuperSection tables, page map tables, but no CST or SPT.  The Boot ROM
+  is also mapped into sectoin 36.  Trap handlers in EPT/UPT are initialized to refer
+  into the mapped Boot ROM.
+- The .EXE is usually loaded from a TOPS-20 to TOPS-10 structure (file system),
+  default <SYSTEM>MONITR.EXE.0
+- Alternatively the .EXE can be read from a raw SCSI disk or tape device (no file system involved)
+  [presumably the .EXE is stored as-is in a sequence of blocks]
+- Disks are low-level formatted with 128 word / 576 byte blocks, or 512 word / 2304 byte blocks
+- TDBoot settings stored in NVRAM
+
+Notes
+-----
+
+Booting an alternative monitor/kernel on KL10 and newer would seem to require producing an
+.EXE file and storing it in a TOPS-10/TOPS-20 file system on the boot device, or possibly
+at the physical start of the boot device.  The .EXE would be a container for the kernel,
+or a loader which would locate and load the kernel.
