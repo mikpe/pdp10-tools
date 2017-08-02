@@ -1,5 +1,5 @@
 doc/pdp10-abi.txt
-Copyright (C) 2015  Mikael Pettersson
+Copyright (C) 2015-2017  Mikael Pettersson
 
 This file is part of pdp10-tools.
 
@@ -404,7 +404,7 @@ program flags, are volatile; that is, they are not preserved across function cal
 
 [TODO: may function linkage clobber any register?]
 
-Register 013 is reserved by the system as a thread pointer, and must not be changed
+Register 014 is reserved by the system as a thread pointer, and must not be changed
 by application code.
 
 Register 015 may be used as a frame pointer holding the base address for the current
