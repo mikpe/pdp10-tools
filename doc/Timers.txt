@@ -1,5 +1,5 @@
 doc/Timers.txt
-Copyright (C) 2015  Mikael Pettersson
+Copyright (C) 2015-2017  Mikael Pettersson
 
 This file is part of pdp10-tools.
 
@@ -39,7 +39,7 @@ KL10
 - 12-bit 100 kHz interval timer able to raise interrupts with programmable period
 - CONO MTR,E assigns interrupt level to the interval timer, and enables or disables the time base
 - CONO TIM,E assigns interrupt period to the interval timer, and enables or disables it
-- CONI TIM,E reads the current contents of the interval timer, as well as it configuration data
+- CONI TIM,E reads the current contents of the interval timer, as well as its configuration data
 - KL10 also has a "metering" system, similar to programmable performance monitoring counters
 
 KS10/KD10
