@@ -1,5 +1,5 @@
 doc/Paging.txt
-Copyright (C) 2015  Mikael Pettersson
+Copyright (C) 2015-2017  Mikael Pettersson
 
 This file is part of pdp10-tools.
 
@@ -50,7 +50,7 @@ KA10 with the BBN Pager
 - separate page tables for user and executive modes
 - three kinds of page table entries:
   * private: indicates a physical page number, which may be in core or not
-  * shared: indexes via a shared tages table (SPT) to find the physical page number
+  * shared: indexes via a shared pages table (SPT) to find the physical page number
   * indirect: indexes another page table at another index
 - there is also a core status table (CST) indexed by physical page numbers
 - similar to KL10 TOPS-20 Paging [see below] but limited to a single section
@@ -92,7 +92,7 @@ address space to be specific to the current user process.  (C.f. "u area" in ear
 Remaining locations in the process tables contain interrupt and trap vectors, and unused or
 reserved areas.
 
-To speed up page translation, the pager keeps recently used mappings in 32-word associative
+To speed up page translation, the pager keeps recently used mappings in a 32-word associative
 memory called the "page table" (a TLB in current terminology).
 
 An error during page translation results in a trap via a vector in the current process table,
@@ -146,9 +146,9 @@ KL10 with TOPS-20 Paging
 - A section table entry identifies the page map for that section
 - A page map is an array of 512 page pointer words, stored in a single physical page
 - There is no difference in data structure layout for user-mode and executive-mode paging
-- A 512-word page table (TLB) caches recently use mappings
+- A 512-word page table (TLB) caches recently used mappings
 - The core memory status table (CST) is an optional table indexed by physical page number, addressed
-  by AC 2 in AC block 6.  On a refill into the page table (TLS) the CST entries for both the page map
+  by AC 2 in AC block 6.  On a refill into the page table (TLB) the CST entries for both the page map
   and the final page are updated.
 - The special page-address table (SPT) is addressed by AC 3 in AC block 6.  Its entries point to section
   tables or page maps.
@@ -213,7 +213,7 @@ There are five kinds of entries in super section tables:
 - invalid
 - immediate: points to a section table
 - shared: contains an SPT index, the SPT at that index points to a section table
-- indirect: contains an SST index and in SPT index, the SPT at that index points
+- indirect: contains an SST index and an SPT index, the SPT at that index points
   to another SST, which is indexed by the SST index stored in this entry
 - KL-compatible: when stored in the SST at index 0, and the high 7 address bits are zero,
   uses the next 5 address bits to index a section table in the Process Table, as a KL10 would
