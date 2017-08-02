@@ -1,5 +1,5 @@
 doc/Booting.txt
-Copyright (C) 2015  Mikael Pettersson
+Copyright (C) 2015-2017  Mikael Pettersson
 
 This file is part of pdp10-tools.
 
@@ -66,8 +66,8 @@ KL10
 - KLINIT does:
   1. loads KL microcode
   2. configures the cache
-  3. configured the memory
-  4. loads KL bootstrap program from BOOT.EXB located on the book device
+  3. configures the memory
+  4. loads KL bootstrap program from BOOT.EXB located on the boot device
 - the KL bootstrap program loads and starts the monitor, e.g. PS:<SYSTEM>MONITR.EXE
 
 KS10 / KD10
@@ -105,7 +105,7 @@ in the TOAD-1 System Architecture Reference Manual.
 - TDBoot loads an .EXE file, into section 0 (pages 0 to 0777 inclusive), or
   pages 01000 up to the highest mentioned in the .EXE; TDBoot sets up a paged address
   space, EPT, UPT, SuperSection tables, page map tables, but no CST or SPT.  The Boot ROM
-  is also mapped into sectoin 36.  Trap handlers in EPT/UPT are initialized to refer
+  is also mapped into section 36.  Trap handlers in EPT/UPT are initialized to refer
   into the mapped Boot ROM.
 - The .EXE is usually loaded from a TOPS-20 to TOPS-10 structure (file system),
   default <SYSTEM>MONITR.EXE.0
