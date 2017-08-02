@@ -1,5 +1,5 @@
 doc/Interrupts.txt
-Copyright (C) 2015  Mikael Pettersson
+Copyright (C) 2015-2017  Mikael Pettersson
 
 This file is part of pdp10-tools.
 
@@ -36,7 +36,7 @@ Devices can share levels.
 
 A device sends an interrupt request by signalling its assigned level to the processor.
 The request is recognized if both the priority interrupt system and the specific level
-are enabled, and the processor it not already handlin a request at the same or higher
+are enabled, and the processor is not already handling a request at the same or higher
 priority.
 
 Once the processor starts handling an interrupt, it is held until dismissed.
