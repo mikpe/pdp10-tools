@@ -1,5 +1,5 @@
-# Makefile for pdp10-tools
-# Copyright (C) 2013-2018  Mikael Pettersson
+# sim/Makefile
+# Copyright (C) 2018  Mikael Pettersson
 #
 # This file is part of pdp10-tools.
 #
@@ -16,13 +16,17 @@
 # You should have received a copy of the GNU General Public License
 # along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
 
-SUBDIRS=	lib 8to9 ar as nm od readelf sim
+CC=gcc
+CFLAGS=-O2 -g -Wall
+CPPFLAGS=-I../include
 
-all:
-	make TARGET= subdirs
+SIMOBJS=sim.o
+LIBOBJS=../lib/pdp10-elf36.o ../lib/pdp10-extint.o ../lib/pdp10-stdio.o
+
+sim:	$(SIMOBJS) $(LIBOBJS)
+	$(LINK.c) -o $@ $^
+
+sim.o:	sim.c ../include/pdp10-elf36.h ../include/pdp10-inttypes.h ../include/pdp10-stdint.h ../include/pdp10-stdio.h
 
 clean:
-	make TARGET=clean subdirs
-
-subdirs:
-	for d in $(SUBDIRS); do make -C $$d $(TARGET); done
+	rm -f $(SIMOBJS) sim a.out core.*
