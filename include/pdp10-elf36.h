@@ -1,6 +1,6 @@
 /*
  * pdp10-elf36.h -- ELF definitions for PDP10
- * Copyright (C) 2013-2015  Mikael Pettersson
+ * Copyright (C) 2013-2018  Mikael Pettersson
  *
  * This file is part of pdp10-tools.
  *
@@ -353,6 +353,7 @@ typedef struct {
 #define EM_AMDGPU	224	/* AMD GPU architecture */
 /* 225-242: reserved */
 #define EM_RISCV	243	/* RISC-V */
+#define EM_BPF		247	/* Linux BPF -- in-kernel virtual machine */
 
 /* If it is necessary to assign new unofficial EM_* values, please pick large
    random numbers (0x8523, 0xa7f2, etc.) to minimize the chances of collision
@@ -450,8 +451,6 @@ typedef struct {
 #define EM_NIOS32		0xFEBB
 
 #define EM_CYGNUS_MEP		0xF00D  /* Toshiba MeP */
-
-#define EM_MOXIE                0xFEED  /* Moxie */
 
 /* Old Sunplus S+core7 backend magic number. Written in the absence of an ABI.  */
 #define EM_SCORE_OLD            95
