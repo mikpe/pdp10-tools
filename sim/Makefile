@@ -20,7 +20,7 @@ CC=gcc
 CFLAGS=-O2 -g -Wall
 CPPFLAGS=-I../include
 
-SIMOBJS=sim.o pdp10-virt-mem.o
+SIMOBJS=sim.o pdp10-virt-mem.o pdp10-ea.o
 LIBOBJS=../lib/pdp10-elf36.o ../lib/pdp10-extint.o ../lib/pdp10-stdio.o
 
 sim:	$(SIMOBJS) $(LIBOBJS)
