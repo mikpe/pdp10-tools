@@ -1,6 +1,6 @@
 /*
  * pdp10-arith.h -- arithmetic on PDP10 integer types
- * Copyright (C) 2013-2015  Mikael Pettersson
+ * Copyright (C) 2013-2018  Mikael Pettersson
  *
  * This file is part of pdp10-tools.
  *
@@ -42,6 +42,14 @@ static inline pdp10_int36_t pdp10_sext_int36(pdp10_uint36_t x)
     const pdp10_uint36_t PDP10_UINT36_SBIT = ~(PDP10_UINT36_MAX >> 1) & PDP10_UINT36_MAX;
 
     return ((x & PDP10_UINT36_MAX) ^ PDP10_UINT36_SBIT) - PDP10_UINT36_SBIT;
+}
+
+/* Sign-extend a pdp10_uint18_t to the full width of its representation type. */
+static inline pdp10_uint18_t pdp10_sext_uint18(pdp10_uint18_t x)
+{
+    const pdp10_uint18_t PDP10_UINT18_SBIT = ~(PDP10_UINT18_MAX >> 1) & PDP10_UINT18_MAX;
+
+    return ((x & PDP10_UINT18_MAX) ^ PDP10_UINT18_SBIT) - PDP10_UINT18_SBIT;
 }
 
 static inline pdp10_uint36_t pdp10_neg_int36(pdp10_uint36_t x)
