@@ -90,13 +90,23 @@ static inline unsigned int BIT36(pdp10_uint36_t X, unsigned int BIT)
     return BITS36(X, BIT, BIT);
 }
 
-typedef uint32_t pdp10_vaddr_t; /* 30 bits: section number, section offset */
-typedef uint32_t pdp10_pc_t; /* 31 bits: global flag, vaddr */
+typedef uint32_t pdp10_vaddr_t; /* 30 bits: 12-bit section number, 18-bit section offset */
 
 struct pdp10_cpu {
-    pdp10_pc_t PC;
-    pdp10_uint36_t AC[017];
-    unsigned int flags; /* 13 bits */
+    pdp10_vaddr_t PC;
+    pdp10_uint36_t AC[017]; /* copy of ACS[CAB] */
+    pdp10_uint36_t ACS[8][017];
+    unsigned int flags:13;
+    unsigned int CAB:3; /* Current AC Block */
+    /*
+     * Previous Context
+     */
+    unsigned int PCS:12; /* Previous Context Section */
+    unsigned int PCU:1; /* Previous Context User */
+    unsigned int PAB:3; /* Previous AC Block */
+    /*
+     * Memory
+     */
     struct pdp10_vmem vmem;
 };
 
