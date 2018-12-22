@@ -1,0 +1,8 @@
+{application, '8to9',
+ [{description, "Converts octet files to nonet files"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {applications, [kernel, stdlib, lib]},
+  {env, []},
+  {modules, []}
+ ]}.
