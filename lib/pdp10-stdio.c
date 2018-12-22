@@ -36,7 +36,7 @@
  *
  * - Read streams: pdp10_fgetc reads an octet from the octet file and adds 8 bits to shiftreg
  *   and 8 to shiftreg_nr_bits; this is repeated once more if needed to make shiftreg
- *   contains at least 9 bits.  Then 9 bits are shifted out of shiftreg and returned.
+ *   contain at least 9 bits.  Then 9 bits are shifted out of shiftreg and returned.
  *   Between pdp10_fgetc calls shiftreg contains between 0 and 7 bits, inclusive, during an
  *   fgetc it may contain up to 8+8 == 16 bits.
  *
