@@ -1,0 +1,8 @@
+{application, od,
+ [{description, "'od' clone for nonet files"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {applications, [kernel, stdlib, lib]},
+  {env, []},
+  {modules, []}
+ ]}.
