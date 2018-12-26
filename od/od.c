@@ -1,6 +1,6 @@
 /*
  * od.c -- od clone for binary files with 9-bit bytes
- * Copyright (C) 2013-2015  Mikael Pettersson
+ * Copyright (C) 2013-2015, 2018  Mikael Pettersson
  *
  * This file is part of pdp10-tools.
  *
@@ -28,7 +28,7 @@
 #include "pdp10-inttypes.h"
 #include "pdp10-stdio.h"
 
-#define VERSION "pdp10-tools od version 0.1, built " __DATE__ " " __TIME__ "\n"
+#define VERSION "pdp10-tools od version 0.2, built " __DATE__ " " __TIME__ "\n"
 
 struct options {
     /* user options: */
@@ -38,7 +38,7 @@ struct options {
     char output_type;			/* 'c', 'd', 'o', 'u', 'x'; 'a' and 'f' are NYI */
     unsigned char output_z;		/* type has trailing 'z' */
     unsigned int bytes_per_datum;	/* 1, 2, or 4 */
-    unsigned long width;		/* -w/--with= */
+    unsigned long width;		/* -w/--width= */
     unsigned char version;		/* -V */
     /* compiled options: */
     char numfmt[8];			/* "%0*{,l,ll}[doux]\0" */
@@ -438,7 +438,7 @@ static int compile_options(const char *progname, struct options *options)
 	sprintf(options->numfmt, "%% *%s", PDP10_PRIu36);
 	break;
     case 'o':
-	sprintf(options->numfmt, "%%0*%s", PDP10_PRIu36);
+	sprintf(options->numfmt, "%%0*%s", PDP10_PRIo36);
 	break;
     case 'x':
 	sprintf(options->numfmt, "%%0*%s", PDP10_PRIx36);
@@ -474,7 +474,7 @@ int main(int argc, char **argv)
     for (;;) {
 	int ch;
 
-	ch = getopt(argc, argv, "VbcdDiloOsSxXA:j:N:t:w::");
+	ch = getopt(argc, argv, "VbcdDiloOsxXA:j:N:t:w::");
 	switch (ch) {
 	case 'V':
 	    options.version = 1;
@@ -514,7 +514,6 @@ int main(int argc, char **argv)
 	    options.output_z = 0;
 	    options.bytes_per_datum = 2;
 	    continue;
-	case 'S':	/* == -t d4 */
 	case 'i':	/* == -t d<sizeof(int)> */
 	case 'l':	/* == -t d<sizeof(long)> */
 	    options.output_type = 'd';
