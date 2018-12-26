@@ -42,7 +42,14 @@ main(Argv) ->
   escript_runtime:start(fun main_/1, Argv).
 
 main_(Argv) ->
-  case getopt:parse(Argv, "VbcdDiloOsxXA:j:N:t:w::") of
+  case getopt:parse(Argv, "VbcdDiloOsxXA:j:N:t:w::",
+                    [ {"version", no, $V}
+                    , {"address-radix", required, $A}
+                    , {"skip-bytes", required, $j}
+                    , {"read-bytes", required, $N}
+                    , {"format", required, $t}
+                    , {"width", optional, $w}
+                    ]) of
     {ok, {Options, Files}} ->
       od(scan_options(Options), Files);
     {error, ErrMsg} ->
@@ -69,7 +76,7 @@ scan_options(Options) ->
   compile_options(lists:foldl(fun scan_option/2, Opts, Options)).
 
 scan_option($V, _Opts) -> % -V, non-standard alias for --version
-  io:format(standard_io, "pdp10-tools od version 0.2\n", []),
+  io:format(standard_io, "pdp10-tools od version 0.3\n", []),
   halt(0);
 scan_option($b, Opts) -> % -b, same as -t o1
   Opts#options{ output_type = $o
