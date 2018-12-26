@@ -88,12 +88,10 @@ parse_element([OptCh | Element], Argv, OptString, LongOpts, RevOpts, RevArgv) ->
           {error, io_lib:format("missing argment to -~c", [OptCh])}
       end;
     ?optional ->
-      case {Element, Argv} of
-        {[_|_], _} ->
+      case Element of
+        [_|_] ->
           parse_argv(Argv, OptString, LongOpts, [{OptCh, Element} | RevOpts], RevArgv);
-        {[], [(Arg = [Ch | _]) | Argv2]} when Ch =/= $- ->
-          parse_argv(Argv2, OptString, LongOpts, [{OptCh, Arg} | RevOpts], RevArgv);
-        {_, _} ->
+        [] ->
           parse_argv(Argv, OptString, LongOpts, [OptCh | RevOpts], RevArgv)
       end;
     ?invalid ->
@@ -134,8 +132,6 @@ parse_long(Long, Argv, OptString, LongOpts, RevOpts, RevArgv) ->
           {error, io_lib:format("missing argument to --~s", [Prefix])};
         {?optional, [Arg], _} ->
           parse_argv(Argv, OptString, LongOpts, [{Val, Arg} | RevOpts], RevArgv);
-        {?optional, [], [(Arg = [Ch | _]) | Argv2]} when Ch =/= $- ->
-          parse_argv(Argv2, OptString, LongOpts, [{Val, Arg} | RevOpts], RevArgv);
         {?optional, [], _} ->
           parse_argv(Argv, OptString, LongOpts, [Val | RevOpts], RevArgv);
         {_, _, _} ->
