@@ -104,6 +104,7 @@ typedef struct {
 #define ELFOSABI_OPENVOS     18 /* Stratus Technologies OpenVOS */
 #define ELFOSABI_C6000_ELFABI 64 /* Bare-metal TMS320C6000 */
 #define ELFOSABI_C6000_LINUX 65 /* Linux TMS320C6000 */
+#define ELFOSABI_ARM_FDPIC   65 /* ARM FDPIC */
 #define ELFOSABI_ARM	     97	/* ARM */
 #define ELFOSABI_STANDALONE 255	/* Standalone (embedded) application */
 
@@ -133,13 +134,15 @@ typedef struct {
 #define EM_860		  7	/* Intel 80860 */
 #define EM_MIPS		  8	/* MIPS R3000 (officially, big-endian only) */
 #define EM_S370		  9	/* IBM System/370 */
-#define EM_MIPS_RS3_LE	 10	/* MIPS R3000 little-endian (Oct 4 1999 Draft) Deprecated */
+#define EM_MIPS_RS3_LE	 10	/* MIPS R3000 little-endian (Oct 4 1999 Draft).  Deprecated.  */
+#define EM_OLD_SPARCV9	 11	/* Old version of Sparc v9, from before the ABI.  Deprecated.  */
 #define EM_res011	 11	/* Reserved */
 #define EM_res012	 12	/* Reserved */
 #define EM_res013	 13	/* Reserved */
 #define EM_res014	 14	/* Reserved */
 #define EM_PARISC	 15	/* HPPA */
 #define EM_res016	 16	/* Reserved */
+#define EM_PPC_OLD	 17	/* Old version of PowerPC.  Deprecated.  */
 #define EM_VPP550	 17	/* Fujitsu VPP500 */
 #define EM_SPARC32PLUS	 18	/* Sun's "v8plus" */
 #define EM_960		 19	/* Intel 80960 */
@@ -216,13 +219,15 @@ typedef struct {
 #define EM_MN10300	 89	/* Matsushita MN10300 */
 #define EM_MN10200	 90	/* Matsushita MN10200 */
 #define EM_PJ		 91	/* picoJava */
-#define EM_OPENRISC	 92	/* OpenRISC 32-bit embedded processor */
+#define EM_OR1K		 92	/* OpenRISC 1000 32-bit embedded processor */
 #define EM_ARC_COMPACT	 93	/* ARC International ARCompact processor */
 #define EM_XTENSA	 94	/* Tensilica Xtensa Architecture */
+#define EM_SCORE_OLD	 95	/* Old Sunplus S+core7 backend magic number. Written in the absence of an ABI.  */
 #define EM_VIDEOCORE	 95	/* Alphamosaic VideoCore processor */
 #define EM_TMM_GPP	 96	/* Thompson Multimedia General Purpose Processor */
 #define EM_NS32K	 97	/* National Semiconductor 32000 series */
 #define EM_TPC		 98	/* Tenor Network TPC processor */
+#define EM_PJ_OLD	 99	/* Old value for picoJava.  Deprecated.  */
 #define EM_SNP1K	 99	/* Trebia SNP 1000 processor */
 #define EM_ST200	100	/* STMicroelectronics ST200 microcontroller */
 #define EM_IP2K		101	/* Ubicom IP2022 micro controller */
@@ -239,6 +244,7 @@ typedef struct {
 #define EM_DXP		112	/* Icera Semiconductor Inc. Deep Execution Processor */
 #define EM_ALTERA_NIOS2	113	/* Altera Nios II soft-core processor */
 #define EM_CRX		114	/* National Semiconductor CRX */
+#define EM_CR16_OLD	115	/* Old, value for National Semiconductor CompactRISC.  Deprecated.  */
 #define EM_XGATE	115	/* Motorola XGATE embedded processor */
 #define EM_C166		116	/* Infineon C16x/XC16x processor */
 #define EM_M16C		117	/* Renesas M16C series microprocessors */
@@ -300,7 +306,7 @@ typedef struct {
 #define EM_MANIK	171	/* M2000 Reconfigurable RISC Microprocessor */
 #define EM_CRAYNV2	172	/* Cray Inc. NV2 vector architecture */
 #define EM_RX		173	/* Renesas RX family */
-#define EM_METAG	174	/* Imagination Technologies META processor architecture */
+#define EM_METAG	174	/* Imagination Technologies Meta processor architecture */
 #define EM_MCST_ELBRUS	175	/* MCST Elbrus general purpose hardware architecture */
 #define EM_ECOG16	176	/* Cyan Technology eCOG16 family */
 #define EM_CR16		177	/* National Semiconductor CompactRISC 16-bit processor */
@@ -309,8 +315,8 @@ typedef struct {
 #define EM_L1OM		180	/* Intel L1OM */
 #define EM_K1OM		181	/* Intel K1OM */
 #define EM_INTEL182	182	/* Reserved by Intel */
-#define EM_AARCH64	183	/* ARM 64-bit architecture (AARCH64) */
-#define EM_res184	184	/* Reserved by ARM */
+#define EM_AARCH64	183	/* ARM 64-bit architecture */
+#define EM_ARM184	184	/* Reserved by ARM */
 #define EM_AVR32	185	/* Atmel Corporation 32-bit microprocessor family */
 #define EM_STM8		186	/* STMicroeletronics STM8 8-bit microcontroller */
 #define EM_TILE64	187	/* Tilera TILE64 multicore architecture family */
@@ -318,42 +324,44 @@ typedef struct {
 #define EM_MICROBLAZE	189	/* Xilinx MicroBlaze 32-bit RISC soft processor core */
 #define EM_CUDA		190	/* NVIDIA CUDA architecture */
 #define EM_TILEGX	191	/* Tilera TILE-Gx multicore architecture family */
-#define EM_CLOUDSHIELD	192	/* CloudShield architecture family */
-#define EM_COREA_1ST	193	/* KIPO-KAIST Core-A 1st generation processor family */
-#define EM_COREA_2ND	194	/* KIPO-KAIST Core-A 2nd generation processor family */
-#define EM_ARC_COMPACT2	195	/* Synopsys ARCompact V2 */
-#define EM_OPEN8	196	/* Open8 8-bit RISC soft processor core */
-#define EM_RL78		197	/* Renesas RL78 family */
-#define EM_VIDEOCORE5	198	/* Broadcom VideoCore V processor */
-#define EM_78KOR	199	/* Renesas 78KOR family */
-#define EM_56800EX	200	/* Freescale 56800EX Digital Signal Controller (DSC) */
-#define EM_BA1		201	/* Beyond BA1 CPU architecture */
-#define EM_BA2		202	/* Beyond BA2 CPU architecture */
-#define EM_XCORE	203	/* XMOS xCORE processor family */
-#define EM_MCHP_PIC	204	/* Microchip 8-bit PIC(r) family */
-#define EM_res205	205	/* Reserved by Intel */
-#define EM_res206	206	/* Reserved by Intel */
-#define EM_res207	207	/* Reserved by Intel */
-#define EM_res208	208	/* Reserved by Intel */
-#define EM_res209	209	/* Reserved by Intel */
-#define EM_KM32		210	/* KM211 KM32 32-bit processor */
-#define EM_KMX32	211	/* KM211 KMX32 32-bit processor */
-#define EM_KMX16	212	/* KM211 KMX16 16-bit processor */
-#define EM_KMX8		213	/* KM211 KMX8 8-bit processor */
-#define EM_KVARC	214	/* KM211 KVARC processor */
-#define EM_CDP		215	/* Paneve CDP architecture family */
-#define EM_COGE		216	/* Cognitive Smart Memory Processor */
-#define EM_COOL		217	/* Bluechip Systems CoolEngine */
-#define EM_NORC		218	/* Nanoradio Optimized RISC */
-#define EM_CSR_KALIMBA	219	/* CSR Kalimba architecture family */
-#define EM_Z80		220	/* Zilog Z80 */
-#define EM_VISIUM	221	/* Control and Data Services VISIUMcore processor */
-#define EM_FT32		222	/* FTDI Chip FT32 high performance 32-bit RISC architecture */
-#define EM_MOXIE	223	/* Moxie processor family */
-#define EM_AMDGPU	224	/* AMD GPU architecture */
+#define EM_CLOUDSHIELD 	192 	/* CloudShield architecture family */
+#define EM_COREA_1ST 	193 	/* KIPO-KAIST Core-A 1st generation processor family */
+#define EM_COREA_2ND 	194 	/* KIPO-KAIST Core-A 2nd generation processor family */
+#define EM_ARC_COMPACT2 195	/* Synopsys ARCompact V2 */
+#define EM_OPEN8 	196 	/* Open8 8-bit RISC soft processor core */
+#define EM_RL78		197	/* Renesas RL78 family.  */
+#define EM_VIDEOCORE5 	198 	/* Broadcom VideoCore V processor */
+#define EM_78K0R	199	/* Renesas 78K0R.  */
+#define EM_56800EX 	200 	/* Freescale 56800EX Digital Signal Controller (DSC) */
+#define EM_BA1 		201 	/* Beyond BA1 CPU architecture */
+#define EM_BA2 		202 	/* Beyond BA2 CPU architecture */
+#define EM_XCORE 	203 	/* XMOS xCORE processor family */
+#define EM_MCHP_PIC 	204 	/* Microchip 8-bit PIC(r) family */
+#define EM_INTEL205	205	/* Reserved by Intel */
+#define EM_INTEL206	206	/* Reserved by Intel */
+#define EM_INTEL207	207	/* Reserved by Intel */
+#define EM_INTEL208	208	/* Reserved by Intel */
+#define EM_INTEL209	209	/* Reserved by Intel */
+#define EM_KM32 	210 	/* KM211 KM32 32-bit processor */
+#define EM_KMX32 	211 	/* KM211 KMX32 32-bit processor */
+#define EM_KMX16 	212 	/* KM211 KMX16 16-bit processor */
+#define EM_KMX8 	213 	/* KM211 KMX8 8-bit processor */
+#define EM_KVARC 	214 	/* KM211 KVARC processor */
+#define EM_CDP 		215 	/* Paneve CDP architecture family */
+#define EM_COGE 	216 	/* Cognitive Smart Memory Processor */
+#define EM_COOL 	217 	/* Bluechip Systems CoolEngine */
+#define EM_NORC 	218 	/* Nanoradio Optimized RISC */
+#define EM_CSR_KALIMBA 	219 	/* CSR Kalimba architecture family */
+#define EM_Z80 		220 	/* Zilog Z80 */
+#define EM_VISIUM	221	/* Controls and Data Services VISIUMcore processor */
+#define EM_FT32         222     /* FTDI Chip FT32 high performance 32-bit RISC architecture */
+#define EM_MOXIE        223     /* Moxie processor family */
+#define EM_AMDGPU 	224 	/* AMD GPU architecture */
 /* 225-242: reserved */
-#define EM_RISCV	243	/* RISC-V */
-#define EM_BPF		247	/* Linux BPF -- in-kernel virtual machine */
+#define EM_RISCV 	243 	/* RISC-V */
+#define EM_LANAI	244	/* Lanai 32-bit processor.  */
+#define EM_BPF		247	/* Linux BPF - in-kernel virtual machine.  */
+#define EM_NFP		250	/* Netronome Flow Processor.  */
 
 /* If it is necessary to assign new unofficial EM_* values, please pick large
    random numbers (0x8523, 0xa7f2, etc.) to minimize the chances of collision
@@ -367,19 +375,6 @@ typedef struct {
    unofficial e_machine number should eventually ask registry@sco.com for
    an officially blessed number to be added to the list above.	*/
 
-/* Old version of Sparc v9, from before the ABI;
-   This should be removed shortly.  */
-#define EM_OLD_SPARCV9		11
-
-/* Old version of PowerPC, this should be removed shortly. */
-#define EM_PPC_OLD		17
-
-/* picoJava */
-#define EM_PJ_OLD		99
-
-/* Old, unofficial value for National Semiconductor CompactRISC - CR16 */
-#define EM_CR16_OLD		115
-
 /* AVR magic number.  Written in the absense of an ABI.  */
 #define EM_AVR_OLD		0x1057
 
@@ -392,8 +387,11 @@ typedef struct {
 /* FR30 magic number - no EABI available.  */
 #define EM_CYGNUS_FR30		0x3330
 
-/* OpenRISC magic number.  Written in the absense of an ABI.  */
-#define EM_OPENRISC_OLD		0x3426
+/* Unofficial value for Web Assembly binaries, as used by LLVM.  */
+#define EM_WEBASSEMBLY		0x4157
+
+/* Freescale S12Z.   The Freescale toolchain generates elf files with this value.  */
+#define EM_S12Z               0x4DEF
 
 /* DLX magic number.  Written in the absense of an ABI.  */
 #define EM_DLX			0x5aa5
@@ -412,9 +410,6 @@ typedef struct {
 
 /* Ubicom IP2xxx;   Written in the absense of an ABI.  */
 #define EM_IP2K_OLD		0x8217
-
-/* (Deprecated) Temporary number for the OpenRISC processor.  */
-#define EM_OR32			0x8472
 
 /* Cygnus PowerPC ELF backend.  Written in the absence of an ABI.  */
 #define EM_CYGNUS_POWERPC	0x9025
@@ -452,10 +447,15 @@ typedef struct {
 
 #define EM_CYGNUS_MEP		0xF00D  /* Toshiba MeP */
 
-/* Old Sunplus S+core7 backend magic number. Written in the absence of an ABI.  */
-#define EM_SCORE_OLD            95
+/* Old, unofficial value for Moxie.  */
+#define EM_MOXIE_OLD            0xFEED
 
 #define EM_MICROBLAZE_OLD	0xbaab	/* Old MicroBlaze */
+
+#define EM_ADAPTEVA_EPIPHANY	0x1223  /* Adapteva's Epiphany architecture.  */
+
+/* Old constant that might be in use by some software. */
+#define EM_OPENRISC		EM_OR1K
 
 /* See the above comment before you add a new EM_* value here.  */
 
@@ -560,6 +560,7 @@ typedef struct {
 
 /* #define SHF_MASKOS	0x0F000000    *//* OS-specific semantics */
 #define SHF_MASKOS	0x0FF00000	/* New value, Oct 4, 1999 Draft */
+#define SHF_GNU_BUILD_NOTE    (1 << 20)	/* Section contains GNU BUILD ATTRIBUTE notes.  */
 #define SHF_MASKPROC	0xF0000000	/* Processor-specific semantics */
 
 /* This used to be implemented as a processor specific section flag.
@@ -570,6 +571,8 @@ typedef struct {
 					   builds when those objects
 					   are not to be further
 					   relocated.  */
+
+#define SHF_GNU_MBIND	0x01000000	/* Mbind section.  */
 
 /* Size of SHT_GROUP section entry.  */
 
@@ -584,16 +587,17 @@ typedef struct {
 /* Compression Header */
 
 typedef struct {
-    Elf36_Word		ch_type;	/* Specifies the compression algorithm */
-    Elf36_Word		ch_size;	/* Size in bytes of the uncompressed data; see sh_size */
-    Elf36_Word		ch_addralign;	/* Alignment for the uncompressed data; see sh_addralign */
+    Elf36_Word		ch_type;	/* Type of compression */
+    Elf36_Word		ch_size;	/* Size of uncompressed data in bytes */
+    Elf36_Word		ch_addralign;	/* Alignment of uncompressed data */
 } Elf36_Chdr;
 
-#define ELFCOMPRESS_ZLIB		 1	/* Data is compressed with the ZLIB algorithm */
-#define ELFCOMPRESS_LOOS	0x60000000	/* OS specific semantics, start of range */
-#define ELFCOMPRESS_HIOS	0x6fffffff	/* OS specific semantics, end of range */
-#define ELFCOMPRESS_LOPROC	0x70000000	/* Processor-specific semantics, start of range */
-#define ELFCOMPRESS_HIPROC	0x7fffffff	/* Processor-specific semantics, end of range */
+/* Compression types.  */
+#define ELFCOMPRESS_ZLIB   1		/* Compressed with zlib.  */
+#define ELFCOMPRESS_LOOS   0x60000000	/* OS-specific semantics, lo */
+#define ELFCOMPRESS_HIOS   0x6FFFFFFF	/* OS-specific semantics, hi */
+#define ELFCOMPRESS_LOPROC 0x70000000	/* Processor-specific semantics, lo */
+#define ELFCOMPRESS_HIPROC 0x7FFFFFFF	/* Processor-specific semantics, hi */
 
 /* Symbol table entry */
 
@@ -711,6 +715,36 @@ typedef struct {
 					/*   note name must be "LINUX".  */
 #define NT_PPC_VSX	0x102		/* PowerPC VSX registers */
 					/*   note name must be "LINUX".  */
+#define NT_PPC_TAR	0x103		/* PowerPC Target Address Register */
+					/*   note name must be "LINUX".  */
+#define NT_PPC_PPR	0x104		/* PowerPC Program Priority Register */
+					/*   note name must be "LINUX".  */
+#define NT_PPC_DSCR	0x105		/* PowerPC Data Stream Control Register */
+					/*   note name must be "LINUX".  */
+#define NT_PPC_EBB	0x106		/* PowerPC Event Based Branch Registers */
+					/*   note name must be "LINUX".  */
+#define NT_PPC_PMU	0x107		/* PowerPC Performance Monitor Registers */
+					/*   note name must be "LINUX".  */
+#define NT_PPC_TM_CGPR	0x108		/* PowerPC TM checkpointed GPR Registers */
+					/*   note name must be "LINUX".  */
+#define NT_PPC_TM_CFPR	0x109		/* PowerPC TM checkpointed FPR Registers */
+					/*   note name must be "LINUX".  */
+#define NT_PPC_TM_CVMX	0x10a		/* PowerPC TM checkpointed VMX Registers */
+					/*   note name must be "LINUX".  */
+#define NT_PPC_TM_CVSX	0x10b		/* PowerPC TM checkpointed VSX Registers */
+					/*   note name must be "LINUX".  */
+#define NT_PPC_TM_SPR	0x10c		/* PowerPC TM Special Purpose Registers */
+					/*   note name must be "LINUX".  */
+#define NT_PPC_TM_CTAR	0x10d		/* PowerPC TM checkpointed TAR */
+					/*   note name must be "LINUX".  */
+#define NT_PPC_TM_CPPR	0x10e		/* PowerPC TM checkpointed PPR */
+					/*   note name must be "LINUX".  */
+#define NT_PPC_TM_CDSCR	0x10f		/* PowerPC TM checkpointed Data SCR */
+					/*   note name must be "LINUX".  */
+#define NT_386_TLS	0x200		/* x86 TLS information */
+					/*   note name must be "LINUX".  */
+#define NT_386_IOPERM	0x201		/* x86 io permissions */
+					/*   note name must be "LINUX".  */
 #define NT_X86_XSTATE	0x202		/* x86 XSAVE extended state */
 					/*   note name must be "LINUX".  */
 #define NT_S390_HIGH_GPRS 0x300		/* S/390 upper halves of GPRs  */
@@ -725,8 +759,33 @@ typedef struct {
 					/*   note name must be "LINUX".  */
 #define NT_S390_PREFIX	0x305		/* S390 prefix register */
 					/*   note name must be "LINUX".  */
-#define NT_ARM_VFP	0x400		/* ARM VFP registers */
+#define NT_S390_LAST_BREAK      0x306   /* S390 breaking event address */
 					/*   note name must be "LINUX".  */
+#define NT_S390_SYSTEM_CALL     0x307   /* S390 system call restart data */
+					/*   note name must be "LINUX".  */
+#define NT_S390_TDB	0x308		/* S390 transaction diagnostic block */
+					/*   note name must be "LINUX".  */
+#define NT_S390_VXRS_LOW	0x309	/* S390 vector registers 0-15 upper half */
+					/*   note name must be "LINUX".  */
+#define NT_S390_VXRS_HIGH	0x30a	/* S390 vector registers 16-31 */
+					/*   note name must be "LINUX".  */
+#define NT_S390_GS_CB	0x30b		/* s390 guarded storage registers */
+					/*   note name must be "LINUX".  */
+#define NT_S390_GS_BC	0x30c		/* s390 guarded storage broadcast control block */
+					/*   note name must be "LINUX".  */
+#define NT_ARM_VFP	0x400		/* ARM VFP registers */
+/* The following definitions should really use NT_AARCH_..., but defined
+   this way for compatibility with Linux.  */
+#define NT_ARM_TLS	0x401		/* AArch TLS registers */
+					/*   note name must be "LINUX".  */
+#define NT_ARM_HW_BREAK	0x402		/* AArch hardware breakpoint registers */
+					/*   note name must be "LINUX".  */
+#define NT_ARM_HW_WATCH	0x403		/* AArch hardware watchpoint registers */
+					/*   note name must be "LINUX".  */
+#define NT_ARM_SVE	0x405		/* AArch SVE registers.  */
+					/*   note name must be "LINUX".  */
+#define NT_SIGINFO	0x53494749	/* Fields of siginfo_t.  */
+#define NT_FILE		0x46494c45	/* Description of mapped files.  */
 
 /* Note segments for core files on dir-style procfs systems.  */
 
@@ -739,6 +798,21 @@ typedef struct {
 
 /* Note segment for SystemTap probes.  */
 #define NT_STAPSDT	3
+
+/* Note segments for core files on FreeBSD systems.  Note name is
+   "FreeBSD".  */
+
+#define	NT_FREEBSD_THRMISC	7	/* Thread miscellaneous info. */
+#define	NT_FREEBSD_PROCSTAT_PROC	8	/* Procstat proc data. */
+#define	NT_FREEBSD_PROCSTAT_FILES	9	/* Procstat files data. */
+#define	NT_FREEBSD_PROCSTAT_VMMAP	10	/* Procstat vmmap data. */
+#define	NT_FREEBSD_PROCSTAT_GROUPS	11	/* Procstat groups data. */
+#define	NT_FREEBSD_PROCSTAT_UMASK	12	/* Procstat umask data. */
+#define	NT_FREEBSD_PROCSTAT_RLIMIT	13	/* Procstat rlimit data. */
+#define	NT_FREEBSD_PROCSTAT_OSREL	14	/* Procstat osreldate data. */
+#define	NT_FREEBSD_PROCSTAT_PSSTRINGS	15	/* Procstat ps_strings data. */
+#define	NT_FREEBSD_PROCSTAT_AUXV	16	/* Procstat auxv data. */
+#define	NT_FREEBSD_PTLWPINFO	17	/* Thread ptrace miscellaneous info. */
 
 /* Note segments for core files on NetBSD systems.  Note name
    must start with "NetBSD-CORE".  */
@@ -774,6 +848,66 @@ typedef struct {
 #define NT_GNU_HWCAP		2	/* Used by ld.so and kernel vDSO.  */
 #define NT_GNU_BUILD_ID		3	/* Generated by ld --build-id.  */
 #define NT_GNU_GOLD_VERSION	4	/* Generated by gold.  */
+#define NT_GNU_PROPERTY_TYPE_0  5	/* Generated by gcc.  */
+
+#define NT_GNU_BUILD_ATTRIBUTE_OPEN	0x100
+#define NT_GNU_BUILD_ATTRIBUTE_FUNC	0x101
+
+#define GNU_BUILD_ATTRIBUTE_TYPE_NUMERIC	'*'
+#define GNU_BUILD_ATTRIBUTE_TYPE_STRING		'$'
+#define GNU_BUILD_ATTRIBUTE_TYPE_BOOL_TRUE	'+'
+#define GNU_BUILD_ATTRIBUTE_TYPE_BOOL_FALSE	'!'
+
+#define GNU_BUILD_ATTRIBUTE_VERSION	1
+#define GNU_BUILD_ATTRIBUTE_STACK_PROT	2
+#define GNU_BUILD_ATTRIBUTE_RELRO	3
+#define GNU_BUILD_ATTRIBUTE_STACK_SIZE	4
+#define GNU_BUILD_ATTRIBUTE_TOOL	5
+#define GNU_BUILD_ATTRIBUTE_ABI		6
+#define GNU_BUILD_ATTRIBUTE_PIC		7
+#define GNU_BUILD_ATTRIBUTE_SHORT_ENUM	8
+
+#define NOTE_GNU_PROPERTY_SECTION_NAME	".note.gnu.property"
+#define GNU_BUILD_ATTRS_SECTION_NAME	".gnu.build.attributes"
+
+/* Values used in GNU .note.gnu.property notes (NT_GNU_PROPERTY_TYPE_0).  */
+#define GNU_PROPERTY_STACK_SIZE			1
+#define GNU_PROPERTY_NO_COPY_ON_PROTECTED	2
+
+/* Processor-specific semantics, lo */
+#define GNU_PROPERTY_LOPROC  0xc0000000
+/* Processor-specific semantics, hi */
+#define GNU_PROPERTY_HIPROC  0xdfffffff
+/* Application-specific semantics, lo */
+#define GNU_PROPERTY_LOUSER  0xe0000000
+/* Application-specific semantics, hi */
+#define GNU_PROPERTY_HIUSER  0xffffffff
+
+#define GNU_PROPERTY_X86_ISA_1_USED		0xc0000000
+#define GNU_PROPERTY_X86_ISA_1_NEEDED		0xc0000001
+#define GNU_PROPERTY_X86_FEATURE_1_AND		0xc0000002
+
+#define GNU_PROPERTY_X86_ISA_1_486           (1U << 0)
+#define GNU_PROPERTY_X86_ISA_1_586           (1U << 1)
+#define GNU_PROPERTY_X86_ISA_1_686           (1U << 2)
+#define GNU_PROPERTY_X86_ISA_1_SSE           (1U << 3)
+#define GNU_PROPERTY_X86_ISA_1_SSE2          (1U << 4)
+#define GNU_PROPERTY_X86_ISA_1_SSE3          (1U << 5)
+#define GNU_PROPERTY_X86_ISA_1_SSSE3         (1U << 6)
+#define GNU_PROPERTY_X86_ISA_1_SSE4_1        (1U << 7)
+#define GNU_PROPERTY_X86_ISA_1_SSE4_2        (1U << 8)
+#define GNU_PROPERTY_X86_ISA_1_AVX           (1U << 9)
+#define GNU_PROPERTY_X86_ISA_1_AVX2          (1U << 10)
+#define GNU_PROPERTY_X86_ISA_1_AVX512F       (1U << 11)
+#define GNU_PROPERTY_X86_ISA_1_AVX512CD      (1U << 12)
+#define GNU_PROPERTY_X86_ISA_1_AVX512ER      (1U << 13)
+#define GNU_PROPERTY_X86_ISA_1_AVX512PF      (1U << 14)
+#define GNU_PROPERTY_X86_ISA_1_AVX512VL      (1U << 15)
+#define GNU_PROPERTY_X86_ISA_1_AVX512DQ      (1U << 16)
+#define GNU_PROPERTY_X86_ISA_1_AVX512BW      (1U << 17)
+
+#define GNU_PROPERTY_X86_FEATURE_1_IBT       (1U << 0)
+#define GNU_PROPERTY_X86_FEATURE_1_SHSTK     (1U << 1)
 
 /* Values used in GNU .note.ABI-tag notes (NT_GNU_ABI_TAG).  */
 #define GNU_ABI_TAG_LINUX	0
@@ -781,10 +915,13 @@ typedef struct {
 #define GNU_ABI_TAG_SOLARIS	2
 #define GNU_ABI_TAG_FREEBSD	3
 #define GNU_ABI_TAG_NETBSD	4
+#define GNU_ABI_TAG_SYLLABLE	5
+#define GNU_ABI_TAG_NACL	6
 
 /* Values for NetBSD .note.netbsd.ident notes.  Note name is "NetBSD".  */
 
 #define NT_NETBSD_IDENT		1
+#define NT_NETBSD_MARCH		5
 
 /* Values for OpenBSD .note.openbsd.ident notes.  Note name is "OpenBSD".  */
 
@@ -826,6 +963,11 @@ typedef struct {
 #define PT_SUNW_EH_FRAME PT_GNU_EH_FRAME      /* Solaris uses the same value */
 #define PT_GNU_STACK	(PT_LOOS + 0x474e551) /* Stack flags */
 #define PT_GNU_RELRO	(PT_LOOS + 0x474e552) /* Read-only after relocation */
+
+/* Mbind segments */
+#define PT_GNU_MBIND_NUM 4096
+#define PT_GNU_MBIND_LO (PT_LOOS + 0x474e555)
+#define PT_GNU_MBIND_HI (PT_GNU_MBIND_LO + PT_GNU_MBIND_NUM - 1)
 
 /* Program segment permissions, in program header p_flags field.  */
 
@@ -977,6 +1119,23 @@ typedef struct {
 #define DF_1_NODEFLIB	0x00000800
 #define DF_1_NODUMP	0x00001000
 #define DF_1_CONLFAT	0x00002000
+#define DF_1_ENDFILTEE	0x00004000
+#define	DF_1_DISPRELDNE	0x00008000
+#define	DF_1_DISPRELPND	0x00010000
+#define	DF_1_NODIRECT	0x00020000
+#define	DF_1_IGNMULDEF	0x00040000
+#define	DF_1_NOKSYMS	0x00080000
+#define	DF_1_NOHDR	0x00100000
+#define	DF_1_EDITED	0x00200000
+#define	DF_1_NORELOC	0x00400000
+#define	DF_1_SYMINTPOSE	0x00800000
+#define	DF_1_GLOBAUDIT	0x01000000
+#define	DF_1_SINGLETON	0x02000000
+#define	DF_1_STUB	0x04000000
+#define	DF_1_PIE	0x08000000
+#define	DF_1_KMOD	0x10000000
+#define	DF_1_WEAKFILTER	0x20000000
+#define	DF_1_NOCOMMON	0x40000000
 
 /* Flag values for the DT_FLAGS entry.	*/
 #define DF_ORIGIN	(1 << 0)
@@ -1147,6 +1306,30 @@ typedef struct
 #define AT_SYSINFO	32
 #define AT_SYSINFO_EHDR	33 /* Pointer to ELF header of system-supplied DSO.  */
 
+/* More complete cache descriptions than AT_[DIU]CACHEBSIZE.  If the
+   value is -1, then the cache doesn't exist.  Otherwise:
+
+   bit 0-3:  Cache set-associativity; 0 means fully associative.
+   bit 4-7:  Log2 of cacheline size.
+   bit 8-31:  Size of the entire cache >> 8.  */
+
+#define AT_L1I_CACHESHAPE 34
+#define AT_L1D_CACHESHAPE 35
+#define AT_L2_CACHESHAPE  36
+#define AT_L3_CACHESHAPE  37
+
+#define AT_FREEBSD_EXECPATH     15      /* Path to the executable. */
+#define AT_FREEBSD_CANARY       16      /* Canary for SSP. */
+#define AT_FREEBSD_CANARYLEN    17      /* Length of the canary. */
+#define AT_FREEBSD_OSRELDATE    18      /* OSRELDATE. */
+#define AT_FREEBSD_NCPUS        19      /* Number of CPUs. */
+#define AT_FREEBSD_PAGESIZES    20      /* Pagesizes. */
+#define AT_FREEBSD_PAGESIZESLEN 21      /* Number of pagesizes. */
+#define AT_FREEBSD_TIMEKEEP     22      /* Pointer to timehands. */
+#define AT_FREEBSD_STACKPROT    23      /* Initial stack protection. */
+#define AT_FREEBSD_EHDRFLAGS    24      /* e_flags field from ELF header. */
+#define AT_FREEBSD_HWCAP        25      /* CPU feature flags. */
+
 #define AT_SUN_UID      2000    /* Effective user ID.  */
 #define AT_SUN_RUID     2001    /* Real user ID.  */
 #define AT_SUN_GID      2002    /* Effective group ID.  */
@@ -1156,6 +1339,7 @@ typedef struct
 #define AT_SUN_LDNAME   2006    /* String giving name of dynamic linker.  */
 #define AT_SUN_LPAGESZ  2007    /* Large pagesize.   */
 #define AT_SUN_PLATFORM 2008    /* Platform name string.  */
+#undef AT_SUN_HWCAP
 #define AT_SUN_HWCAP    2009	/* Machine dependent hints about
 				   processor capabilities.  */
 #define AT_SUN_IFLUSH   2010    /* Should flush icache? */
