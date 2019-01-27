@@ -1,6 +1,6 @@
 /*
  * pdp10-elf36.h -- ELF definitions for PDP10
- * Copyright (C) 2013-2018  Mikael Pettersson
+ * Copyright (C) 2013-2019  Mikael Pettersson
  *
  * This file is part of pdp10-tools.
  *
@@ -55,7 +55,7 @@ typedef struct {
     Elf36_Half		e_shstrndx;		/* Section header string table index */
 } Elf36_Ehdr;
 
-#define ELF36_EHDR_SIZEOF	(8 * 2 + (5 + 4) * 4)
+#define ELF36_EHDR_SIZEOF	(8 * 2 + 5 * 4 + EI_NIDENT)
 
 /* e_ident[] identification indexes */
 
@@ -78,7 +78,7 @@ typedef struct {
 #define ELFCLASSNONE	      0	/* Invalid class */
 #define ELFCLASS32	      1	/* 32-bit objects */
 #define ELFCLASS64	      2	/* 64-bit objects */
-#define ELFCLASS36	     36	/* 36-bit objects */
+#define ELFCLASS36	     36	/* 36-bit objects (Elf36 extension) */
 
 #define ELFDATANONE	      0	/* Invalid data encoding */
 #define ELFDATA2LSB	      1	/* 2's complement, little endian */
@@ -162,7 +162,7 @@ typedef struct {
 #define EM_V800		 36	/* NEC V800 series */
 #define EM_FR20		 37	/* Fujitsu FR20 */
 #define EM_RH32		 38	/* TRW RH32 */
-#define EM_MCORE	 39	/* Motorola M*Core */ /* May also be taken by Fujitsu MMA */
+#define EM_MCORE	 39	/* Motorola M*Core (May also be taken by Fujitsu MMA) */
 #define EM_RCE		 39	/* Old name for MCore */
 #define EM_ARM		 40	/* ARM */
 #define EM_OLD_ALPHA	 41	/* Digital Alpha */
@@ -606,7 +606,7 @@ typedef struct {
     Elf36_Half		st_shndx;		/* Associated section index */
 } Elf36_Sym;
 
-#define ELF36_SYM_SIZEOF	((3 * 4) + 2 + 2)
+#define ELF36_SYM_SIZEOF	(3 * 4 + 2 + 1 + 1)
 
 #if 0
 typedef struct {
@@ -892,9 +892,6 @@ typedef struct {
 #define DT_HIOS		0x6ffff000
 #define OLD_DT_HIOS	0x6fffffff
 
-#define DT_LOPROC	0x70000000
-#define DT_HIPROC	0x7fffffff
-
 /* The next 2 dynamic tag ranges, integer value range (DT_VALRNGLO to
    DT_VALRNGHI) and virtual address range (DT_ADDRRNGLO to DT_ADDRRNGHI),
    are used on Solaris.  We support them everywhere.  Note these values
@@ -1000,13 +997,13 @@ typedef struct {
     Elf36_Word		vd_next;
 } Elf36_Verdef;
 
-/* These constants are used for the version number of a Elf32_Verdef
+/* These constants are used for the version number of a Elf36_Verdef
    structure.  */
 
 #define VER_DEF_NONE		0
 #define VER_DEF_CURRENT		1
 
-/* These constants appear in the vd_flags field of a Elf32_Verdef
+/* These constants appear in the vd_flags field of a Elf36_Verdef
    structure.
 
    Cf. the Solaris Linker and Libraries Guide, Ch. 7, Object File Format,
@@ -1035,7 +1032,7 @@ typedef struct {
     Elf36_Word		vn_next;
 } Elf36_Verneed;
 
-/* These constants are used for the version number of a Elf32_Verneed
+/* These constants are used for the version number of a Elf36_Verneed
    structure.  */
 
 #define VER_NEED_NONE		0
@@ -1052,13 +1049,13 @@ typedef struct {
 } Elf36_Vernaux;
 
 /* This structure appears in a SHT_GNU_versym section.  This is not a
-   standard ELF structure; ELF just uses Elf32_Half.  */
+   standard ELF structure; ELF just uses Elf36_Half.  */
 
 typedef struct {
     Elf36_Half		vs_vers;
 } Elf36_Versym;
 
-/* These special constants can be found in an Elf32_Versym field.  */
+/* These special constants can be found in an Elf36_Versym field.  */
 
 #define VER_NDX_LOCAL		0
 #define VER_NDX_GLOBAL		1
@@ -1140,7 +1137,7 @@ typedef struct
 #define AT_ICACHEBSIZE	20		/* Instruction cache block size.  */
 #define AT_UCACHEBSIZE	21		/* Unified cache block size.  */
 #define AT_IGNOREPPC	22		/* Entry should be ignored */
-#define	AT_SECURE	23		/* Boolean, was exec setuid-like?  */
+#define AT_SECURE	23		/* Boolean, was exec setuid-like?  */
 #define AT_BASE_PLATFORM 24		/* String identifying real platform,
 					   may differ from AT_PLATFORM.  */
 #define AT_RANDOM	25		/* Address of 16 random bytes.  */
