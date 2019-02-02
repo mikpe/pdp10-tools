@@ -1,5 +1,5 @@
 # Makefile for pdp10-tools/erlang
-# Copyright (C) 2018  Mikael Pettersson
+# Copyright (C) 2018-2019  Mikael Pettersson
 #
 # This file is part of pdp10-tools.
 #
@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
 
+SHELL=/bin/bash
 REBAR3=$(shell type -p rebar3 || echo ./rebar3)
 REBAR3_GIT=https://github.com/erlang/rebar3.git
 REBAR3_VSN=3.7.5
