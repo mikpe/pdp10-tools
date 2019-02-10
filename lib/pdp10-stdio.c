@@ -1,6 +1,6 @@
 /*
  * pdp10-stdio.c
- * Copyright (C) 2013-2015  Mikael Pettersson
+ * Copyright (C) 2013-2019  Mikael Pettersson
  *
  * This file is part of pdp10-tools.
  *
@@ -380,11 +380,11 @@ off_t pdp10_ftello(PDP10_FILE *pdp10fp)
  * example, 9/18/36-bit target integers are typically stored in 16/32/64-bit
  * host integers.
  *
- * This means that I/O of aggreate structures must be avoided, and instead
+ * This means that I/O of aggregate structures must be avoided, and instead
  * be performed on each primitive data field individually, using explicit
  * marshalling code for multi-nonet primitive data types.
  *
- * To detect mistakes in I/O, fread and fwrite only accepts strings (size == 1)
+ * To detect mistakes in I/O, fread and fwrite only accept strings (size == 1)
  * and single marshalled primitive data values (nmemb == 1, size == 1, 2, or 4).
  */
 static int pdp10_freadwrite_bad_params(size_t size, size_t nmemb)
