@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% stdio() clone for I/O with 9-bit bytes
-%%% Copyright (C) 2013-2018  Mikael Pettersson
+%%% Copyright (C) 2013-2019  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -358,11 +358,11 @@ fread_loop(N, Acc, State0) ->
 %% padding.  For example, 9, 18, and 36-bit target integers are typically
 %% stored in 16, 32, and 64-bit host integers, respectively.
 %%
-%% This means that I/O of aggreate structures must be avoided, and instead
+%% This means that I/O of aggregate structures must be avoided, and instead
 %% be performed on each primitive data field individually, using explicit
 %% marshalling code for multi-nonet primitive data types.
 %%
-%% To detect mistakes in I/O, fread and fwrite only accepts strings (size == 1)
+%% To detect mistakes in I/O, fread and fwrite only accept strings (size == 1)
 %% and single marshalled primitive data values (nmemb == 1, size == 1, 2, or 4).
 
 freadwrite_params_ok(_Size = 0, _NMemb    ) -> true;
