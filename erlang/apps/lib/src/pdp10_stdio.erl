@@ -132,8 +132,7 @@ fputc(Nonet, #file{pid = Pid}) ->
 fwrite(Nonets, #file{pid = Pid}) ->
   gen_server:call(Pid, {fwrite, Nonets}, infinity).
 
--spec fseek(#file{}, file:location())
-        -> {ok, non_neg_integer()} | {error, any()}.
+-spec fseek(#file{}, file:location()) -> ok | {error, any()}.
 fseek(#file{pid = Pid}, Location) ->
   gen_server:call(Pid, {fseek, Location}, infinity).
 
