@@ -1,6 +1,6 @@
 /*
  * pdp10-ar.h
- * Copyright (C) 2013-2015  Mikael Pettersson
+ * Copyright (C) 2013-2019  Mikael Pettersson
  *
  * This file is part of pdp10-tools.
  *
@@ -35,11 +35,11 @@
 
 struct pdp10_ar_hdr {
     pdp10_uint9_t ar_name[16];	/* Member file name, sometimes / terminated.  */
-    pdp10_uint9_t ar_date[12];	/* File date, decimal seconds since Epoch.  */
-    pdp10_uint9_t ar_uid[6];	/* User ID, in ASCII decimal.  */
-    pdp10_uint9_t ar_gid[6];	/* Group ID, in ASCII decimal.  */
-    pdp10_uint9_t ar_mode[8];	/* File mode, in ASCII octal.  */
-    pdp10_uint9_t ar_size[10];	/* File size, in ASCII decimal.  */
+    pdp10_uint9_t ar_date[12];	/* File modification time, decimal seconds since Epoch.  */
+    pdp10_uint9_t ar_uid[6];	/* File user id, in decimal.  */
+    pdp10_uint9_t ar_gid[6];	/* File group id, in decimal.  */
+    pdp10_uint9_t ar_mode[8];	/* File mode, in octal.  */
+    pdp10_uint9_t ar_size[10];	/* File size, in decimal.  */
     pdp10_uint9_t ar_fmag[2];	/* Always contains ARFMAG.  */
 };
 
@@ -47,11 +47,11 @@ struct pdp10_ar_hdr {
 
 /*
  * Additional information summarized from the FreeBSD ar(5) manual page
- * <http://howtounix.info/man/FreeBSD/man5/ar.5>.
+ * <https://www.freebsd.org/cgi/man.cgi?query=ar&sektion=5>.
  *
  * DESCRIPTION
  *
- * Th e archive file starts with an identifying byte sequence of the seven ASCII characters
+ * The archive file starts with an identifying byte sequence of the seven ASCII characters
  * '!<arch>' followed by an ASCII linefeed character (see the constant "ARMAG" in the header
  * file <ar.h>).
  * Archive members follow the initial identifying byte sequence.  Each archive member is
@@ -108,7 +108,7 @@ struct pdp10_ar_hdr {
  *
  * SVR4/GNU
  *	In the SVR4/GNU archive format, the archive symbol table starts with a 4-byte binary
- *	values consisting of the number of entries contained in the archive symbol table.
+ *	value consisting of the number of entries contained in the archive symbol table.
  *	This count of entries is stored most significant byte first.  Next, there are 'count'
  *	4-byte numbers, each stored most significant byte first.  Each number is a binary
  *	offset to the archive header for the member in the archive file for the corresponding
@@ -118,7 +118,7 @@ struct pdp10_ar_hdr {
 
 /*
  * Further references:
- * <https://blogs.oracle.com/ali/entry/64_bit_archives_needed>
+ * <http://www.linker-aliens.org/blogs/ali/entry/64_bit_archives_needed/>
  * <http://linux.die.net/man/1/llvm-ar>
  * "man -s 3HEAD ar.h" on Solaris 10
  */
