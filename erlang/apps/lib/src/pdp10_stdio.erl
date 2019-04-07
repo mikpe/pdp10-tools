@@ -69,7 +69,7 @@
         , fgetc/1
         , fread/3
         , fputc/2
-        , fwrite/2
+        , fputs/2
         , fseek/2
         , ftell/1
         , stdin/0
@@ -128,9 +128,9 @@ fread(Size, NMemb, #file{pid = Pid}) ->
 fputc(Nonet, #file{pid = Pid}) ->
   gen_server:call(Pid, {fputc, Nonet}, infinity).
 
--spec fwrite([nonet()], #file{}) -> ok | {error, any()}.
-fwrite(Nonets, #file{pid = Pid}) ->
-  gen_server:call(Pid, {fwrite, Nonets}, infinity).
+-spec fputs([nonet()], #file{}) -> ok | {error, any()}.
+fputs(Nonets, #file{pid = Pid}) ->
+  gen_server:call(Pid, {fputs, Nonets}, infinity).
 
 -spec fseek(#file{}, file:location()) -> ok | {error, any()}.
 fseek(#file{pid = Pid}, Location) ->
@@ -178,8 +178,8 @@ handle_call(Req, _From, State) ->
       handle_fread(Size, NMemb, State);
     {fputc, Nonet} ->
       handle_fputc(Nonet, State);
-    {fwrite, Nonets} ->
-      handle_fwrite(Nonets, State);
+    {fputs, Nonets} ->
+      handle_fputs(Nonets, State);
     {fseek, Location} ->
       handle_fseek(State, Location);
     ftell ->
@@ -425,19 +425,19 @@ fputc_octet(State) ->
     {error, _Reason} = Error -> Error
   end.
 
-%% fwrite ----------------------------------------------------------------------
+%% fputs ----------------------------------------------------------------------
 
-handle_fwrite(Nonets, State0) ->
+handle_fputs(Nonets, State0) ->
   case prepare_to_write(State0) of
-    {ok, State} -> fwrite_loop(Nonets, State);
+    {ok, State} -> fputs_loop(Nonets, State);
     {{error, _Reason} = Error, State} -> {reply, Error, State}
   end.
 
-fwrite_loop([], State) -> {reply, ok, State};
-fwrite_loop([Nonet | Nonets], State0) ->
+fputs_loop([], State) -> {reply, ok, State};
+fputs_loop([Nonet | Nonets], State0) ->
   {Result, State} = fputc_nonet(Nonet, State0),
   case Result of
-    ok -> fwrite_loop(Nonets, State);
+    ok -> fputs_loop(Nonets, State);
     {error, _Reason} = Error -> {reply, Error, State}
   end.
 
