@@ -481,7 +481,7 @@ static char *date_string(time_t t, char *buf)
 	exit(1);
     }
     /* Mon Day HH:MM YYYY */
-    strftime(buf, 64, "%b %d %H:%M %Y", tm);
+    strftime(buf, 64, "%b %e %H:%M %Y", tm);
     return buf;
 }
 
