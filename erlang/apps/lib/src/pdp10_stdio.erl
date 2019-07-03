@@ -166,7 +166,9 @@ do_init({ok, {IoDev, Read, Write}}) ->
              , write = Write
              , iodir = seek
              }};
-do_init({error, _Reason} = Error) -> Error.
+do_init({error, Reason}) ->
+  %% FIXME: this still seems to generate crash reports
+  {stop, Reason}.
 
 handle_call(Req, _From, State) ->
   case Req of
