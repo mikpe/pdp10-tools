@@ -364,6 +364,7 @@
 -define(EM_LANAI,       244).   % Lanai 32-bit processor.
 -define(EM_BPF,         247).   % Linux BPF - in-kernel virtual machine.
 -define(EM_NFP,         250).   % Netronome Flow Processor.
+-define(EM_CSKY,        252).   % C-SKY processor family.
 
 %% If it is necessary to assign new unofficial EM_* values, please pick large
 %% random numbers (16#8523, 16#a7f2, etc.) to minimize the chances of collision
@@ -459,6 +460,10 @@
 %% Old constant that might be in use by some software.
 -define(EM_OPENRISC,            ?EM_OR1K).
 
+%% C-SKY historically used 39, the same value as MCORE, from which the
+%% architecture was derived.
+-define(EM_CSKY_OLD,            ?EM_MCORE).
+
 %% See the above comment before you add a new EM_* value here.
 
 %% Values for e_version.
@@ -519,7 +524,7 @@
 -define(SHT_FINI_ARRAY,   15).          % Array of ptrs to finish functions
 -define(SHT_PREINIT_ARRAY,16).          % Array of ptrs to pre-init funcs
 -define(SHT_GROUP,        17).          % Section contains a section group
--define(SHT_SYMTAB_SHNDX, 18).          % Indicies for SHN_XINDEX entries
+-define(SHT_SYMTAB_SHNDX, 18).          % Indices for SHN_XINDEX entries
 
 -define(SHT_LOOS,       16#60000000).   % First of OS specific semantics
 -define(SHT_HIOS,       16#6fffffff).   % Last of OS specific semantics
@@ -884,31 +889,90 @@
 %% Application-specific semantics, hi
 -define(GNU_PROPERTY_HIUSER,    16#ffffffff).
 
--define(GNU_PROPERTY_X86_ISA_1_USED,            16#c0000000).
--define(GNU_PROPERTY_X86_ISA_1_NEEDED,          16#c0000001).
--define(GNU_PROPERTY_X86_FEATURE_1_AND,         16#c0000002).
+-define(GNU_PROPERTY_X86_COMPAT_ISA_1_USED,     16#c0000000).
+-define(GNU_PROPERTY_X86_COMPAT_ISA_1_NEEDED,   16#c0000001).
 
--define(GNU_PROPERTY_X86_ISA_1_486,             (1 bsl 0)).
--define(GNU_PROPERTY_X86_ISA_1_586,             (1 bsl 1)).
--define(GNU_PROPERTY_X86_ISA_1_686,             (1 bsl 2)).
--define(GNU_PROPERTY_X86_ISA_1_SSE,             (1 bsl 3)).
--define(GNU_PROPERTY_X86_ISA_1_SSE2,            (1 bsl 4)).
--define(GNU_PROPERTY_X86_ISA_1_SSE3,            (1 bsl 5)).
--define(GNU_PROPERTY_X86_ISA_1_SSSE3,           (1 bsl 6)).
--define(GNU_PROPERTY_X86_ISA_1_SSE4_1,          (1 bsl 7)).
--define(GNU_PROPERTY_X86_ISA_1_SSE4_2,          (1 bsl 8)).
--define(GNU_PROPERTY_X86_ISA_1_AVX,             (1 bsl 9)).
--define(GNU_PROPERTY_X86_ISA_1_AVX2,            (1 bsl 10)).
--define(GNU_PROPERTY_X86_ISA_1_AVX512F,         (1 bsl 11)).
--define(GNU_PROPERTY_X86_ISA_1_AVX512CD,        (1 bsl 12)).
--define(GNU_PROPERTY_X86_ISA_1_AVX512ER,        (1 bsl 13)).
--define(GNU_PROPERTY_X86_ISA_1_AVX512PF,        (1 bsl 14)).
--define(GNU_PROPERTY_X86_ISA_1_AVX512VL,        (1 bsl 15)).
--define(GNU_PROPERTY_X86_ISA_1_AVX512DQ,        (1 bsl 16)).
--define(GNU_PROPERTY_X86_ISA_1_AVX512BW,        (1 bsl 17)).
+-define(GNU_PROPERTY_X86_COMPAT_ISA_1_486,      (1 bsl 0)).
+-define(GNU_PROPERTY_X86_COMPAT_ISA_1_586,      (1 bsl 1)).
+-define(GNU_PROPERTY_X86_COMPAT_ISA_1_686,      (1 bsl 2)).
+-define(GNU_PROPERTY_X86_COMPAT_ISA_1_SSE,      (1 bsl 3)).
+-define(GNU_PROPERTY_X86_COMPAT_ISA_1_SSE2,     (1 bsl 4)).
+-define(GNU_PROPERTY_X86_COMPAT_ISA_1_SSE3,     (1 bsl 5)).
+-define(GNU_PROPERTY_X86_COMPAT_ISA_1_SSSE3,    (1 bsl 6)).
+-define(GNU_PROPERTY_X86_COMPAT_ISA_1_SSE4_1,   (1 bsl 7)).
+-define(GNU_PROPERTY_X86_COMPAT_ISA_1_SSE4_2,   (1 bsl 8)).
+-define(GNU_PROPERTY_X86_COMPAT_ISA_1_AVX,      (1 bsl 9)).
+-define(GNU_PROPERTY_X86_COMPAT_ISA_1_AVX2,     (1 bsl 10)).
+-define(GNU_PROPERTY_X86_COMPAT_ISA_1_AVX512F,  (1 bsl 11)).
+-define(GNU_PROPERTY_X86_COMPAT_ISA_1_AVX512CD, (1 bsl 12)).
+-define(GNU_PROPERTY_X86_COMPAT_ISA_1_AVX512ER, (1 bsl 13)).
+-define(GNU_PROPERTY_X86_COMPAT_ISA_1_AVX512PF, (1 bsl 14)).
+-define(GNU_PROPERTY_X86_COMPAT_ISA_1_AVX512VL, (1 bsl 15)).
+-define(GNU_PROPERTY_X86_COMPAT_ISA_1_AVX512DQ, (1 bsl 16)).
+-define(GNU_PROPERTY_X86_COMPAT_ISA_1_AVX512BW, (1 bsl 17)).
+
+%% A 4-byte unsigned integer property: A bit is set if it is set in all
+%% relocatable inputs.
+-define(GNU_PROPERTY_X86_UINT32_AND_LO,         16#c0000002).
+-define(GNU_PROPERTY_X86_UINT32_AND_HI,         16#c0007fff).
+
+%% A 4-byte unsigned integer property: A bit is set if it is set in any
+%% relocatable inputs.
+-define(GNU_PROPERTY_X86_UINT32_OR_LO,          16#c0008000).
+-define(GNU_PROPERTY_X86_UINT32_OR_HI,          16#c000ffff).
+
+%% A 4-byte unsigned integer property: A bit is set if it is set in any
+%% relocatable inputs and the property is present in all relocatable
+%% inputs.
+-define(GNU_PROPERTY_X86_UINT32_OR_AND_LO,      16#c0010000).
+-define(GNU_PROPERTY_X86_UINT32_OR_AND_HI,      16#c0017fff).
+
+-define(GNU_PROPERTY_X86_FEATURE_1_AND, (?GNU_PROPERTY_X86_UINT32_AND_LO + 0)).
+
+-define(GNU_PROPERTY_X86_ISA_1_NEEDED, (?GNU_PROPERTY_X86_UINT32_OR_LO + 0)).
+-define(GNU_PROPERTY_X86_FEATURE_2_NEEDED, (?GNU_PROPERTY_X86_UINT32_OR_LO + 1)).
+
+-define(GNU_PROPERTY_X86_ISA_1_USED, (?GNU_PROPERTY_X86_UINT32_OR_AND_LO + 0)).
+-define(GNU_PROPERTY_X86_FEATURE_2_USED, (?GNU_PROPERTY_X86_UINT32_OR_AND_LO + 1)).
 
 -define(GNU_PROPERTY_X86_FEATURE_1_IBT,         (1 bsl 0)).
 -define(GNU_PROPERTY_X86_FEATURE_1_SHSTK,       (1 bsl 1)).
+
+-define(GNU_PROPERTY_X86_ISA_1_CMOV,            (1 bsl 0)).
+-define(GNU_PROPERTY_X86_ISA_1_SSE,             (1 bsl 1)).
+-define(GNU_PROPERTY_X86_ISA_1_SSE2,            (1 bsl 2)).
+-define(GNU_PROPERTY_X86_ISA_1_SSE3,            (1 bsl 3)).
+-define(GNU_PROPERTY_X86_ISA_1_SSSE3,           (1 bsl 4)).
+-define(GNU_PROPERTY_X86_ISA_1_SSE4_1,          (1 bsl 5)).
+-define(GNU_PROPERTY_X86_ISA_1_SSE4_2,          (1 bsl 6)).
+-define(GNU_PROPERTY_X86_ISA_1_AVX,             (1 bsl 7)).
+-define(GNU_PROPERTY_X86_ISA_1_AVX2,            (1 bsl 8)).
+-define(GNU_PROPERTY_X86_ISA_1_FMA,             (1 bsl 9)).
+-define(GNU_PROPERTY_X86_ISA_1_AVX512F,         (1 bsl 10)).
+-define(GNU_PROPERTY_X86_ISA_1_AVX512CD,        (1 bsl 11)).
+-define(GNU_PROPERTY_X86_ISA_1_AVX512ER,        (1 bsl 12)).
+-define(GNU_PROPERTY_X86_ISA_1_AVX512PF,        (1 bsl 13)).
+-define(GNU_PROPERTY_X86_ISA_1_AVX512VL,        (1 bsl 14)).
+-define(GNU_PROPERTY_X86_ISA_1_AVX512DQ,        (1 bsl 15)).
+-define(GNU_PROPERTY_X86_ISA_1_AVX512BW,        (1 bsl 16)).
+-define(GNU_PROPERTY_X86_ISA_1_AVX512_4FMAPS,   (1 bsl 17)).
+-define(GNU_PROPERTY_X86_ISA_1_AVX512_4VNNIW,   (1 bsl 18)).
+-define(GNU_PROPERTY_X86_ISA_1_AVX512_BITALG,   (1 bsl 19)).
+-define(GNU_PROPERTY_X86_ISA_1_AVX512_IFMA,     (1 bsl 20)).
+-define(GNU_PROPERTY_X86_ISA_1_AVX512_VBMI,     (1 bsl 21)).
+-define(GNU_PROPERTY_X86_ISA_1_AVX512_VBMI2,    (1 bsl 22)).
+-define(GNU_PROPERTY_X86_ISA_1_AVX512_VNNI,     (1 bsl 23)).
+
+-define(GNU_PROPERTY_X86_FEATURE_2_X86,         (1 bsl 0)).
+-define(GNU_PROPERTY_X86_FEATURE_2_X87,         (1 bsl 1)).
+-define(GNU_PROPERTY_X86_FEATURE_2_MMX,         (1 bsl 2)).
+-define(GNU_PROPERTY_X86_FEATURE_2_XMM,         (1 bsl 3)).
+-define(GNU_PROPERTY_X86_FEATURE_2_YMM,         (1 bsl 4)).
+-define(GNU_PROPERTY_X86_FEATURE_2_ZMM,         (1 bsl 5)).
+-define(GNU_PROPERTY_X86_FEATURE_2_FXSR,        (1 bsl 6)).
+-define(GNU_PROPERTY_X86_FEATURE_2_XSAVE,       (1 bsl 7)).
+-define(GNU_PROPERTY_X86_FEATURE_2_XSAVEOPT,    (1 bsl 8)).
+-define(GNU_PROPERTY_X86_FEATURE_2_XSAVEC,      (1 bsl 9)).
 
 %% Values used in GNU .note.ABI-tag notes (NT_GNU_ABI_TAG).
 -define(GNU_ABI_TAG_LINUX,      0).
@@ -964,6 +1028,7 @@
 -define(PT_SUNW_EH_FRAME,       ?PT_GNU_EH_FRAME).              % Solaris uses the same value
 -define(PT_GNU_STACK,           (?PT_LOOS + 16#474e551)).       % Stack flags
 -define(PT_GNU_RELRO,           (?PT_LOOS + 16#474e552)).       % Read-only after relocation
+-define(PT_GNU_PROPERTY,        (?PT_LOOS + 16#474e553)).       % GNU property
 
 %% Mbind segments
 -define(PT_GNU_MBIND_NUM,       4096).
@@ -1325,25 +1390,34 @@
 -define(AT_FREEBSD_STACKPROT,   23).    % Initial stack protection.
 -define(AT_FREEBSD_EHDRFLAGS,   24).    % e_flags field from ELF header.
 -define(AT_FREEBSD_HWCAP,       25).    % CPU feature flags.
+-define(AT_FREEBSD_HWCAP2,      26).    % CPU feature flags 2.
 
--define(AT_SUN_UID,     2000).  % Effective user ID.
--define(AT_SUN_RUID,    2001).  % Real user ID.
--define(AT_SUN_GID,     2002).  % Effective group ID.
--define(AT_SUN_RGID,    2003).  % Real group ID.
--define(AT_SUN_LDELF,   2004).  % Dynamic linker's ELF header.
--define(AT_SUN_LDSHDR,  2005).  % Dynamic linker's section headers.
--define(AT_SUN_LDNAME,  2006).  % String giving name of dynamic linker.
--define(AT_SUN_LPAGESZ, 2007).  % Large pagesize.
--define(AT_SUN_PLATFORM,2008).  % Platform name string.
--define(AT_SUN_HWCAP,   2009).  % Machine dependent hints about
-                                % processor capabilities.
--define(AT_SUN_IFLUSH,  2010).  % Should flush icache?
--define(AT_SUN_CPU,     2011).  % CPU name string.
--define(AT_SUN_EMUL_ENTRY, 2012). % COFF entry point address.
--define(AT_SUN_EMUL_EXECFD, 2013). % COFF executable file descriptor.
--define(AT_SUN_EXECNAME,2014).  % Canonicalized file name given to execve.
--define(AT_SUN_MMU,     2015).  % String for name of MMU module.
--define(AT_SUN_LDDATA,  2016).  % Dynamic linker's data segment address.
--define(AT_SUN_AUXFLAGS,2017).  % AF_SUN_ flags passed from the kernel.
+-define(AT_SUN_UID,             2000).  % Effective user ID.
+-define(AT_SUN_RUID,            2001).  % Real user ID.
+-define(AT_SUN_GID,             2002).  % Effective group ID.
+-define(AT_SUN_RGID,            2003).  % Real group ID.
+-define(AT_SUN_LDELF,           2004).  % Dynamic linker's ELF header.
+-define(AT_SUN_LDSHDR,          2005).  % Dynamic linker's section headers.
+-define(AT_SUN_LDNAME,          2006).  % String giving name of dynamic linker.
+-define(AT_SUN_LPAGESZ,         2007).  % Large pagesize.
+-define(AT_SUN_PLATFORM,        2008).  % Platform name string.
+-define(AT_SUN_CAP_HW1,         2009).  % Machine dependent hints about
+                                        % processor capabilities.
+-define(AT_SUN_HWCAP, ?AT_SUN_CAP_HW1). % For backward compat only.
+-define(AT_SUN_IFLUSH,          2010).  % Should flush icache?
+-define(AT_SUN_CPU,             2011).  % CPU name string.
+-define(AT_SUN_EMUL_ENTRY,      2012).  % COFF entry point address.
+-define(AT_SUN_EMUL_EXECFD,     2013).  % COFF executable file descriptor.
+-define(AT_SUN_EXECNAME,        2014).  % Canonicalized file name given to execve.
+-define(AT_SUN_MMU,             2015).  % String for name of MMU module.
+-define(AT_SUN_LDDATA,          2016).  % Dynamic linker's data segment address.
+-define(AT_SUN_AUXFLAGS,        2017).  % AF_SUN_ flags passed from the kernel.
+-define(AT_SUN_EMULATOR,        2018).  % Name of emulation binary for runtime
+                                        % linker.
+-define(AT_SUN_BRANDNAME,       2019).  % Name of brand library.
+-define(AT_SUN_BRAND_AUX1,      2020).  % Aux vectors for brand modules.
+-define(AT_SUN_BRAND_AUX2,      2021).
+-define(AT_SUN_BRAND_AUX3,      2022).
+-define(AT_SUN_CAP_HW2,         2023).  % Extension of AT_SUN_CAP_HW1.
 
 -endif. % PDP10_ELF36_HRL
