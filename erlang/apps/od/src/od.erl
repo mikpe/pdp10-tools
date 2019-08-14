@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% 'od' clone for files with 9-bit bytes
-%%% Copyright (C) 2013-2018  Mikael Pettersson
+%%% Copyright (C) 2013-2019  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -139,7 +139,7 @@ parse_radix(String) ->
 
 parse_bytes(String) ->
   case strtol:parse(String, 0) of
-    {ok, Value, Rest} ->
+    {ok, {Value, Rest}} ->
       Value * parse_multiplier(Rest);
     {error, _Reason} ->
       escript_runtime:fatal("invalid number '~s'\n", [String])
@@ -178,7 +178,7 @@ parse_size(String, OutputType, Opts) ->
     [$L | Rest] -> parse_z(Rest, 4, OutputType, Opts);
     _ ->
       case strtol:parse(String, 10) of
-        {ok, Size, Rest} when Size =:= 1; Size =:= 2; Size =:= 4 ->
+        {ok, {Size, Rest}} when Size =:= 1; Size =:= 2; Size =:= 4 ->
           parse_z(Rest, Size, OutputType, Opts);
         _ -> escript_runtime:fatal("invalid type size '~s'\n", [String])
       end

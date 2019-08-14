@@ -1127,11 +1127,7 @@ read_ar_name(FP) ->
         "/" -> {ok, String};  % archive symbol table
         "//" -> {ok, String}; % archive string table
         [$/ | Numeral] ->     % offset into archive string table
-          case strtol:parse(Numeral, 10) of
-            {ok, Value, []} -> {ok, Value};
-            {ok, _Value, _} -> {error, trailing_garbage};
-            {error, _Reason} = Error -> Error
-          end;
+          strtol(Numeral, 10);
         _ ->
           case string:split(String ++ "$", "/") of
             [FileName, "$"] -> {ok, FileName};
@@ -1149,17 +1145,19 @@ read_ar_uid(FP) ->
 
 read_number(FP, Base, FieldSize) ->
   case read_string(FP, FieldSize) of
-    {ok, String} ->
-      case strtol:parse(trim_trailing_spaces(String), Base) of
-        {ok, Value, []} -> {ok, Value};
-        {ok, _Value, _} -> {error, trailing_garbage};
-        {error, _Reason} = Error -> Error
-      end;
+    {ok, String} -> strtol(trim_trailing_spaces(String), Base);
     {error, _Reason} = Error -> Error
   end.
 
 trim_trailing_spaces(String) ->
   string:trim(String, trailing, [$\s]).
+
+strtol(String, Base) ->
+  case strtol:parse(String, Base) of
+    {ok, {Value, _Rest = []}} -> {ok, Value};
+    {ok, {_Value, _Rest}} -> {error, trailing_garbage};
+    {error, _Reason} = Error -> Error
+  end.
 
 %% read FieldSize characters
 read_string(FP, FieldSize) ->

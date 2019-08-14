@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% strtol() clone for Erlang
-%%% Copyright (C) 2018  Mikael Pettersson
+%%% Copyright (C) 2018-2019  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -30,7 +30,7 @@
 
 -type base() :: 0 | 2..36.
 
--spec parse(string(), base()) -> {ok, integer(), string()} | {error, any()}.
+-spec parse(string(), base()) -> {ok, {integer(), string()}} | {error, any()}.
 parse(String, Base) ->
   scan_spaces(String, Base).
 
@@ -98,7 +98,7 @@ scan_digits(String, Value, Base, Minus) ->
 
 return(Rest, Value0, Minus) ->
   Value = if Minus -> -Value0; true -> Value0 end,
-  {ok, Value, Rest}.
+  {ok, {Value, Rest}}.
 
 no_digits() ->
   {error, no_digits}.
