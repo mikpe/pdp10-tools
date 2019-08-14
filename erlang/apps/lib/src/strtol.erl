@@ -26,11 +26,12 @@
 %%% Since Erlang has bignums, this code performs no overflow checks.
 
 -module(strtol).
--export([parse/2]).
+-export([parse/2, format_error/1]).
 
 -type base() :: 0 | 2..36.
 
--spec parse(string(), base()) -> {ok, {integer(), string()}} | {error, any()}.
+-spec parse(string(), base())
+      -> {ok, {integer(), string()}} | {error, {module(), term()}}.
 parse(String, Base) ->
   scan_spaces(String, Base).
 
@@ -101,10 +102,10 @@ return(Rest, Value0, Minus) ->
   {ok, {Value, Rest}}.
 
 no_digits() ->
-  {error, no_digits}.
+  mkerror(no_digits).
 
 invalid_base() ->
-  {error, invalid_base}.
+  mkerror(invalid_base).
 
 isspace(C) ->
   case C of
@@ -122,4 +123,17 @@ digit_value(C) ->
      C >= $A, C =< $Z -> C - $A + 10;
      C >= $a, C =< $z -> C - $a + 10;
      true -> 255 % out-of-band value >= any valid base
+  end.
+
+%% Error Formatting ------------------------------------------------------------
+
+mkerror(Tag) ->
+  {error, {?MODULE, Tag}}.
+
+-spec format_error(term()) -> string().
+format_error(Reason) ->
+  case Reason of
+    no_digits -> "no valid digits found";
+    invalid_base -> "invalid base";
+    _ -> lists:flatten(io_lib:format("~p", [Reason]))
   end.
