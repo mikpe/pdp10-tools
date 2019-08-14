@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% getopt for Erlang programs
-%%% Copyright (C) 2018  Mikael Pettersson
+%%% Copyright (C) 2018-2019  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -19,7 +19,7 @@
 %%% along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
 
 -module(getopt).
--export([parse/2, parse/3]).
+-export([parse/2, parse/3, format_error/1]).
 
 -type option() :: char() | {char(), string()}.
 
@@ -36,13 +36,15 @@
 
 -type longopt() :: term() | {term(), string()}.
 
--spec parse([string()], string()) -> {ok, {[option()], [string()]}} | {error, any()}.
+-spec parse([string()], string())
+        -> {ok, {[option()], [string()]}}
+         | {error, {module(), term()}}.
 parse(Argv, OptString) ->
   parse(Argv, OptString, []).
 
 -spec parse([string()], string(), [longopt_spec()])
         -> {ok, {[longopt()], [string()]}}
-         | {error, any()}.
+         | {error, {module(), term()}}.
 parse(Argv, OptString, LongOpts) ->
   parse_argv(Argv, OptString, LongOpts, [], []).
 
@@ -85,7 +87,7 @@ parse_element([OptCh | Element], Argv, OptString, LongOpts, RevOpts, RevArgv) ->
         {[], [Arg = [Ch | _] | Argv2]} when Ch =/= $- ->
           parse_argv(Argv2, OptString, LongOpts, [{OptCh, Arg} | RevOpts], RevArgv);
         {_, _} ->
-          {error, io_lib:format("missing argment to -~c", [OptCh])}
+          mkerror(missing_argument, OptCh)
       end;
     ?optional ->
       case Element of
@@ -95,9 +97,9 @@ parse_element([OptCh | Element], Argv, OptString, LongOpts, RevOpts, RevArgv) ->
           parse_argv(Argv, OptString, LongOpts, [OptCh | RevOpts], RevArgv)
       end;
     ?invalid ->
-      {error, io_lib:format("invalid option -~c", [OptCh])};
+      mkerror(invalid_option, OptCh);
     ?error ->
-      {error, io_lib:format("invalid optstring ~p", [OptString])}
+      mkerror(invalid_optstring, OptString)
   end.
 
 optch_argument(OptCh, [$+ | OptString]) -> optch_argument2(OptCh, OptString);
@@ -123,26 +125,26 @@ parse_long(Long, Argv, OptString, LongOpts, RevOpts, RevArgv) ->
         {?no, [], _} ->
           parse_argv(Argv, OptString, LongOpts, [Val | RevOpts], RevArgv);
         {?no, _, _} ->
-          {error, io_lib:format("invalid argument to --~s", [Prefix])};
+          mkerror(invalid_argument_long, Prefix);
         {?required, [Arg], _} ->
           parse_argv(Argv, OptString, LongOpts, [{Val, Arg} | RevOpts], RevArgv);
         {?required, [], [Arg = [Ch | _] | Argv2]} when Ch =/= $- ->
           parse_argv(Argv2, OptString, LongOpts, [{Val, Arg} | RevOpts], RevArgv);
         {?required, [], _} ->
-          {error, io_lib:format("missing argument to --~s", [Prefix])};
+          mkerror(missing_argument_long, Prefix);
         {?optional, [Arg], _} ->
           parse_argv(Argv, OptString, LongOpts, [{Val, Arg} | RevOpts], RevArgv);
         {?optional, [], _} ->
           parse_argv(Argv, OptString, LongOpts, [Val | RevOpts], RevArgv);
         {_, _, _} ->
-          {error, io_lib:format("invalid longopts ~p", [LongOpts])}
+          mkerror(invalid_longopts, LongOpts)
       end;
     ?invalid ->
-      {error, io_lib:format("invalid option --~s", [Prefix])};
+      mkerror(invalid_option_long, Prefix);
     ?ambiguous ->
-      {error, io_lib:format("ambiguous option --~s", [Prefix])};
+      mkerror(ambiguous_option, Prefix);
     ?error ->
-      {error, io_lib:format("invalid longopts ~p", [LongOpts])}
+      mkerror(invalid_longopts, LongOpts)
   end.
 
 find_longopt(Prefix, LongOpts) ->
@@ -157,3 +159,34 @@ find_longopt(Prefix, [Option = {Name, _HasArg, _Val} | LongOpts], Candidate) ->
     _ -> ?ambiguous
   end;
 find_longopt(_Prefix, _LongOpts, _Candidate) -> ?error.
+
+%% Error Formatting ------------------------------------------------------------
+
+mkerror(Tag, Data) ->
+  {error, {?MODULE, {Tag, Data}}}.
+
+-spec format_error(term()) -> string().
+format_error(Reason) ->
+  case Reason of
+    {missing_argument, OptCh} ->
+      flatformat("missing argument to -~c", [OptCh]);
+    {invalid_option, OptCh} ->
+      flatformat("invalid option -~c", [OptCh]);
+    {invalid_optstring, OptString} ->
+      flatformat("invalid optstring ~p", [OptString]);
+    {invalid_argument_long, Prefix} ->
+      flatformat("invalid argument to --~s", [Prefix]);
+    {missing_argument_long, Prefix} ->
+      flatformat("missing argument to --~s", [Prefix]);
+    {invalid_longopts, LongOpts} ->
+      flatformat("invalid longopts ~p", [LongOpts]);
+    {invalid_option_long, Prefix} ->
+      flatformat("invalid option --~s", [Prefix]);
+    {ambiguous_option, Prefix} ->
+      flatformat("ambiguous option --~s", [Prefix]);
+    _ ->
+      flatformat("~p", [Reason])
+  end.
+
+flatformat(Fmt, Args) ->
+  lists:flatten(io_lib:format(Fmt, Args)).
