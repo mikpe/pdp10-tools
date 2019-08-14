@@ -74,6 +74,7 @@
         , ftell/1
         , stdin/0
         , stdout/0
+        , format_error/1
         ]).
 
 %% gen_server callbacks
@@ -101,7 +102,8 @@
 
 %% API -------------------------------------------------------------------------
 
--spec fopen(file:name_all(), [file:mode()]) -> {ok, #file{}} | {error, any()}.
+-spec fopen(file:name_all(), [file:mode()])
+       -> {ok, #file{}} | {error, {module(), term()}}.
 fopen(Path, Modes) ->
   do_open({fopen, Path, Modes}).
 
@@ -111,28 +113,28 @@ do_open(What) ->
     {error, _Reason} = Error -> Error
   end.
 
--spec fclose(#file{}) -> ok | {error, any()}.
+-spec fclose(#file{}) -> ok | {error, {module(), term()}}.
 fclose(#file{pid = Pid}) ->
   gen_server:call(Pid, fclose, infinity).
 
--spec fgetc(#file{}) -> {ok, nonet()} | eof | {error, any()}.
+-spec fgetc(#file{}) -> {ok, nonet()} | eof | {error, {module(), term()}}.
 fgetc(#file{pid = Pid}) ->
   gen_server:call(Pid, fgetc, infinity).
 
 -spec fread(non_neg_integer(), non_neg_integer(), #file{})
-        -> {ok, [nonet()]} | eof | {error, any()}.
+        -> {ok, [nonet()]} | eof | {error, {module(), term()}}.
 fread(Size, NMemb, #file{pid = Pid}) ->
   gen_server:call(Pid, {fread, Size, NMemb}, infinity).
 
--spec fputc(#file{}, nonet()) -> ok | {error, any()}.
+-spec fputc(#file{}, nonet()) -> ok | {error, {module(), term()}}.
 fputc(Nonet, #file{pid = Pid}) ->
   gen_server:call(Pid, {fputc, Nonet}, infinity).
 
--spec fputs([nonet()], #file{}) -> ok | {error, any()}.
+-spec fputs([nonet()], #file{}) -> ok | {error, {module(), term()}}.
 fputs(Nonets, #file{pid = Pid}) ->
   gen_server:call(Pid, {fputs, Nonets}, infinity).
 
--spec fseek(#file{}, file:location()) -> ok | {error, any()}.
+-spec fseek(#file{}, file:location()) -> ok | {error, {module(), term()}}.
 fseek(#file{pid = Pid}, Location) ->
   gen_server:call(Pid, {fseek, Location}, infinity).
 
@@ -140,13 +142,34 @@ fseek(#file{pid = Pid}, Location) ->
 ftell(#file{pid = Pid}) ->
   gen_server:call(Pid, ftell, infinity).
 
--spec stdin() -> {ok, #file{}} | {error, any()}.
+-spec stdin() -> {ok, #file{}}.
 stdin() ->
   do_open(stdin).
 
--spec stdout() -> {ok, #file{}} | {error, any()}.
+-spec stdout() -> {ok, #file{}}.
 stdout() ->
   do_open(stdout).
+
+-spec format_error(term()) -> string().
+format_error(Reason) ->
+  case Reason of
+    {bad_request, Req} ->
+      flatformat("bad request ~p", [Req]);
+    no_io_direction ->
+      "no I/O direction";
+    {bad_mode, Mode} ->
+      flatformat("bad mode ~p", [Mode]);
+    {bad_fread, Size, NMemb} ->
+      flatformat("bad fread size ~p nmemb ~p", [Size, NMemb]);
+    eof ->
+      "end-of-file during fread";
+    write_only ->
+      "read from write-only file";
+    {bad_whence, Whence} ->
+      flatformat("bad whence ~p", [Whence]);
+    _ ->
+      flatformat("~p", [Reason])
+  end.
 
 %% gen_server callbacks --------------------------------------------------------
 
@@ -187,7 +210,7 @@ handle_call(Req, _From, State) ->
     ftell ->
       handle_ftell(State);
     _ ->
-      {reply, {error, {bad_request, Req}}, State}
+      {reply, mkerror({bad_request, Req}), State}
   end.
 
 handle_cast(_Req, State) ->
@@ -208,7 +231,7 @@ handle_fopen(Path, Modes) ->
     {ok, {Read, Write}} ->
       %% prevent crashing file:open/2 due to duplicate modes
       HardModes = [raw, delayed_write, read_ahead],
-      case file:open(Path, HardModes ++ (Modes -- HardModes)) of
+      case file_open(Path, HardModes ++ (Modes -- HardModes)) of
         {ok, IoDev} -> {ok, {IoDev, Read, Write}};
         {error, _Reason} = Error -> Error
       end;
@@ -217,11 +240,11 @@ handle_fopen(Path, Modes) ->
 
 iodir(Modes) -> iodir(Modes, false, false).
 
-iodir([], false, false) -> {error, no_io_direction};
+iodir([], false, false) -> mkerror(no_io_direction);
 iodir([], Read, Write) -> {ok, {Read, Write}};
 iodir([Mode | Modes], Read0, Write0) ->
   case mode_iodir(Mode) of
-    error -> {error, {bad_mode, Mode}};
+    error -> mkerror({bad_mode, Mode});
     {Read1, Write1} -> iodir(Modes, Read0 or Read1, Write0 or Write1)
   end.
 
@@ -250,7 +273,7 @@ handle_fclose(State) ->
   Result2 =
     case State#state.iodev of
       standard_io -> ok;
-      IoDev -> file:close(IoDev)
+      IoDev -> file_close(IoDev)
     end,
   Result =
     case Result1 of
@@ -325,8 +348,8 @@ fgetc_octet(State) ->
         , shiftreg = Shiftreg
         , shiftreg_nr_bits = ShiftregNrBits
         } = State,
-  case file:read(IoDev, 1) of
-    {ok, [Octet]} ->
+  case file_read1(IoDev) of
+    {ok, Octet} ->
       {ok, State#state{ shiftreg = ((Shiftreg band 16#ff) bsl 8) bor (Octet band 16#ff)
                       , shiftreg_nr_bits = ShiftregNrBits + 8 }};
     eof -> eof;
@@ -339,7 +362,7 @@ handle_fread(Size, NMemb, State0) ->
   case prepare_to_read(State0) of
     {ok, State} ->
       case freadwrite_params_ok(Size, NMemb) of
-        false -> {reply, {error, {bad_fread, Size, NMemb}}, State};
+        false -> {reply, mkerror({bad_fread, Size, NMemb}), State};
         true -> fread_loop(Size * NMemb, [], State)
       end;
     {error, _Reason} = Error -> {reply, Error, State0}
@@ -350,7 +373,7 @@ fread_loop(N, Acc, State0) ->
   case fgetc_nonet(State0) of
     {{ok, Nonet}, State} -> fread_loop(N - 1, [Nonet | Acc], State);
     {eof, State} when Acc =:= [] -> {reply, eof, State};
-    {eof, State} -> {reply, {error, eof}, State};
+    {eof, State} -> {reply, mkerror(eof), State};
     {{error, _Reason} = Error, State} -> {reply, Error, State}
   end.     
 
@@ -384,7 +407,7 @@ prepare_to_read(State0) ->
         {ok, State} -> {ok, State#state{iodir = read}};
         {error, _Reason} = Error -> Error
       end;
-    #state{} -> {error, write_only}
+    #state{} -> mkerror(write_only)
   end.
 
 %% fputc -----------------------------------------------------------------------
@@ -422,7 +445,7 @@ fputc_octet(State) ->
         , shiftreg_nr_bits = ShiftregNrBits
         } = State,
   Octet = (Shiftreg bsr (ShiftregNrBits - 8)) band 16#ff,
-  case file:write(IoDev, [Octet]) of
+  case file_write1(IoDev, Octet) of
     ok -> {ok, State#state{shiftreg_nr_bits = ShiftregNrBits - 8}};
     {error, _Reason} = Error -> Error
   end.
@@ -481,10 +504,10 @@ reload_shiftreg(State = #state{shiftreg_nr_bits = ShiftregNrBits0}) ->
 
 peek_next_octet(#state{iodev = IoDev}) ->
   %% read the next octet which we will partially overwrite
-  case file:read(IoDev, 1) of
-    {ok, [Octet]} ->
+  case file_read1(IoDev) of
+    {ok, Octet} ->
       %% Rewind to correct position and direction for subsequent write.
-      case file:position(IoDev, {cur, -1}) of
+      case file_position(IoDev, {cur, -1}) of
         {ok, _Position} -> {ok, Octet};
         {error, _Reason} = Error -> Error
       end;
@@ -528,7 +551,7 @@ do_fseek(State, Offset, Whence) ->
           %% happen in C but not in Erlang.)
           %%
           OctetPos = (NonetPos div 8) * 9 + ((NonetPos rem 8) * 9) div 8,
-          case file:position(State#state.iodev, {bof, OctetPos}) of
+          case file_position(State#state.iodev, {bof, OctetPos}) of
             {error, _Reason} = Error -> Error;
             {ok, _Position} ->
               %%
@@ -551,7 +574,7 @@ start_pos(State, Whence) ->
     bof -> {ok, 0};
     cur -> {ok, State#state.nonet_pos};
     eof ->
-      case file:position(State#state.iodev, eof) of
+      case file_position(State#state.iodev, eof) of
         {error, _Reason} = Error -> Error;
         {ok, OctetPos} ->
           %%
@@ -573,7 +596,7 @@ start_pos(State, Whence) ->
           NonetPos = (OctetPos div 9) * 8 + ((OctetPos rem 9) * 8) div 9,
           {ok, NonetPos}
       end;
-    _ -> {error, {bad_whence, Whence}}
+    _ -> mkerror({bad_whence, Whence})
   end.
 
 normalize_location(Location) ->
@@ -613,7 +636,7 @@ flush_buffered_write(State) ->
                Shiftreg = State#state.shiftreg,
                Octet1 = Octet0 band ((1 bsl OctetNrBits) - 1),
                Octet = Octet1 bor ((Shiftreg bsl OctetNrBits) band 16#ff),
-               file:write(State#state.iodev, [Octet]);
+               file_write1(State#state.iodev, Octet);
              {error, _Reason} = Error -> Error
            end;
          true -> ok
@@ -627,12 +650,56 @@ peek_last_octet(#state{read = false}) ->
 peek_last_octet(#state{iodev = IoDev}) ->
   %% read the next octet which we will partially overwrite
   %% Note: in C we'd fseek(..., 0, SEEK_CUR) here (I/O direction change)
-  case file:read(IoDev, 1) of
-    {ok, [Octet]} ->
-      case file:position(IoDev, {cur, -1}) of
+  case file_read1(IoDev) of
+    {ok, Octet} ->
+      case file_position(IoDev, {cur, -1}) of
         {ok, _Position} -> {ok, Octet};
         {error, _Reason} = Error -> Error
       end;
     eof -> {ok, 16#00};
     {error, _Reason} = Error -> Error
   end.
+
+%% File Operations -------------------------------------------------------------
+
+file_close(IoDev) ->
+  case file:close(IoDev) of
+    ok -> ok;
+    {error, Reason} -> mkfileerror(Reason)
+  end.
+
+file_open(Path, Modes) ->
+  case file:open(Path, Modes) of
+    {ok, _IoDev} = Result -> Result;
+    {error, Reason} -> mkfileerror(Reason)
+  end.
+
+file_position(IoDev, Pos) ->
+  case file:position(IoDev, Pos) of
+    {ok, _NewPos} = Result -> Result;
+    {error, Reason} -> mkfileerror(Reason)
+  end.
+
+file_read1(IoDev) ->
+  case file:read(IoDev, 1) of
+    {ok, [Octet]} -> {ok, Octet};
+    eof -> eof;
+    {error, Reason} -> mkfileerror(Reason)
+  end.
+
+file_write1(IoDev, Octet) ->
+  case file:write(IoDev, [Octet]) of
+    ok -> ok;
+    {error, Reason} -> mkfileerror(Reason)
+  end.
+
+%% Error Formatting ------------------------------------------------------------
+
+mkerror(Reason) ->
+  {error, {?MODULE, Reason}}.
+
+mkfileerror(Reason) ->
+  {error, {file, Reason}}.
+
+flatformat(Fmt, Args) ->
+  lists:flatten(io_lib:format(Fmt, Args)).
