@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% 8to9 -- convert octet files to nonet files
-%%% Copyright (C) 2013-2018  Mikael Pettersson
+%%% Copyright (C) 2013-2019  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -38,16 +38,17 @@ main_(Argv) ->
       InFile = get_infile(Args),
       copy(InFile, OutFile),
       pdp10_stdio:fclose(OutFile);
-    {ok, {_Options, _}} ->
-      escript_runtime:errmsg("non-option parameters\n", []),
+    {ok, {_Options, [X | _]}} ->
+      escript_runtime:errmsg("non-option parameter: ~s\n", [X]),
       usage();
-    {error, ErrMsg} ->
-      escript_runtime:errmsg("~s\n", [ErrMsg]),
+    {error, Reason} ->
+      escript_runtime:errmsg("~s\n", [error:format(Reason)]),
       usage()
   end.
 
 usage() ->
-  escript_runtime:fmterr("Usage: ~s [-V] [-i INFILE] [-o OUTFILE]\n", [escript_runtime:progname()]),
+  escript_runtime:fmterr("Usage: ~s [-V] [-i INFILE] [-o OUTFILE]\n",
+                         [escript_runtime:progname()]),
   halt(1).
 
 scan_options([$V | _Options], _Args) ->
@@ -67,11 +68,11 @@ copy(InFile, OutFile) ->
       case pdp10_stdio:fputc(Octet, OutFile) of
         ok ->
           copy(InFile, OutFile);
-        {error, _Reason} = Error ->
-          escript_runtime:fatal("writing output: ~p\n", [Error])
+        {error, Reason} ->
+          escript_runtime:fatal("writing output: ~s\n", [error:format(Reason)])
       end;
-    {error, _Reason} = Error ->
-      escript_runtime:fatal("reading input: ~p\n", [Error])
+    {error, Reason} ->
+      escript_runtime:fatal("reading input: ~s\n", [error:format(Reason)])
   end.
 
 get_outfile(#args{outfile = undefined}) ->
@@ -80,8 +81,8 @@ get_outfile(#args{outfile = undefined}) ->
 get_outfile(#args{outfile = Path}) ->
   case pdp10_stdio:fopen(Path, [raw, write, delayed_write]) of
     {ok, OutFile} -> OutFile;
-    {error, _Reason} = Error ->
-      escript_runtime:fatal("opening ~s: ~p\n", [Path, Error])
+    {error, Reason} ->
+      escript_runtime:fatal("opening ~s: ~s\n", [Path, error:format(Reason)])
   end.
 
 get_infile(#args{infile = undefined}) ->
@@ -89,6 +90,7 @@ get_infile(#args{infile = undefined}) ->
 get_infile(#args{infile = Path}) ->
   case file:open(Path, [raw, read, read_ahead]) of
     {ok, InFile} -> InFile;
-    {error, _Reason} = Error ->
-      escript_runtime:fatal("opening ~s: ~p\n", [Path, Error])
+    {error, Reason} ->
+      escript_runtime:fatal("opening ~s: ~s\n",
+                            [Path, error:format({file, Reason})])
   end.
