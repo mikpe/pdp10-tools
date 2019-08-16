@@ -52,8 +52,8 @@ main_(Argv) ->
                     ]) of
     {ok, {Options, Files}} ->
       od(scan_options(Options), Files);
-    {error, ErrMsg} ->
-      escript_runtime:errmsg("~s\n", [ErrMsg]),
+    {error, Reason} ->
+      escript_runtime:errmsg("~s\n", [error:format(Reason)]),
       usage()
   end.
 
@@ -141,8 +141,9 @@ parse_bytes(String) ->
   case strtol:parse(String, 0) of
     {ok, {Value, Rest}} ->
       Value * parse_multiplier(Rest);
-    {error, _Reason} ->
-      escript_runtime:fatal("invalid number '~s'\n", [String])
+    {error, Reason} ->
+      escript_runtime:fatal("invalid number '~s': ~s\n",
+                            [String, error:format(Reason)])
   end.
 
 parse_multiplier(String) ->
@@ -230,12 +231,8 @@ compile_numfmt(Base, Pad, Opts) ->
 
 od(Opts, Files) ->
   #options{read_bytes = ReadBytes, skip_bytes = SkipBytes} = Opts,
-  Status =
-    case skip_bytes(SkipBytes, Opts, input_init(Files, ReadBytes), 0) of
-      ok -> 0;
-      {error, _Reason} -> 1
-    end,
-  halt(Status).
+  skip_bytes(SkipBytes, Opts, input_init(Files, ReadBytes), 0),
+  halt(0).
 
 skip_bytes(0, Opts, Input, Offset) -> output_lines(Opts, Input, Offset);
 skip_bytes(SkipBytes, Opts, Input, Offset) when SkipBytes > 0 ->
@@ -420,7 +417,8 @@ input_fgetc_raw(Input) ->
                                          , files = Files
                                          });
             {error, Reason} ->
-              escript_runtime:fatal("failed to open ~s: ~p\n", [File, Reason])
+              escript_runtime:fatal("failed to open ~s: ~s\n",
+                                    [File, error:format(Reason)])
           end
       end;
     FP ->
@@ -432,7 +430,8 @@ input_fgetc_raw(Input) ->
           input_fgetc_raw(Input#input{pdp10fp = []});
         {error, Reason} ->
           File = Input#input.file,
-          escript_runtime:fatal("error reading ~s: ~p\n", [File, Reason])
+          escript_runtime:fatal("error reading ~s: ~s\n",
+                                [File, error:format(Reason)])
       end
   end.
 
