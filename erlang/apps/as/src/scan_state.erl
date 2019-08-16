@@ -31,6 +31,7 @@
           % meta-data accessors
         , filename/1
         , linenr/1
+        , format_error/1
         ]).
 
 %% gen_server callbacks
@@ -52,38 +53,53 @@
         , linenr        :: pos_integer()
         }).
 
+-type scan_state() :: pid().
+
+-export_type([scan_state/0]).
+
 %% API -------------------------------------------------------------------------
 
--spec fclose(pid()) -> ok | {error, any()}.
+-spec fclose(scan_state()) -> ok | {error, {module(), term()}}.
 fclose(Pid) ->
   gen_server:call(Pid, fclose, infinity).
 
--spec fgetc(pid()) -> {ok, byte()} | eof | {error, any()}.
+-spec fgetc(scan_state()) -> {ok, byte()} | eof | {error, {module(), term()}}.
 fgetc(Pid) ->
   gen_server:call(Pid, fgetc, infinity).
 
--spec fopen(string()) -> {ok, pid()} | {error, any()}.
+-spec fopen(string()) -> {ok, scan_state()} | {error, {module(), term()}}.
 fopen(File) ->
   do_fopen(File).
 
--spec stdin() -> {ok, pid()}.
+-spec stdin() -> {ok, scan_state()}.
 stdin() ->
   do_fopen(stdin).
 
 do_fopen(File) ->
   gen_server:start(?MODULE, File, []).
 
--spec ungetc(byte(), pid()) -> ok | {error, any()}.
+-spec ungetc(byte(), scan_state()) -> ok | {error, {module(), term()}}.
 ungetc(Ch, Pid) ->
   gen_server:call(Pid, {ungetc, Ch}, infinity).
 
--spec filename(pid()) -> {ok, string()}.
+-spec filename(scan_state()) -> {ok, string()}.
 filename(Pid) ->
   gen_server:call(Pid, filename, infinity).
 
--spec linenr(pid()) -> {ok, pos_integer()}.
+-spec linenr(scan_state()) -> {ok, pos_integer()}.
 linenr(Pid) ->
   gen_server:call(Pid, linenr, infinity).
+
+-spec format_error(term()) -> io_lib:chars().
+format_error(Reason) ->
+  case Reason of
+    {bad_request, Req} ->
+      io_lib:format("internal error: bad request: ~p", [Req]);
+    ungetc ->
+      "internal error: invalid ungetc";
+    _ ->
+      io_lib:format("~p", [Reason])
+  end.
 
 %% gen_server callbacks --------------------------------------------------------
 
@@ -92,7 +108,7 @@ init(stdin) ->
 init(File) ->
   case file:open(File, [raw, read, read_ahead]) of
     {ok, IoDev} -> do_init(File, IoDev);
-    {error, Reason} -> {stop, Reason}
+    {error, Reason} -> {stop, {file, Reason}}
   end.
 
 do_init(FileName, IoDev) ->
@@ -115,7 +131,7 @@ handle_call(Req, _From, State) ->
     linenr ->
       {reply, {ok, State#state.linenr}, State};
     _ ->
-      {reply, {error, {bad_request, Req}}, State}
+      {reply, {error, {?MODULE, {bad_request, Req}}}, State}
   end.
 
 handle_cast(_Req, State) ->
@@ -155,7 +171,7 @@ handle_fgetc(State) ->
                _ -> State
              end};
           eof -> {eof, State};
-          {error, _Reason} = Error -> {Error, State}
+          {error, Reason} -> {{error, {file, Reason}}, State}
         end,
       {reply, Result, NewState};
     Ch ->
@@ -167,5 +183,5 @@ handle_fgetc(State) ->
 handle_ungetc(State, Ch) ->
   case State#state.ungetc of
     [] -> {reply, ok, State#state{ungetc = Ch}};
-    _ -> {reply, {error, ungetc}, State}
+    _ -> {reply, {error, {?MODULE, ungetc}}, State}
   end.

@@ -21,12 +21,15 @@
 -module(parse).
 
 -export([ stmt/1
+        , format_error/1
         ]).
 
 -include("token.hrl").
 -include("tunit.hrl").
 -include_lib("lib/include/pdp10_opcodes.hrl").
 
+-spec stmt(scan_state:scan_state())
+      -> {ok, stmt()} | eof | {error, {module(), term()}}.
 stmt(ScanState) ->
   case scan:token(ScanState) of
     {ok, ?T_DOT_FILE} -> dot_file(ScanState);
@@ -303,10 +306,13 @@ dot_type(ScanState) ->
 
 badtok(_ScanState, _ErrMsg, {error, _Reason} = Error) -> Error;
 badtok(ScanState, ErrMsg, {ok, Token}) ->
-  fmterr(ScanState, ErrMsg ++ "; current token is ~s", [token:to_string(Token)]).
+  fmterr(ScanState, ErrMsg ++ "; current token is ~s", [token:format(Token)]).
 
 fmterr(ScanState, Fmt, Args) ->
   {ok, FileName} = scan_state:filename(ScanState),
   {ok, LineNr} = scan_state:linenr(ScanState),
-  {error, lists:flatten(io_lib:format("file ~s line ~p: " ++ Fmt,
-                                      [FileName, LineNr | Args]))}.
+  {error, {?MODULE, {FileName, LineNr, Fmt, Args}}}.
+
+-spec format_error(term()) -> io_lib:chars().
+format_error({FileName, LineNr, Fmt, Args}) ->
+  io_lib:format("file ~s line ~p: " ++ Fmt, [FileName, LineNr | Args]).

@@ -36,8 +36,8 @@ main_(Argv) ->
         ok -> halt(0);
         {error, _Reason} = Error -> escript_runtime:fatal("~p\n", [Error])
       end;
-    {error, ErrMsg} ->
-      escript_runtime:errmsg("~s\n", [ErrMsg]),
+    {error, Reason} ->
+      escript_runtime:errmsg("~s\n", [error:format(Reason)]),
       usage()
   end.
 

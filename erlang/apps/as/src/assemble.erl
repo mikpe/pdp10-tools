@@ -21,11 +21,13 @@
 -module(assemble).
 
 -export([ tunit/1
+        , format_error/1
         ]).
 
 -include("tunit.hrl").
 -include_lib("lib/include/pdp10_elf36.hrl").
 
+-spec tunit(#tunit{}) -> {ok, #tunit{}} | {error, {module(), term()}}.
 tunit(Tunit) ->
   sections(maps:values(Tunit#tunit.sections), Tunit).
 
@@ -47,7 +49,7 @@ section(Section, Tunit) ->
             , sh_flags = ?SHF_MERGE bor ?SHF_STRINGS
             } -> comment(Section, Tunit);
     #section{ name = Name } ->
-      {error, io_lib:format("don't know how to assemble section ~s", [Name])}
+      {error, {?MODULE, {cannot_assemble, Name}}}
   end.
 
 %% Assemble .comment -----------------------------------------------------------
@@ -100,3 +102,9 @@ insn_image(Insn) ->
    (Word bsr 18) band 511,
    (Word bsr  9) band 511,
    Word          band 511].
+
+%% Error reporting -------------------------------------------------------------
+
+-spec format_error(term()) -> io_lib:chars().
+format_error({cannot_assemble, Name}) ->
+  io_lib:format("don't know how to assemble section ~s", [Name]).

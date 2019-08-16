@@ -21,11 +21,13 @@
 -module(input).
 
 -export([ files/1
+        , format_error/1
         ]).
 
 -include("tunit.hrl").
 -include_lib("lib/include/pdp10_elf36.hrl").
 
+-spec files([string()]) -> {ok, #tunit{}} | {error, {module(), term()}}.
 files(Files) ->
   NewFiles =
     case Files of
@@ -235,9 +237,11 @@ section_dot_text() -> % ".text"
 
 %% Error reporting -------------------------------------------------------------
 
-%% FIXME: this is duplicated a few times, move it to scan_state.erl
 fmterr(ScanState, Fmt, Args) ->
   {ok, FileName} = scan_state:filename(ScanState),
   {ok, LineNr} = scan_state:linenr(ScanState),
-  {error, lists:flatten(io_lib:format("file ~s line ~p: " ++ Fmt,
-                                      [FileName, LineNr | Args]))}.
+  {error, {?MODULE, {FileName, LineNr, Fmt, Args}}}.
+
+-spec format_error(term()) -> io_lib:chars().
+format_error({FileName, LineNr, Fmt, Args}) ->
+  io_lib:format("file ~s line ~p: " ++ Fmt, [FileName, LineNr | Args]).

@@ -21,7 +21,7 @@
 -module(token).
 
 -export([ from_symbol/1
-        , to_string/1
+        , format/1
         ]).
 
 -include("token.hrl").
@@ -38,8 +38,8 @@ from_symbol(Name) ->
     _                   -> {?T_SYMBOL, Name}
   end.
 
--spec to_string(token()) -> string().
-to_string(Token) ->
+-spec format(token()) -> io_lib:chars().
+format(Token) ->
   case Token of
     ?T_DOT_FILE         -> ".file";
     ?T_DOT_GLOBL        -> ".globl";

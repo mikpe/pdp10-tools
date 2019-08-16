@@ -46,6 +46,7 @@
 -module(output).
 
 -export([ tunit/2
+        , format_error/1
         ]).
 
 -include("tunit.hrl").
@@ -64,6 +65,7 @@
         , strtab   :: #strtab{}
         }).
 
+-spec tunit(#tunit{}, string()) -> ok | {error, {module(), term()}}.
 tunit(Tunit, File) ->
   emit(layout(Tunit), File).
 
@@ -330,7 +332,7 @@ emit(Context, File) ->
         emit(Funs, Context, FP, 0)
       after pdp10_stdio:fclose(FP)
       end;
-    {error, Reason} -> {error, io_lib:format("opening ~s: ~p", [File, Reason])}
+    {error, Reason} -> {error, {?MODULE, {cannot_open, File, Reason}}}
   end.
 
 emit([], _Context, _FP, _Offset) -> ok;
@@ -558,3 +560,9 @@ image_write([H | T], FP) ->
 image_write([], _FP) -> ok;
 image_write(TByte, FP) when is_integer(TByte), 0 =< TByte, TByte =< 511 ->
   pdp10_stdio:fputc(TByte, FP).
+
+%% Error reporting -------------------------------------------------------------
+
+-spec format_error(term()) -> io_lib:chars().
+format_error({cannot_open, File, Reason}) ->
+  io_lib:format("opening ~s: ~s", [File, error:format(Reason)]).

@@ -21,10 +21,13 @@
 -module(scan).
 
 -export([ token/1
+        , format_error/1
         ]).
 
 -include("token.hrl").
 
+-spec token(scan_state:scan_state())
+      -> {ok, token()} | {error, {module(), term()}}.
 token(ScanState) ->
   case scan_state:fgetc(ScanState) of
     {error, _Reason} = Error -> Error;
@@ -220,11 +223,14 @@ chval(Ch) ->
   end.
 
 badchar(ScanState, Ch, Context) ->
-  ChStr = char_to_string(Ch),
   {ok, FileName} = scan_state:filename(ScanState),
   {ok, LineNr} = scan_state:linenr(ScanState),
-  {error, lists:flatten(io_lib:format("~s line ~p: invalid character '~s' ~s",
-                                      [FileName, LineNr, ChStr, Context]))}.
+  {error, {?MODULE, {FileName, LineNr, Ch, Context}}}.
+
+-spec format_error(term()) -> io_lib:chars().
+format_error({FileName, LineNr, Ch, Context}) ->
+  io_lib:format("~s line ~p: invalid character '~s' ~s",
+                [FileName, LineNr, char_to_string(Ch), Context]).
 
 char_to_string(eof) -> "<EOF>";
 char_to_string(Ch) when $\s =< Ch, Ch =< $~ -> [$', Ch, $'];
