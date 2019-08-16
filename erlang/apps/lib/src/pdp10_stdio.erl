@@ -150,25 +150,25 @@ stdin() ->
 stdout() ->
   do_open(stdout).
 
--spec format_error(term()) -> string().
+-spec format_error(term()) -> io_lib:chars().
 format_error(Reason) ->
   case Reason of
     {bad_request, Req} ->
-      flatformat("bad request ~p", [Req]);
+      io_lib:format("bad request ~p", [Req]);
     no_io_direction ->
       "no I/O direction";
     {bad_mode, Mode} ->
-      flatformat("bad mode ~p", [Mode]);
+      io_lib:format("bad mode ~p", [Mode]);
     {bad_fread, Size, NMemb} ->
-      flatformat("bad fread size ~p nmemb ~p", [Size, NMemb]);
+      io_lib:format("bad fread size ~p nmemb ~p", [Size, NMemb]);
     eof ->
       "end-of-file during fread";
     write_only ->
       "read from write-only file";
     {bad_whence, Whence} ->
-      flatformat("bad whence ~p", [Whence]);
+      io_lib:format("bad whence ~p", [Whence]);
     _ ->
-      flatformat("~p", [Reason])
+      io_lib:format("~p", [Reason])
   end.
 
 %% gen_server callbacks --------------------------------------------------------
@@ -700,6 +700,3 @@ mkerror(Reason) ->
 
 mkfileerror(Reason) ->
   {error, {file, Reason}}.
-
-flatformat(Fmt, Args) ->
-  lists:flatten(io_lib:format(Fmt, Args)).

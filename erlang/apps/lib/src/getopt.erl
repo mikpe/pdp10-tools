@@ -165,28 +165,25 @@ find_longopt(_Prefix, _LongOpts, _Candidate) -> ?error.
 mkerror(Tag, Data) ->
   {error, {?MODULE, {Tag, Data}}}.
 
--spec format_error(term()) -> string().
+-spec format_error(term()) -> io_lib:chars().
 format_error(Reason) ->
   case Reason of
     {missing_argument, OptCh} ->
-      flatformat("missing argument to -~c", [OptCh]);
+      io_lib:format("missing argument to -~c", [OptCh]);
     {invalid_option, OptCh} ->
-      flatformat("invalid option -~c", [OptCh]);
+      io_lib:format("invalid option -~c", [OptCh]);
     {invalid_optstring, OptString} ->
-      flatformat("invalid optstring ~p", [OptString]);
+      io_lib:format("invalid optstring ~p", [OptString]);
     {invalid_argument_long, Prefix} ->
-      flatformat("invalid argument to --~s", [Prefix]);
+      io_lib:format("invalid argument to --~s", [Prefix]);
     {missing_argument_long, Prefix} ->
-      flatformat("missing argument to --~s", [Prefix]);
+      io_lib:format("missing argument to --~s", [Prefix]);
     {invalid_longopts, LongOpts} ->
-      flatformat("invalid longopts ~p", [LongOpts]);
+      io_lib:format("invalid longopts ~p", [LongOpts]);
     {invalid_option_long, Prefix} ->
-      flatformat("invalid option --~s", [Prefix]);
+      io_lib:format("invalid option --~s", [Prefix]);
     {ambiguous_option, Prefix} ->
-      flatformat("ambiguous option --~s", [Prefix]);
+      io_lib:format("ambiguous option --~s", [Prefix]);
     _ ->
-      flatformat("~p", [Reason])
+      io_lib:format("~p", [Reason])
   end.
-
-flatformat(Fmt, Args) ->
-  lists:flatten(io_lib:format(Fmt, Args)).

@@ -130,10 +130,10 @@ digit_value(C) ->
 mkerror(Tag) ->
   {error, {?MODULE, Tag}}.
 
--spec format_error(term()) -> string().
+-spec format_error(term()) -> io_lib:chars().
 format_error(Reason) ->
   case Reason of
     no_digits -> "no valid digits found";
     invalid_base -> "invalid base";
-    _ -> lists:flatten(io_lib:format("~p", [Reason]))
+    _ -> io_lib:format("~p", [Reason])
   end.
