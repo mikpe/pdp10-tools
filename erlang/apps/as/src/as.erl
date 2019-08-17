@@ -34,7 +34,7 @@ main_(Argv) ->
       OutFile = scan_options(Options),
       case as(Files, OutFile) of
         ok -> halt(0);
-        {error, _Reason} = Error -> escript_runtime:fatal("~p\n", [Error])
+        {error, Reason} -> escript_runtime:fatal("~s\n", [error:format(Reason)])
       end;
     {error, Reason} ->
       escript_runtime:errmsg("~s\n", [error:format(Reason)]),
