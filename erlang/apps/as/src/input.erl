@@ -90,7 +90,7 @@ dot_file(_ScanState, Tunit, #s_dot_file{string = String}) ->
                   , st_size = 0
                   , st_info = ?ELF_ST_INFO(?STB_LOCAL, ?STT_FILE)
                   , st_name = 0
-                  , st_shndx = 0
+                  , st_shndx = ?SHN_ABS
                   },
   {ok, tunit:put_symbol(Tunit, Symbol)}.
 
@@ -216,7 +216,7 @@ section_dot_comment() -> % ".comment"
           , sh_type = ?SHT_PROGBITS
           , sh_offset = 0
           , sh_flags = ?SHF_MERGE bor ?SHF_STRINGS
-          , sh_link = 0
+          , sh_link = ?SHN_UNDEF
           , sh_addralign = 1
           , sh_entsize = 1
           }.
@@ -230,7 +230,7 @@ section_dot_text() -> % ".text"
           , sh_type = ?SHT_PROGBITS
           , sh_offset = 0
           , sh_flags = ?SHF_ALLOC bor ?SHF_EXECINSTR
-          , sh_link = 0
+          , sh_link = ?SHN_UNDEF
           , sh_addralign = 4 % FIXME: target-specific
           , sh_entsize = 0
           }.

@@ -158,7 +158,7 @@ create_strtab(Context) ->
                 , dot = image_size(Image)
                 , sh_type = ?SHT_STRTAB
                 , sh_flags = ?SHF_MERGE bor ?SHF_STRINGS % FIXME: check
-                , sh_link = 0
+                , sh_link = ?SHN_UNDEF
                 , sh_addralign = 1 % FIXME: check
                 , sh_entsize = 1 % FIXME: check
                 },
@@ -199,6 +199,7 @@ symbols_image(Symbols) ->
               , st_other = 0
               , st_shndx = ?SHN_UNDEF
               },
+  %% FIXME: local symbols first, followed by the weak or global ones
   [elf36_Sym_image(ElfSym0) |
    lists:map(fun symbol_image/1, maps:values(Symbols))].
 
@@ -280,7 +281,7 @@ create_shstrtab(Context) ->
                 , dot = image_size(Image)
                 , sh_type = ?SHT_STRTAB
                 , sh_flags = ?SHF_MERGE bor ?SHF_STRINGS % FIXME: check
-                , sh_link = 0
+                , sh_link = ?SHN_UNDEF
                 , sh_addralign = 1 % FIXME: check
                 , sh_entsize = 1 % FIXME: check
                 },
@@ -451,7 +452,7 @@ emit_shdr0(FP, Offset) ->
                , sh_addr = 0
                , sh_offset = 0
                , sh_size = 0
-               , sh_link = 0
+               , sh_link = ?SHN_UNDEF
                , sh_info = 0
                , sh_addralign = 0
                , sh_entsize = 0
