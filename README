@@ -1,5 +1,5 @@
 # README for pdp10-tools
-# Copyright (C) 2013-2018  Mikael Pettersson <mikpelinux@gmail.com>
+# Copyright (C) 2013-2019  Mikael Pettersson <mikpelinux@gmail.com>
 #
 # This file is part of pdp10-tools.
 #
@@ -35,9 +35,9 @@ sim:            a simulator for running pdp10-elf executables on a
                 hypothetical fully-extended PDP10 called the KE10
 8to9:		a utility to convert octet files to nonet files
 
-pdp10-stdio:	a library for reading and writing nonet-based data
+pdp10_stdio:	a library for reading and writing nonet-based data
 		on an octet-based host
-pdp10-elf36:	a library for reading and writing Elf36 object files
+pdp10_elf36:	a library for reading and writing Elf36 object files
 
 
 See the TODO file for known omissions and planned improvements.
