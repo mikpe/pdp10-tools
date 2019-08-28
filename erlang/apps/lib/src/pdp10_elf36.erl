@@ -454,6 +454,8 @@ format_error(Reason) ->
       io_lib:format("wrong sh_entsize ~p in symtab section header", [ShEntSize]);
     {wrong_symtab_sh_size, ShSize} ->
       io_lib:format("wrong sh_size ~p in symtab section header", [ShSize]);
+    eof ->
+      "premature EOF";
     _ ->
       io_lib:format("~p", [Reason])
   end.
