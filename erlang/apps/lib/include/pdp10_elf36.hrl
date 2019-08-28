@@ -478,6 +478,7 @@
 
 -record(elf36_Shdr,
         { sh_name       :: elf36_Word()         % Section name, index in string tbl
+                         | string()             % Name (in-core only)
         , sh_type       :: elf36_Word()         % Type of section
         , sh_flags      :: elf36_Word()         % Miscellaneous section attributes
         , sh_addr       :: elf36_Addr()         % Section virtual addr at execution
@@ -610,6 +611,7 @@
 
 -record(elf36_Sym,
         { st_name       :: elf36_Word()         % Symbol name, index in string tbl
+                         | string()             % Name (in-core only)
         , st_value      :: elf36_Addr()         % Value of the symbol
         , st_size       :: elf36_Word()         % Associated symbol size
         , st_info       :: elf36_Uchar()        % Type and binding attributes

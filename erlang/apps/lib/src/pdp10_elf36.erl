@@ -227,13 +227,13 @@ check_Ehdr_e_shentsize(Ehdr) ->
 %% I/O of ShTab ================================================================
 
 -spec read_ShTab(pdp10_stdio:file(), #elf36_Ehdr{})
-      -> {ok, {[#elf36_Shdr{}], term()}} | {error, {module(), term()}}.
+      -> {ok, [#elf36_Shdr{}]} | {error, {module(), term()}}.
 read_ShTab(FP, Ehdr) ->
   #elf36_Ehdr{ e_shoff = ShOff
              , e_shnum = ShNum0
              , e_shstrndx = ShStrNdx } = Ehdr,
   case ShOff of
-    0 -> {ok, {[], []}};
+    0 -> {ok, []};
     _ ->
       case pdp10_stdio:fseek(FP, {bof, ShOff}) of
         ok ->
@@ -243,9 +243,7 @@ read_ShTab(FP, Ehdr) ->
               case read_ShTab(FP, ShNum - 1, [Shdr0]) of
                 {ok, ShTab} ->
                   case read_ShStrTab(FP, ShTab, ShStrNdx, Shdr0) of
-                    {ok, ShStrTab} ->
-                      %% TODO; now change the sh_names in ShTab to be strings
-                      {ok, {ShTab, ShStrTab}};
+                    {ok, ShStrTab} -> read_ShTab_names(ShTab, ShStrTab);
                     {error, _Reason} = Error -> Error
                   end;
                 {error, _Reason} = Error -> Error
@@ -263,6 +261,22 @@ read_ShTab(_FP, 0, Shdrs) -> {ok, lists:reverse(Shdrs)};
 read_ShTab(FP, ShNum, Shdrs) ->
   case read_Shdr(FP) of
     {ok, Shdr} -> read_ShTab(FP, ShNum - 1, [Shdr | Shdrs]);
+    {error, _Reason} = Error -> Error
+  end.
+
+read_ShTab_names(ShTab, ShStrTab) ->
+  read_ShTab_names(ShTab, ShStrTab, []).
+
+read_ShTab_names([], _ShStrTab, Acc) -> {ok, lists:reverse(Acc)};
+read_ShTab_names([Shdr | ShTab], ShStrTab, Acc) ->
+  case read_Shdr_name(Shdr, ShStrTab) of
+    {ok, NewShdr} -> read_ShTab_names(ShTab, ShStrTab, [NewShdr | Acc]);
+    {error, _Reason} = Error -> Error
+  end.
+
+read_Shdr_name(Shdr = #elf36_Shdr{sh_name = ShName}, ShStrTab) ->
+  case get_name(ShStrTab, ShName) of
+    {ok, Name} -> {ok, Shdr#elf36_Shdr{sh_name = Name}};
     {error, _Reason} = Error -> Error
   end.
 
@@ -300,11 +314,27 @@ read_StrTab(FP, ShTab, Index) ->
     false -> {error, {?MODULE, {wrong_strtab_index, Index}}}
   end.
 
+%% reading a name from a StrTab ================================================
+
+get_name(_StrTab, 0) -> {ok, ""}; % TODO: or some marker for "absent"
+get_name(StrTab, Index) ->
+  try lists:nthtail(Index, StrTab) of
+    [C | Tail] -> get_name(C, Tail, [])
+  catch _C:_R ->
+    {error, {?MODULE, {wrong_index_in_strtab, Index}}}
+  end.
+
+get_name(0, _Tail, Acc) -> {ok, lists:reverse(Acc)};
+get_name(C1, [C2 | Tail], Acc) -> get_name(C2, Tail, [C1 | Acc]);
+get_name(_C, [], _Acc) -> {error, {?MODULE, strtab_not_nul_terminated}}.
+
 %% I/O of SymTab ===============================================================
 
+-spec read_SymTab(pdp10_stdio:file(), [#elf36_Shdr{}])
+      -> {ok, [#elf36_Sym{}]} | {error, {module(), term()}}.
 read_SymTab(FP, ShTab) ->
   case find_SymTab(ShTab) of
-    false -> {ok, {[], []}};
+    false -> {ok, []};
     {ok, Shdr} ->
       #elf36_Shdr{ sh_link = ShLink
                  , sh_entsize = ShEntSize
@@ -320,12 +350,12 @@ read_SymTab(FP, ShTab) ->
              {ok, StrTab} ->
                SymNum = ShSize div ?ELF36_SYM_SIZEOF,
                case SymNum of
-                 0 -> {ok, {[], StrTab}};
+                 0 -> {ok, []};
                  _ ->
                    case pdp10_stdio:fseek(FP, {bof, ShOffset}) of
                      ok ->
                        case read_SymTab(FP, SymNum, []) of
-                         {ok, SymTab} -> {ok, {SymTab, StrTab}};
+                         {ok, SymTab} -> read_SymTab_names(SymTab, StrTab);
                          {error, _Reason} = Error -> Error
                        end;
                      {error, _Reason} = Error -> Error
@@ -346,6 +376,22 @@ read_SymTab(FP, SymNum, Syms) when SymNum > 0 ->
 find_SymTab([]) -> false;
 find_SymTab([#elf36_Shdr{sh_type = ?SHT_SYMTAB} = Shdr | _]) -> {ok, Shdr};
 find_SymTab([_Shdr | ShTab]) -> find_SymTab(ShTab).
+
+read_SymTab_names(SymTab, StrTab) ->
+  read_SymTab_names(SymTab, StrTab, []).
+
+read_SymTab_names([], _StrTab, Acc) -> {ok, lists:reverse(Acc)};
+read_SymTab_names([Sym | SymTab], StrTab, Acc) ->
+  case read_Sym_name(Sym, StrTab) of
+    {ok, NewSym} -> read_SymTab_names(SymTab, StrTab, [NewSym | Acc]);
+    {error, _Reason} = Error -> Error
+  end.
+
+read_Sym_name(Sym = #elf36_Sym{st_name = StName}, StrTab) ->
+  case get_name(StrTab, StName) of
+    {ok, Name} -> {ok, Sym#elf36_Sym{st_name = Name}};
+    {error, _Reason} = Error -> Error
+  end.
 
 %% I/O of #elf36_Shdr{} ========================================================
 
@@ -456,6 +502,10 @@ format_error(Reason) ->
       io_lib:format("wrong sh_size ~p in symtab section header", [ShSize]);
     eof ->
       "premature EOF";
+    {wrong_index_in_strtab, Index} ->
+      io_lib:format("out of range index ~p in string table", [Index]);
+    strtab_not_nul_terminated ->
+      "string table not NUL-terminated";
     _ ->
       io_lib:format("~p", [Reason])
   end.

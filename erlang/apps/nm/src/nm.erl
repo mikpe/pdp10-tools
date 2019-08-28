@@ -165,9 +165,9 @@ nm1(Opts, PrintFile, File) ->
 
 nm1(Opts, PrintFile, File, FP) ->
   Ehdr = read_ehdr(File, FP),
-  {ShTab, _ShStrTab} = read_shtab(File, FP, Ehdr),
-  {SymTab, StrTab} = read_symtab(File, FP, ShTab),
-  print_symtab(Opts, PrintFile, File, ShTab, SymTab, StrTab).
+  ShTab = read_shtab(File, FP, Ehdr),
+  SymTab = read_symtab(File, FP, ShTab),
+  print_symtab(Opts, PrintFile, File, ShTab, SymTab).
 
 read_ehdr(File, FP) ->
   case pdp10_elf36:read_Ehdr(FP) of
@@ -180,7 +180,7 @@ read_ehdr(File, FP) ->
 
 read_shtab(File, FP, Ehdr) ->
   case pdp10_elf36:read_ShTab(FP, Ehdr) of
-    {ok, {ShTab, ShStrTab}} -> {ShTab, ShStrTab};
+    {ok, ShTab} -> ShTab;
     {error, Reason} ->
       escript_runtime:fatal("failed to read section header table in ~s: ~s\n",
                             [File, error:format(Reason)])
@@ -188,22 +188,22 @@ read_shtab(File, FP, Ehdr) ->
 
 read_symtab(File, FP, ShTab) ->
   case pdp10_elf36:read_SymTab(FP, ShTab) of
-    {ok, {SymTab, StrTab}} -> {SymTab, StrTab};
+    {ok, SymTab} -> SymTab;
     {error, Reason} ->
       escript_runtime:fatal("failed to read symbol table table in ~s: ~s\n",
                             [File, error:format(Reason)])
   end.
 
-print_symtab(Opts, PrintFile, File, ShTab, SymTab, StrTab) ->
+print_symtab(Opts, PrintFile, File, ShTab, SymTab) ->
   case PrintFile of
     true -> io:format("\n~s:\n", [File]);
     false -> ok
   end,
   [sym_print(Opts, File, ShTab, Sym)
-   || Sym <- syms_sort(Opts, syms_assemble(ShTab, SymTab, StrTab))],
+   || Sym <- syms_sort(Opts, syms_assemble(ShTab, SymTab))],
   ok.
 
-sym_print(Opts, File, ShTab, {Sym, Value, Name}) ->
+sym_print(Opts, File, ShTab, {Sym = #elf36_Sym{st_name = Name}, Value}) ->
   case sym_type_letter(ShTab, Sym) of
     0 -> ok; % ignored
     Type ->
@@ -309,29 +309,15 @@ syms_cmpfn(Opts) ->
       end
   end.
 
-sym_cmp_value({_, Val1, _}, {_, Val2, _}) -> Val1 =< Val2.
+sym_cmp_value({_, Val1}, {_, Val2}) -> Val1 =< Val2.
 
-sym_cmp_name({_, _, Name1}, {_, _, Name2}) -> Name1 =< Name2.
+sym_cmp_name({Sym1, _}, {Sym2, _}) ->
+  Sym1#elf36_Sym.st_name =< Sym2#elf36_Sym.st_name.
 
-syms_assemble(ShTab, SymTab, StrTab) ->
+syms_assemble(ShTab, SymTab) ->
   lists:map(fun(Sym) ->
-                    {Sym, sym_value(ShTab, Sym), sym_name(StrTab, Sym)}
+                    {Sym, sym_value(ShTab, Sym)}
             end, SymTab).
-
-sym_name(StrTab, #elf36_Sym{st_name = Index}) ->
-  {ok, Name} = get_name(StrTab, Index),
-  Name.
-
-get_name(StrTab, Index) ->
-  try lists:nthtail(Index, StrTab) of
-    [_|_] = Tail -> get_name2(Tail, [])
-  catch _C:_R ->
-    {error, {bad_strtab_index, Index}}
-  end.
-
-get_name2([], _Acc) -> {error, strtab_not_nul_terminated};
-get_name2([0 | _Tail], Acc) -> {ok, lists:reverse(Acc)};
-get_name2([Ch | Tail], Acc) -> get_name2(Tail, [Ch | Acc]).
 
 sym_value(ShTab, #elf36_Sym{st_shndx = ShNdx, st_value = Value}) ->
   ShNum = length(ShTab),
