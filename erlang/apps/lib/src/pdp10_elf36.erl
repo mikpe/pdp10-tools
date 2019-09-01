@@ -23,6 +23,7 @@
 -export([ read_Ehdr/1
         , read_ShTab/2
         , read_SymTab/2
+        , read_uint36/1
         , format_error/1
         ]).
 
