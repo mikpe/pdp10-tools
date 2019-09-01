@@ -188,7 +188,7 @@ read_shtab(File, FP, Ehdr) ->
 
 read_symtab(File, FP, ShTab) ->
   case pdp10_elf36:read_SymTab(FP, ShTab) of
-    {ok, SymTab} -> SymTab;
+    {ok, {SymTab, _ShNdx}} -> SymTab;
     {error, Reason} ->
       escript_runtime:fatal("failed to read symbol table table in ~s: ~s\n",
                             [File, error:format(Reason)])

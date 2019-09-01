@@ -331,11 +331,11 @@ get_name(_C, [], _Acc) -> {error, {?MODULE, strtab_not_nul_terminated}}.
 %% I/O of SymTab ===============================================================
 
 -spec read_SymTab(pdp10_stdio:file(), [#elf36_Shdr{}])
-      -> {ok, [#elf36_Sym{}]} | {error, {module(), term()}}.
+      -> {ok, {[#elf36_Sym{}],non_neg_integer()}} | {error, {module(), term()}}.
 read_SymTab(FP, ShTab) ->
   case find_SymTab(ShTab) of
-    false -> {ok, []};
-    {ok, Shdr} ->
+    false -> {ok, {[], ?SHN_UNDEF}};
+    {ok, {Shdr, ShNdx}} ->
       #elf36_Shdr{ sh_link = ShLink
                  , sh_entsize = ShEntSize
                  , sh_size = ShSize
@@ -350,12 +350,16 @@ read_SymTab(FP, ShTab) ->
              {ok, StrTab} ->
                SymNum = ShSize div ?ELF36_SYM_SIZEOF,
                case SymNum of
-                 0 -> {ok, []};
+                 0 -> {ok, {[], ShNdx}};
                  _ ->
                    case pdp10_stdio:fseek(FP, {bof, ShOffset}) of
                      ok ->
                        case read_SymTab(FP, SymNum, []) of
-                         {ok, SymTab} -> read_SymTab_names(SymTab, StrTab);
+                         {ok, SymTab} ->
+                           case read_SymTab_names(SymTab, StrTab) of
+                             {ok, NewSymTab} -> {ok, {NewSymTab, ShNdx}};
+                             {error, _Reason} = Error -> Error
+                           end;
                          {error, _Reason} = Error -> Error
                        end;
                      {error, _Reason} = Error -> Error
@@ -373,9 +377,11 @@ read_SymTab(FP, SymNum, Syms) when SymNum > 0 ->
     {error, _Reason} = Error -> Error
   end.
 
-find_SymTab([]) -> false;
-find_SymTab([#elf36_Shdr{sh_type = ?SHT_SYMTAB} = Shdr | _]) -> {ok, Shdr};
-find_SymTab([_Shdr | ShTab]) -> find_SymTab(ShTab).
+find_SymTab(ShTab) -> find_SymTab(ShTab, 0).
+
+find_SymTab([], _I) -> false;
+find_SymTab([#elf36_Shdr{sh_type = ?SHT_SYMTAB} = Shdr | _], I) -> {ok, {Shdr, I}};
+find_SymTab([_Shdr | ShTab], I) -> find_SymTab(ShTab, I + 1).
 
 read_SymTab_names(SymTab, StrTab) ->
   read_SymTab_names(SymTab, StrTab, []).
