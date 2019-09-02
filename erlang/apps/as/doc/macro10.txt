@@ -1,0 +1,167 @@
+MACRO-10 Assembler Syntax
+*************************
+
+This is a brief summary of the basic lexical and syntactic elements
+of the MACRO-10 Assembler.  Directives and macros are not covered.
+
+Numbers
+=======
+Numbers are in octal by default.
+
+The default number radix can be changed using the RADIX pseudo-op.
+
+A single-digit number is always interpreted as radix 10, that is,
+"9" denotes decimal 9 not an error even if RADIX is 8 or 2.
+
+The radix of a number can also be specified by prefixing the number
+with ^B for binary, ^O for octal, or ^D for decimal. (These are two-
+character sequences "up-arrow" "B" etc, not control characters.)
+
+Hexadecimal radix is not supported.
+
+The K, M, and G suffixes append 3, 6, or 9 zeros, respectively, to
+a number.  (This has surprising effects outside of RADIX 10.)
+
+Floating-point numbers are expressed in decimal with a mandatory decimal
+point and optional exponent, e.g. 3.14, 3.14E9, 3.14E-7, -3.14E+7.
+
+A "Bn" suffix shifts the number left by 35-n bits.  Excess bits are lost.
+E.g. "1B17" is "000001 000000".
+
+Using the "_" infix binary operator in an expression "X_Y" shifts X Y bits
+to the left if Y is non-negative, and -Y bits to the right if Y is negative.
+The operands X and Y may be any expressions, including symbols.
+
+Prefixing a number by ^L (a two-character sequence, not a control character)
+yields the number of leading zeros in the binary representation of the number.
+E.g., ^L0 generates 36 decimal, ^L153 generates 29 decimal, and ^L-153 generates 0.
+
+Literals
+========
+A literal is a piece of code within square brackets.  The enclosed code is
+emitted to the literals pool (normally at the end of the program), and the
+literal is replaced by the code's address.
+
+Literals can be nested.
+
+A dot (".") in a literal refers to the statement containing the outermost
+literal.
+
+Symbols
+=======
+Symbols may be composed of letters, digits, dots ("."), dollar signs ("$"),
+and percent signs ("%").  Other characters are considered delimiters.
+
+A symbol may not start with a digit.
+
+If the first character is a dot, the second must not be a digit or another dot.
+(MACRO-10 may generate symbols starting with two dots.)
+
+Only the first six characters are significant.
+
+Labels
+------
+A symbol in the first (left-most) field of a statement suffixed by a colon (":")
+defines a label for that location.  A dobule colon ("::") marks the label internal.
+There may be more than one label in a statement.  Labels may not be redefined.
+
+Direct-Assignment Symbols
+-------------------------
+A symbol is created and associated with a value using "symbol=expression" or
+"symbol=:expression" (in this case the symbol is internal).  These symbols may
+be redefined at any time.
+
+Variable Symbols
+----------------
+Suffixing a symbol with a number sign ("#") makes it a variable symbol.  Such
+symbols are allocated by the assembler, either following the literals pool, or
+into the code via VAR pseudo-ops.
+
+Symbol Visibility
+-----------------
+Symbols are marked local (INTERNAL) visa the INTERN pseudo-op, or by following
+the label or direct-assignment definition with an extra colon, i.e., "::" or "=:".
+
+Symbols are marke global (EXTERNAL) via the EXTERN pseudo-op, or by mentioning
+the symbol at least once with a "##" suffix, .e.g. FLAG7## .
+
+Expressions
+===========
+Numbers and symbols can be combined with arithmetic and logical operators, or grouped
+between angle brackets "<" and ">" to form expressions.
+
+Operators
+---------
+The infix binary arithmetic operators are "+" (addition), "-" (subtraction),
+"*" (multiplication), and "/" (division).
+
+The infix binary logical operators are "&" (bit-wise and), "!" (bit-wise or), and
+^!" (bit-wise xor), while  "^-" is the bit-wise one's complement prefix operator.
+
+The infix binary operator ",," combines the low 18 bits of its operands to form a
+36-bit word.
+
+All operators operate on and generate 36-bit values.
+
+Priority
+--------
+Unary operations and shifts have highest priority: "+", "-", "^-", "^D", "^O",
+"^B", "B" (binary shift), "_" (underscore shift, "^F", "^L", "E", "K", "M", "G".
+The K, M, and G operations are performed first.
+
+Logical binary operations have second-highest priority, and are evaluated left to
+right: "!", "^!", "&".
+
+Multiplicative operations have second-lowest priority, and are evaluated left to
+right: "*", "/".
+
+Additive operations have lowest priority: "*", "-".
+
+Strings
+=======
+String operands to data emitting directives, such as ASCII, ASCIZ, COMMENT,
+or SIXBIT, use user-selectable delimiters: DtextD, .e.g, /foo/ or "bar".  The
+delimiter cannot be a blank, and it cannot be quoted inside the text.
+
+A string of at most five 7-bit ASCII characters can be assembled into a single
+left-justified word, by enclosing it with double quotes, "text".
+
+A string of at most six SIXBIT characters can be assembled into a single
+left-justified word, by exclosing it with single quotes, 'text'.
+
+
+Comments
+========
+A comment starts with a semi-colon ";" and extends to the end of the line.
+
+A comment extends to the next line if the first line ends with CTRL-_ (control
+underscore, ASCII 037), followed by CR-LF.
+
+Instruction Statements
+======================
+The general form of an instruction statement is
+
+	label:	mnemonic accumulator,address	; comment
+or	label:	mnemonic accumulator,		; comment
+or	label:	mnemonic address		; comment
+
+An address may be prefixed with "@" to indicate indirect addressing, and/or
+suffixed by an index register with parentheses "(indexreg)" to indicate
+indexed addressing.  E.g.,
+
+	ADD 17,@100(3)
+
+Either operand may be a symbol or an expression.
+
+Absent operands are treated as all-bits-zeros.
+
+I/O instructions are similar, except the "accumulator" operand is replaced by
+a "device" operand, and the binary layout is different.
+
+There cannot be more than one instruction statement in a line.
+
+References
+==========
+DECSYSTEM20 MACRO ASSEMBLER Reference Manual, AA-4159C-TM, Apr. 1978.
+DECSYSTEM10 MACRO ASSEMBLER Reference Manual, AA-C780C-TB, Apr. 1978.
+MACRO-6 Assembly Language Programming Manual, DEC-6-0-TP-MAC-LM-FP-ACT01, Feb. 1965.
