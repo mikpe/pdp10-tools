@@ -63,8 +63,8 @@ stmt(ScanState) ->
 %% Examples:
 %%
 %% foo:
-%% popj 17,
-%% pushj 17,bar
+%% popj 017,
+%% pushj 017,bar
 %% movei 1,@fum(2)
 %%
 %% TODO: <displacement> should be <expr> and permit parentheses and
