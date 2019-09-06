@@ -8,7 +8,7 @@ Numbers
 =======
 Numbers are in octal by default.
 
-The default number radix can be changed using the RADIX pseudo-op.
+The default number radix can be changed using the RADIX directive.
 
 A single-digit number is always interpreted as radix 10, that is,
 "9" denotes decimal 9 not an error even if RADIX is 8 or 2.
@@ -75,14 +75,14 @@ Variable Symbols
 ----------------
 Suffixing a symbol with a number sign ("#") makes it a variable symbol.  Such
 symbols are allocated by the assembler, either following the literals pool, or
-into the code via VAR pseudo-ops.
+into the code via VAR directives.
 
 Symbol Visibility
 -----------------
-Symbols are marked local (INTERNAL) visa the INTERN pseudo-op, or by following
+Symbols are marked local (INTERNAL) via the INTERN directive, or by following
 the label or direct-assignment definition with an extra colon, i.e., "::" or "=:".
 
-Symbols are marke global (EXTERNAL) via the EXTERN pseudo-op, or by mentioning
+Symbols are marked global (EXTERNAL) via the EXTERN directive, or by mentioning
 the symbol at least once with a "##" suffix, .e.g. FLAG7## .
 
 Expressions
@@ -105,17 +105,19 @@ All operators operate on and generate 36-bit values.
 
 Priority
 --------
-Unary operations and shifts have highest priority: "+", "-", "^-", "^D", "^O",
+Unary operators and shifts have highest priority: "+", "-", "^-", "^D", "^O",
 "^B", "B" (binary shift), "_" (underscore shift, "^F", "^L", "E", "K", "M", "G".
-The K, M, and G operations are performed first.
+The K, M, and G postfix operators are performed first.
 
-Logical binary operations have second-highest priority, and are evaluated left to
+Logical binary operators have second-highest priority, and are evaluated left to
 right: "!", "^!", "&".
 
-Multiplicative operations have second-lowest priority, and are evaluated left to
+Multiplicative operators have second-lowest priority, and are evaluated left to
 right: "*", "/".
 
-Additive operations have lowest priority: "*", "-".
+Additive operators have lowest priority: "*", "-".
+
+[TODO: what is the priority of ",,"?  I suspect lower than additive operators]
 
 Strings
 =======
@@ -129,7 +131,6 @@ left-justified word, by enclosing it with double quotes, "text".
 A string of at most six SIXBIT characters can be assembled into a single
 left-justified word, by exclosing it with single quotes, 'text'.
 
-
 Comments
 ========
 A comment starts with a semi-colon ";" and extends to the end of the line.
@@ -141,15 +142,15 @@ Instruction Statements
 ======================
 The general form of an instruction statement is
 
-	label:	mnemonic accumulator,address	; comment
-or	label:	mnemonic accumulator,		; comment
-or	label:	mnemonic address		; comment
+        label:  mnemonic accumulator,address    ; comment
+or      label:  mnemonic accumulator,           ; comment
+or      label:  mnemonic address                ; comment
 
 An address may be prefixed with "@" to indicate indirect addressing, and/or
 suffixed by an index register with parentheses "(indexreg)" to indicate
 indexed addressing.  E.g.,
 
-	ADD 17,@100(3)
+        ADD 17,@100(3)
 
 Either operand may be a symbol or an expression.
 
