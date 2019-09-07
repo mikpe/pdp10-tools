@@ -31,20 +31,25 @@
 
 %% API -------------------------------------------------------------------------
 
+-spec new() -> #tunit{}.
 new() ->
   #tunit{ sections = #{}
         , cursect = false
         , symbols = #{}
         }.
 
+-spec get_section(#tunit{}, string()) -> #section{} | false.
 get_section(#tunit{sections = Sections}, Name) ->
   maps:get(Name, Sections, false).
 
+-spec put_section(#tunit{}, #section{}) -> #tunit{}.
 put_section(Tunit = #tunit{sections = Sections}, Section) ->
   Tunit#tunit{sections = maps:put(Section#section.name, Section, Sections)}.
 
+-spec get_symbol(#tunit{}, string()) -> #symbol{} | false.
 get_symbol(#tunit{symbols = Symbols}, Name) ->
   maps:get(Name, Symbols, false).
 
+-spec put_symbol(#tunit{}, #symbol{}) -> #tunit{}.
 put_symbol(Tunit = #tunit{symbols = Symbols}, Symbol) ->
   Tunit#tunit{symbols = maps:put(Symbol#symbol.name, Symbol, Symbols)}.
