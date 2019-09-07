@@ -37,8 +37,9 @@
 -define(T_SYMBOL,       'T_SYMBOL').    % pushj, foo, .Lbar
 
 %% literals
--define(T_UINTEGER,     'T_UINTEGER').  % 017
+-define(T_LOCAL_LABEL,  'T_LOCAL_LABEL'). % 1f, 0b
 -define(T_STRING,       'T_STRING').    % "foo"
+-define(T_UINTEGER,     'T_UINTEGER').  % 017
 
 %% special symbols including operators and separators
 -define(T_AT,           'T_AT').        % @
@@ -60,8 +61,9 @@
                | ?T_DOT_TEXT
                | ?T_DOT_TYPE
                | {?T_SYMBOL, string()}
-               | {?T_UINTEGER, non_neg_integer()}
+               | {?T_LOCAL_LABEL, non_neg_integer(), $b | $f}
                | {?T_STRING, string()}
+               | {?T_UINTEGER, non_neg_integer()}
                | ?T_AT
                | ?T_COLON
                | ?T_COMMA

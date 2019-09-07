@@ -80,6 +80,7 @@ interpret(ScanState, Tunit, Stmt) ->
     #s_dot_text{} -> dot_text(ScanState, Tunit, Stmt);
     #s_dot_type{} -> dot_type(ScanState, Tunit, Stmt);
     #s_label{} -> label(ScanState, Tunit, Stmt);
+    #s_local_label{} -> local_label(ScanState, Tunit, Stmt);
     #s_insn{} -> insn(ScanState, Tunit, Stmt)
   end.
 
@@ -175,27 +176,59 @@ dot_type(ScanState, Tunit, #s_dot_type{name = Name}) ->
 
 label(ScanState, Tunit, #s_label{name = Name}) ->
   case tunit:get_symbol(Tunit, Name) of
-    #symbol{section = false, st_value = false} = Symbol -> label2(Tunit, Symbol);
+    #symbol{section = false, st_value = false} = Symbol -> define_label(Tunit, Symbol);
     #symbol{} -> fmterr(ScanState, "label ~s already defined", [Name]);
-    false -> label2(Tunit, #symbol{name = Name, st_size = false, st_info = 0})
+    false -> define_new_label(Tunit, Name)
   end.
 
-label2(Tunit, Symbol) ->
+define_new_label(Tunit, Name) ->
+  define_label(Tunit, #symbol{name = Name, st_size = false, st_info = 0}).
+
+define_label(Tunit, Symbol) ->
   #tunit{cursect = Cursect} = Tunit,
   #section{dot = Dot} = tunit:get_section(Tunit, Cursect),
   {ok, tunit:put_symbol(Tunit, Symbol#symbol{section = Cursect, st_value = Dot})}.
+
+local_label(_ScanState, Tunit, #s_local_label{number = Number}) ->
+  Serial = local_label_serial(Tunit, Number) + 1,
+  Name = local_label_name(Number, Serial),
+  define_new_label(tunit:put_local_label(Tunit, Number, Serial), Name).
+
+local_label_serial(Tunit, Number) ->
+  case tunit:get_local_label(Tunit, Number) of
+    false -> 0;
+    Serial -> Serial
+  end.
+
+local_label_name(Number, Serial) ->
+  lists:flatten(io_lib:format(".L~.10b\^B~.10b", [Number, Serial])).
 
 insn(ScanState, Tunit, #s_insn{} = Stmt) ->
   #tunit{cursect = Cursect} = Tunit,
   #section{data = {stmts, Stmts}, dot = Dot} = Section = tunit:get_section(Tunit, Cursect),
   case Dot rem 4 of % FIXME: target-specific
     0 ->
+      NewStmt = insn_fixup(Tunit, Stmt),
       NewSection =
-        Section#section{ data = {stmts, [Stmt | Stmts]}
+        Section#section{ data = {stmts, [NewStmt | Stmts]}
                        , dot = Dot + 4 % FIXME: target-specific
                        },
       {ok, tunit:put_section(Tunit, NewSection)};
     _ -> fmterr(ScanState, "misaligned address for instruction", [])
+  end.
+
+insn_fixup(Tunit, Insn) ->
+  case Insn#s_insn.address of
+    #e_local_label{number = Number, direction = Direction} ->
+      LabelSerial = local_label_serial(Tunit, Number),
+      ReferenceSerial =
+        case Direction of
+          $b -> LabelSerial;
+          $f -> LabelSerial + 1
+        end,
+      Name = local_label_name(Number, ReferenceSerial),
+      Insn#s_insn{address = #e_symbol{name = Name}};
+    _ -> Insn
   end.
 
 %% Initialization --------------------------------------------------------------

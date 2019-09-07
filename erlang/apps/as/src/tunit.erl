@@ -25,6 +25,8 @@
         , put_section/2
         , get_symbol/2
         , put_symbol/2
+        , get_local_label/2
+        , put_local_label/3
         ]).
 
 -include("tunit.hrl").
@@ -36,6 +38,7 @@ new() ->
   #tunit{ sections = #{}
         , cursect = false
         , symbols = #{}
+        , local_labels = #{}
         }.
 
 -spec get_section(#tunit{}, string()) -> #section{} | false.
@@ -53,3 +56,11 @@ get_symbol(#tunit{symbols = Symbols}, Name) ->
 -spec put_symbol(#tunit{}, #symbol{}) -> #tunit{}.
 put_symbol(Tunit = #tunit{symbols = Symbols}, Symbol) ->
   Tunit#tunit{symbols = maps:put(Symbol#symbol.name, Symbol, Symbols)}.
+
+-spec get_local_label(#tunit{}, non_neg_integer()) -> pos_integer() | false.
+get_local_label(#tunit{local_labels = LocalLabels}, Number) ->
+  maps:get(Number, LocalLabels, false).
+
+-spec put_local_label(#tunit{}, non_neg_integer(), pos_integer()) -> #tunit{}.
+put_local_label(Tunit = #tunit{local_labels = LocalLabels}, Number, Serial) ->
+  Tunit#tunit{local_labels = maps:put(Number, Serial, LocalLabels)}.

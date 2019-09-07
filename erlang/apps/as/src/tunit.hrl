@@ -24,9 +24,11 @@
 %% An expression occurring in a statement. (TODO: extend)
 
 -record(e_integer, {value :: integer()}).
+-record(e_local_label, {number :: non_neg_integer(), direction :: $b | $f}).
 -record(e_symbol, {name :: string()}).
 
 -type expr() :: #e_integer{}
+              | #e_local_label{}
               | #e_symbol{}
               .
 
@@ -52,8 +54,9 @@
 %% .type foo,@function (TODO: extend)
 -record(s_dot_type, {name :: string()}).
 
-%% foo:
+%% foo: 1:
 -record(s_label, {name :: string()}).
+-record(s_local_label, {number :: non_neg_integer()}).
 
 %% opcode accumulator,@address(index)
 -record(s_insn,
@@ -70,6 +73,7 @@
               | #s_dot_text{}
               | #s_dot_type{}
               | #s_label{}
+              | #s_local_label{}
               | #s_insn{}
               .
 
@@ -120,6 +124,7 @@
         { sections      :: #{string() => #section{}}
         , cursect       :: string()
         , symbols       :: #{string() => #symbol{}}
+        , local_labels  :: #{non_neg_integer() => pos_integer()}
         }).
 
 -endif. % TUNIT_HRL

@@ -39,6 +39,7 @@ stmt(ScanState) ->
     {ok, ?T_DOT_TEXT} -> dot_text(ScanState);
     {ok, ?T_DOT_TYPE} -> dot_type(ScanState);
     {ok, {?T_SYMBOL, Name}} -> stmt_after_symbol(ScanState, Name);
+    {ok, {?T_UINTEGER, UInt}} -> stmt_after_uinteger(ScanState, UInt);
     {ok, ?T_NEWLINE} -> stmt(ScanState);
     {ok, ?T_EOF} -> eof;
     ScanRes -> badtok(ScanState, "expected directive, label, or instruction", ScanRes)
@@ -48,7 +49,7 @@ stmt(ScanState) ->
 %%
 %% Recognize:
 %%
-%% <label> ::= <symbol> ":"
+%% <label> ::= <symbol> ":" | <uinteger> ":"
 %%
 %% <insn> ::= <symbol> (<accumulator> ",")? <address> <newline>
 %%
@@ -56,7 +57,7 @@ stmt(ScanState) ->
 %%
 %% <address> ::= "@"? <displacement>? <index>?
 %%
-%% <displacement> ::= <uinteger> | <symbol>
+%% <displacement> ::= <uinteger> | <symbol> | <uinteger>[bf]
 %%
 %% <index> ::= "(" <accumulator> ")"
 %%
@@ -94,6 +95,15 @@ stmt_after_symbol(ScanState, Name) ->
     {ok, ?T_NEWLINE} -> make_insn(ScanState, Name, false, false, false, false);
     {ok, {?T_UINTEGER, UInt}} -> insn_uint(ScanState, Name, UInt);
     {ok, {?T_SYMBOL, Symbol}} -> insn_symbol(ScanState, Name, Symbol);
+    {ok, {?T_LOCAL_LABEL, Number, Direction}} ->
+      insn_local_label(ScanState, Name, Number, Direction);
+    ScanRes -> badtok(ScanState, "junk after symbol", ScanRes)
+  end.
+
+%% <stmt> ::= <uinteger> . ":"
+stmt_after_uinteger(ScanState, UInt) ->
+  case scan:token(ScanState) of
+    {ok, ?T_COLON} -> {ok, #s_local_label{number = UInt}};
     ScanRes -> badtok(ScanState, "junk after symbol", ScanRes)
   end.
 
@@ -118,6 +128,11 @@ insn_symbol(ScanState, Name, Symbol2) ->
   Displacement = #e_symbol{name = Symbol2},
   insn_ea_disp(ScanState, Name, _AccOrDev = false, _At = false, Displacement).
 
+%% Seen "<symbol> <local label>".  The <local label> is (the start of) the <displacement>.
+insn_local_label(ScanState, Name, Number, Direction) ->
+  Displacement = #e_local_label{number = Number, direction = Direction},
+  insn_ea_disp(ScanState, Name, _AccOrDev = false, _At = false, Displacement).
+
 %% <symbol> <accordev> "," . [ ["@"] <displacement> ["(" <index> ")"] ] <newline>
 insn_ea(ScanState, Name, AccOrDev) ->
   case scan:token(ScanState) of
@@ -130,6 +145,9 @@ insn_ea(ScanState, Name, AccOrDev) ->
     {ok, {?T_SYMBOL, Symbol}} ->
       Displacement = #e_symbol{name = Symbol},
       insn_ea_disp(ScanState, Name, AccOrDev, _At = false, Displacement);
+    {ok, {?T_LOCAL_LABEL, Number, Direction}} ->
+      Displacement = #e_local_label{number = Number, direction = Direction},
+      insn_ea_disp(ScanState, Name, AccOrDev, _At = false, Displacement);
     ScanRes -> badtok(ScanState, "junk after comma", ScanRes)
   end.
 
@@ -141,6 +159,9 @@ insn_ea_at(ScanState, Name, AccOrDev) ->
       insn_ea_disp(ScanState, Name, AccOrDev, _At = true, Displacement);
     {ok, {?T_SYMBOL, Symbol}} ->
       Displacement = #e_symbol{name = Symbol},
+      insn_ea_disp(ScanState, Name, AccOrDev, _At = true, Displacement);
+    {ok, {?T_LOCAL_LABEL, Number, Direction}} ->
+      Displacement = #e_local_label{number = Number, direction = Direction},
       insn_ea_disp(ScanState, Name, AccOrDev, _At = true, Displacement);
     ScanRes -> badtok(ScanState, "junk after @", ScanRes)
   end.

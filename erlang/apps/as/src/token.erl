@@ -48,8 +48,10 @@ format(Token) ->
     ?T_DOT_TEXT         -> ".text";
     ?T_DOT_TYPE         -> ".type";
     {?T_SYMBOL, Name}   -> io_lib:format("symbol:~s", [Name]);
-    {?T_UINTEGER, Int}  -> io_lib:format("uinteger:~p", [Int]);
+    {?T_LOCAL_LABEL, Number, Direction} ->
+      io_lib:format("label: ~.10b~c", [Number, Direction]);
     {?T_STRING, Str}    -> io_lib:format("string:~p", [Str]); % FIXME: quoting
+    {?T_UINTEGER, Int}  -> io_lib:format("uinteger:~p", [Int]);
     ?T_AT               -> "@";
     ?T_COLON            -> ":";
     ?T_COMMA            -> ",";

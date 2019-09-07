@@ -206,8 +206,9 @@ do_number(ScanState, Base, Val) ->
       case chval(Ch) of
         ChVal when ChVal < Base ->
           do_number(ScanState, Base, Val * Base + ChVal);
+        _ChVal when Base =< 10 andalso (Ch =:= $b orelse Ch =:= $f) ->
+          {ok, {?T_LOCAL_LABEL, Val, Ch}};
         _ChVal ->
-          %% TODO: check for <decimal>[bf] which is a local label reference
           case scan_state:ungetc(Ch, ScanState) of
             {error, _Reason} = Error -> Error;
             ok -> {ok, {?T_UINTEGER, Val}}
