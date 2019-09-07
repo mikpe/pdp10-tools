@@ -59,7 +59,7 @@
 -record(s_insn,
         { high13        :: 0..((1 bsl 13) - 1)
         , at            :: boolean()
-        , address       :: non_neg_integer() % TODO: relocatable expr
+        , address       :: expr()
         , index         :: 0..((1 bsl 4) - 1)
         }).
 
