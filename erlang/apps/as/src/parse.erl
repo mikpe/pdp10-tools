@@ -56,7 +56,7 @@ stmt(ScanState) ->
 %%
 %% <address> ::= "@"? <displacement>? <index>?
 %%
-%% <displacement> ::= <uinteger>
+%% <displacement> ::= <uinteger> | <symbol>
 %%
 %% <index> ::= "(" <accumulator> ")"
 %%
@@ -66,6 +66,7 @@ stmt(ScanState) ->
 %% popj 017,
 %% pushj 017,bar
 %% movei 1,@fum(2)
+%% jump bar
 %%
 %% TODO: <displacement> should be <expr> and permit parentheses and
 %% various operators.
@@ -92,6 +93,7 @@ stmt_after_symbol(ScanState, Name) ->
     {ok, ?T_COLON} -> {ok, #s_label{name = Name}};
     {ok, ?T_NEWLINE} -> make_insn(ScanState, Name, false, false, false, false);
     {ok, {?T_UINTEGER, UInt}} -> insn_uint(ScanState, Name, UInt);
+    {ok, {?T_SYMBOL, Symbol}} -> insn_symbol(ScanState, Name, Symbol);
     ScanRes -> badtok(ScanState, "junk after symbol", ScanRes)
   end.
 
@@ -102,11 +104,19 @@ insn_uint(ScanState, Name, UInt) ->
     {ok, ?T_COMMA} -> % the Uint is the Accumulator, parse EA next
       insn_ea(ScanState, Name, _AccOrDev = UInt);
     {ok, ?T_LPAREN} -> % the Uint is the Displacement, parse Index next
-      insn_ea_index(ScanState, Name, _AccOrDev = false, _At = false, _Displacement = UInt);
+      Displacement = #e_integer{value = UInt},
+      insn_ea_index(ScanState, Name, _AccOrDev = false, _At = false, Displacement);
     {ok, ?T_NEWLINE} -> % the Uint is the Displacement
-      make_insn(ScanState, Name, _AccOrDev = false, _At = false, _Displacement = UInt, _Index = false);
+      Displacement = #e_integer{value = UInt},
+      make_insn(ScanState, Name, _AccOrDev = false, _At = false, Displacement, _Index = false);
     ScanRes -> badtok(ScanState, "junk after <symbol> <uinteger>", ScanRes)
   end.
+
+%% Seen "<symbol> <symbol2>".  The <symbol2> is (the start of) the <displacement>.
+%% TODO: permit <symbol2> to be the <accumulator> (named register or device).
+insn_symbol(ScanState, Name, Symbol2) ->
+  Displacement = #e_symbol{name = Symbol2},
+  insn_ea_disp(ScanState, Name, _AccOrDev = false, _At = false, Displacement).
 
 %% <symbol> <accordev> "," . [ ["@"] <displacement> ["(" <index> ")"] ] <newline>
 insn_ea(ScanState, Name, AccOrDev) ->
@@ -114,15 +124,23 @@ insn_ea(ScanState, Name, AccOrDev) ->
     {ok, ?T_NEWLINE} ->
       make_insn(ScanState, Name, AccOrDev, _At = false, _Displacement = false, _Index = false);
     {ok, ?T_AT} -> insn_ea_at(ScanState, Name, AccOrDev);
-    {ok, {?T_UINTEGER, Displacement}} ->
+    {ok, {?T_UINTEGER, UInt}} ->
+      Displacement = #e_integer{value = UInt},
+      insn_ea_disp(ScanState, Name, AccOrDev, _At = false, Displacement);
+    {ok, {?T_SYMBOL, Symbol}} ->
+      Displacement = #e_symbol{name = Symbol},
       insn_ea_disp(ScanState, Name, AccOrDev, _At = false, Displacement);
     ScanRes -> badtok(ScanState, "junk after comma", ScanRes)
   end.
 
-%% <symbol> [<accordev> ","] "@" . <displacement> . ["(" <index> ")"] <newline>
+%% <symbol> [<accordev> ","] "@" . <displacement> ["(" <index> ")"] <newline>
 insn_ea_at(ScanState, Name, AccOrDev) ->
   case scan:token(ScanState) of
-    {ok, {?T_UINTEGER, Displacement}} ->
+    {ok, {?T_UINTEGER, UInt}} ->
+      Displacement = #e_integer{value = UInt},
+      insn_ea_disp(ScanState, Name, AccOrDev, _At = true, Displacement);
+    {ok, {?T_SYMBOL, Symbol}} ->
+      Displacement = #e_symbol{name = Symbol},
       insn_ea_disp(ScanState, Name, AccOrDev, _At = true, Displacement);
     ScanRes -> badtok(ScanState, "junk after @", ScanRes)
   end.
@@ -167,7 +185,10 @@ make_insn(ScanState, Name, AccOrDev, At, Displacement, Index) ->
             {error, _Reason} = Error -> Error;
             ok -> {ok, #s_insn{ high13 = FinalHigh13
                               , at = At
-                              , address = if Displacement =:= false -> 0; true -> Displacement end
+                              , address = case Displacement of
+                                            false -> #e_integer{value = 0};
+                                            _ -> Displacement
+                                          end
                               , index = if Index =:= false -> 0; true -> Index end
                               }}
           end

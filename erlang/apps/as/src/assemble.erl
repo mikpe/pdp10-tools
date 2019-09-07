@@ -73,38 +73,61 @@ image_size(Image) -> image_size(Image, 0).
 
 image_size([H | T], Acc) -> image_size(T, image_size(H, Acc));
 image_size([], Acc) -> Acc;
-image_size(TByte, Acc) when is_integer(TByte), 0 =< TByte, TByte =< 511 -> Acc + 1.
+image_size(TByte, Acc) when is_integer(TByte), 0 =< TByte, TByte =< 511 ->
+  Acc + 1.
 
 %% Assemble .text --------------------------------------------------------------
 
 text(Section = #section{data = {stmts, Stmts}}, Tunit) ->
-  Image = text_image(Stmts),
-  {ok, tunit:put_section(Tunit, Section#section{data = {image, Image}})}.
+  case text_image(Stmts, Tunit) of
+    {ok, Image} ->
+      {ok, tunit:put_section(Tunit, Section#section{data = {image, Image}})};
+    {error, _Reason} = Error -> Error
+  end.
 
-text_image(Stmts) -> text_image(Stmts, []).
+text_image(Stmts, Tunit) -> text_image(Stmts, Tunit, []).
 
-text_image([], Acc) -> Acc; % the input Stmts were in reverse order
-text_image([Stmt | Stmts], Acc) ->
-  text_image(Stmts, [insn_image(Stmt) | Acc]).
+text_image([], _Tunit, Acc) -> {ok, Acc}; % the input Stmts were in reverse order
+text_image([Stmt | Stmts], Tunit, Acc) ->
+  case insn_image(Stmt, Tunit) of
+    {ok, Image} -> text_image(Stmts, Tunit, [Image | Acc]);
+    {error, _Reason} = Error -> Error
+  end.
 
-insn_image(Insn) ->
+insn_image(Insn, Tunit) ->
   #s_insn{ high13 = High13
          , at = At
-         , address = Address
+         , address = AddressExpr
          , index = Index
          } = Insn,
-  Word = (((High13 band ((1 bsl 13) - 1)) bsl (36 - 13)) bor
-          ((case At of true -> 1; false -> 0 end) bsl (36 - 14)) bor
-          ((Index band ((1 bsl 4) - 1)) bsl (36 - 18)) bor
-          (Address band ((1 bsl 18) - 1))),
-  %% big-endian conversion
-  [(Word bsr 27) band 511,
-   (Word bsr 18) band 511,
-   (Word bsr  9) band 511,
-   Word          band 511].
+  case insn_address(AddressExpr, Tunit) of
+    {ok, Address} ->
+      Word = (((High13 band ((1 bsl 13) - 1)) bsl (36 - 13)) bor
+              ((case At of true -> 1; false -> 0 end) bsl (36 - 14)) bor
+              ((Index band ((1 bsl 4) - 1)) bsl (36 - 18)) bor
+              (Address band ((1 bsl 18) - 1))),
+      %% big-endian conversion
+      {ok, [(Word bsr 27) band 511,
+            (Word bsr 18) band 511,
+            (Word bsr  9) band 511,
+            Word          band 511]};
+    {error, _Reason} = Error -> Error
+  end.
+
+insn_address(AddressExpr, Tunit) ->
+  case AddressExpr of
+    #e_integer{value = Value} -> {ok, Value};
+    #e_symbol{name = Name} ->
+      case tunit:get_symbol(Tunit, Name) of
+        #symbol{st_value = Value} when Value =/= false -> {ok, Value};
+        _ -> {error, {?MODULE, {undefined_symbol, Name}}}
+      end
+  end.
 
 %% Error reporting -------------------------------------------------------------
 
 -spec format_error(term()) -> io_lib:chars().
 format_error({cannot_assemble, Name}) ->
-  io_lib:format("don't know how to assemble section ~s", [Name]).
+  io_lib:format("don't know how to assemble section ~s", [Name]);
+format_error({undefined_symbol, Name}) ->
+  io_lib:format("reference to undefined symbol ~s", [Name]).

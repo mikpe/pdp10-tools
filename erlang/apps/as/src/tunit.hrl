@@ -21,6 +21,15 @@
 -ifndef(TUNIT_HRL).
 -define(TUNIT_HRL, 1).
 
+%% An expression occurring in a statement. (TODO: extend)
+
+-record(e_integer, {value :: integer()}).
+-record(e_symbol, {name :: string()}).
+
+-type expr() :: #e_integer{}
+              | #e_symbol{}
+              .
+
 %% A directive, label, or instruction is parsed to a statement, which is
 %% either interpreted immediately or appended to the representation of the
 %% current section.
