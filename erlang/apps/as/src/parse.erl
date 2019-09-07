@@ -185,7 +185,7 @@ make_high13(ScanState, Name, AccOrDev, High13, Format) ->
     {?PDP10_INSN_IO, _} ->
       make_high13_io(High13, AccOrDev);
     {?PDP10_INSN_BASIC, false} ->
-      badinsn(ScanState, "~s: missing accumulator operand", Name);
+      make_high13_basic(High13, _Accumulator = 0);
     {?PDP10_INSN_BASIC, _} ->
       make_high13_basic(High13, AccOrDev);
     {?PDP10_INSN_A_NONZERO, false} ->
