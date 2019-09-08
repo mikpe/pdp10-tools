@@ -110,6 +110,7 @@ fopen(Path, Modes) ->
 do_open(What) ->
   case gen_server:start(?MODULE, What, []) of
     {ok, Pid} -> {ok, #file{pid = Pid}};
+    {error, {shutdown, Reason}} -> {error, Reason};
     {error, _Reason} = Error -> Error
   end.
 
@@ -190,8 +191,8 @@ do_init({ok, {IoDev, Read, Write}}) ->
              , iodir = seek
              }};
 do_init({error, Reason}) ->
-  %% FIXME: this still seems to generate crash reports
-  {stop, Reason}.
+  %% The {shutdown, ...} wrapper prevents an unwanted crash report.
+  {stop, {shutdown, Reason}}.
 
 handle_call(Req, _From, State) ->
   case Req of

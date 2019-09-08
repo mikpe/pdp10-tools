@@ -76,7 +76,10 @@ stdin() ->
   do_fopen(stdin).
 
 do_fopen(File) ->
-  gen_server:start(?MODULE, File, []).
+  case gen_server:start(?MODULE, File, []) of
+    {error, {shutdown, Reason}} -> {error, Reason};
+    Result -> Result
+  end.
 
 -spec ungetc(byte(), scan_state()) -> ok | {error, {module(), term()}}.
 ungetc(Ch, Pid) ->
@@ -108,7 +111,9 @@ init(stdin) ->
 init(File) ->
   case file:open(File, [raw, read, read_ahead]) of
     {ok, IoDev} -> do_init(File, IoDev);
-    {error, Reason} -> {stop, {file, Reason}}
+    {error, Reason} ->
+      %% The {shutdown, ...} wrapper prevents an unwanted crash report.
+      {stop, {shutdown, {file, Reason}}}
   end.
 
 do_init(FileName, IoDev) ->
