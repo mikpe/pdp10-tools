@@ -26,7 +26,7 @@ PROGRAMS=8to9 ar as nm od readelf
 default: compile link
 
 compile:	$(REBAR3)
-	$(REBAR3) compile
+	$(REBAR3) do compile, xref
 
 link:	$(REBAR3)
 	for PROG in $(PROGRAMS); do \
