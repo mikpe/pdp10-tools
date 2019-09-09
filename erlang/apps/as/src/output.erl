@@ -248,13 +248,10 @@ uint9_image(Uint9) ->
   Uint9 band 511.
 
 uint18_image(Uint18) ->
-  [(Uint18 bsr 9) band 511, Uint18 band 511].
+  pdp10_extint:uint18_to_ext(Uint18).
 
 uint36_image(Uint36) ->
-  [(Uint36 bsr 27) band 511,
-   (Uint36 bsr 18) band 511,
-   (Uint36 bsr  9) band 511,
-   Uint36          band 511].
+  pdp10_extint:uint36_to_ext(Uint36).
 
 image_size(Image) -> image_size(Image, 0).
 

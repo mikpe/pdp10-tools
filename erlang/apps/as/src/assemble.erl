@@ -106,11 +106,7 @@ insn_image(Insn, Tunit) ->
               ((case At of true -> 1; false -> 0 end) bsl (36 - 14)) bor
               ((Index band ((1 bsl 4) - 1)) bsl (36 - 18)) bor
               (Address band ((1 bsl 18) - 1))),
-      %% big-endian conversion
-      {ok, [(Word bsr 27) band 511,
-            (Word bsr 18) band 511,
-            (Word bsr  9) band 511,
-            Word          band 511]};
+      {ok, pdp10_extint:uint36_to_ext(Word)};
     {error, _Reason} = Error -> Error
   end.
 
