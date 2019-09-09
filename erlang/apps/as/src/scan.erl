@@ -42,6 +42,7 @@ token(ScanState) ->
         $#  -> do_line_comment(ScanState);
         $@  -> {ok, ?T_AT};
         $:  -> {ok, ?T_COLON};
+        $;  -> {ok, ?T_NEWLINE};
         $,  -> {ok, ?T_COMMA};
         $(  -> {ok, ?T_LPAREN};
         $)  -> {ok, ?T_RPAREN};
