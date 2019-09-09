@@ -19,9 +19,7 @@
 %%% along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
 
 -module(getopt).
--export([parse/2, parse/3, format_error/1]).
-
--type option() :: char() | {char(), string()}.
+-export([parse/3, format_error/1]).
 
 -define(no, no).
 -define(required, required).
@@ -35,12 +33,6 @@
                          Val :: term()}.
 
 -type longopt() :: term() | {term(), string()}.
-
--spec parse([string()], string())
-        -> {ok, {[option()], [string()]}}
-         | {error, {module(), term()}}.
-parse(Argv, OptString) ->
-  parse(Argv, OptString, []).
 
 -spec parse([string()], string(), [longopt_spec()])
         -> {ok, {[longopt()], [string()]}}
