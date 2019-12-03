@@ -225,8 +225,7 @@ chval(Ch) ->
   end.
 
 badchar(ScanState, Ch, Context) ->
-  {ok, FileName} = scan_state:filename(ScanState),
-  {ok, LineNr} = scan_state:linenr(ScanState),
+  {ok, {FileName, LineNr}} = scan_state:location(ScanState),
   {error, {?MODULE, {FileName, LineNr, Ch, Context}}}.
 
 -spec format_error(term()) -> io_lib:chars().

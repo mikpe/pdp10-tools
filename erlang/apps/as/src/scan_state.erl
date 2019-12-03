@@ -29,8 +29,7 @@
         , stdin/0
         , ungetc/2
           % meta-data accessors
-        , filename/1
-        , linenr/1
+        , location/1
         , format_error/1
         ]).
 
@@ -54,6 +53,7 @@
         }).
 
 -type scan_state() :: pid().
+-type location() :: {FileName :: string(), LineNr :: pos_integer()}.
 
 -export_type([scan_state/0]).
 
@@ -85,13 +85,9 @@ do_fopen(File) ->
 ungetc(Ch, Pid) ->
   gen_server:call(Pid, {ungetc, Ch}, infinity).
 
--spec filename(scan_state()) -> {ok, string()}.
-filename(Pid) ->
-  gen_server:call(Pid, filename, infinity).
-
--spec linenr(scan_state()) -> {ok, pos_integer()}.
-linenr(Pid) ->
-  gen_server:call(Pid, linenr, infinity).
+-spec location(scan_state()) -> {ok, location()}.
+location(Pid) ->
+  gen_server:call(Pid, location, infinity).
 
 -spec format_error(term()) -> io_lib:chars().
 format_error(Reason) ->
@@ -131,10 +127,8 @@ handle_call(Req, _From, State) ->
       handle_fgetc(State);
     {ungetc, Ch} ->
       handle_ungetc(State, Ch);
-    filename ->
-      {reply, {ok, State#state.filename}, State};
-    linenr ->
-      {reply, {ok, State#state.linenr}, State};
+    location ->
+      {reply, {ok, {State#state.filename, State#state.linenr}}, State};
     _ ->
       {reply, {error, {?MODULE, {bad_request, Req}}}, State}
   end.

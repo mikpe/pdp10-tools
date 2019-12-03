@@ -271,8 +271,7 @@ section_dot_text() -> % ".text"
 %% Error reporting -------------------------------------------------------------
 
 fmterr(ScanState, Fmt, Args) ->
-  {ok, FileName} = scan_state:filename(ScanState),
-  {ok, LineNr} = scan_state:linenr(ScanState),
+  {ok, {FileName, LineNr}} = scan_state:location(ScanState),
   {error, {?MODULE, {FileName, LineNr, Fmt, Args}}}.
 
 -spec format_error(term()) -> io_lib:chars().
