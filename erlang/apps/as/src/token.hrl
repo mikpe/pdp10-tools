@@ -26,12 +26,16 @@
 %% with attributes (ordinary symbols, literals, errors).
 
 %% reserved symbols including directives
--define(T_DOT_FILE,     'T_DOT_FILE').  % .file
--define(T_DOT_GLOBL,    'T_DOT_GLOBL'). % .globl
--define(T_DOT_IDENT,    'T_DOT_IDENT'). % .ident
--define(T_DOT_SIZE,     'T_DOT_SIZE').  % .size
--define(T_DOT_TEXT,     'T_DOT_TEXT').  % .text
--define(T_DOT_TYPE,     'T_DOT_TYPE').  % .type
+-define(T_DOT_FILE,             'T_DOT_FILE').          % .file
+-define(T_DOT_GLOBL,            'T_DOT_GLOBL').         % .globl
+-define(T_DOT_IDENT,            'T_DOT_IDENT').         % .ident
+-define(T_DOT_POPSECTION,       'T_DOT_POPSECTION').    % .popsection
+-define(T_DOT_PREVIOUS,         'T_DOT_PREVIOUS').      % .previous
+-define(T_DOT_PUSHSECTION,      'T_DOT_PUSHSECTION').   % .pushsection
+-define(T_DOT_SIZE,             'T_DOT_SIZE').          % .size
+-define(T_DOT_SUBSECTION,       'T_DOT_SUBSECTION').    % .subsection
+-define(T_DOT_TEXT,             'T_DOT_TEXT').          % .text
+-define(T_DOT_TYPE,             'T_DOT_TYPE').          % .type
 
 %% ordinary (non-reserved, non-special non-synthetic) symbols
 -define(T_SYMBOL,       'T_SYMBOL').    % pushj, foo, .Lbar
@@ -57,7 +61,11 @@
 -type token() :: ?T_DOT_FILE
                | ?T_DOT_GLOBL
                | ?T_DOT_IDENT
+               | ?T_DOT_POPSECTION
+               | ?T_DOT_PREVIOUS
+               | ?T_DOT_PUSHSECTION
                | ?T_DOT_SIZE
+               | ?T_DOT_SUBSECTION
                | ?T_DOT_TEXT
                | ?T_DOT_TYPE
                | {?T_SYMBOL, string()}

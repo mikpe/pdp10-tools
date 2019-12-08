@@ -28,31 +28,199 @@
 -include_lib("lib/include/pdp10_elf36.hrl").
 
 -spec files([string()]) -> {ok, #tunit{}} | {error, {module(), term()}}.
-files(Files) ->
-  NewFiles =
-    case Files of
-      [] -> ["--"];
-      _ -> Files
+files(Files0) ->
+  Files =
+    case Files0 of
+      [] -> ["--"]; % alias for stdin
+      _ -> Files0
     end,
-  files(NewFiles, tunit_init()).
+  pass1(Files).
 
-files([], Tunit) -> {ok, Tunit};
-files([File | Files], Tunit) ->
-  case file(File, Tunit) of
-    {ok, NewTunit} -> files(Files, NewTunit);
+%% Pass 1 ----------------------------------------------------------------------
+%%
+%% - scan, parse, annotate stmts with locations
+%% - maintain current and previous section and subsection, and stack thereof
+%% - interpret sectioning stmts, accumulate annotated stmts in subsections
+
+-type section() :: string().
+-type subsection() :: non_neg_integer().
+
+-type sectionandsub() :: {section(), subsection()}.
+
+-record(ctx,
+        { sections_map :: #{section() => #{subsection() => [stmt()]}}
+        , stack :: [{Current :: sectionandsub(), Previous :: sectionandsub()}]
+        , current :: sectionandsub()
+        , previous :: sectionandsub() | []
+        , stmts :: [{scan_state:location(), stmt()}]
+        }).
+
+pass1(Files) ->
+  pass1_files(Files, ctx_init()).
+
+pass1_files([], Ctx) -> pass2(ctx_fini(Ctx));
+pass1_files([File | Files], Ctx) ->
+  case pass1_file(File, Ctx) of
+    {ok, NewCtx} -> pass1_files(Files, NewCtx);
     {error, _Reason} = Error -> Error
   end.
 
-file(File, Tunit) ->
+pass1_file(File, Ctx) ->
   case scan_state_open(File) of
     {ok, ScanState} ->
-      try process(ScanState, Tunit)
+      try pass1_process(ScanState, Ctx)
       after scan_state:fclose(ScanState)
       end;
     {error, _Reason} = Error -> Error
   end.
 
-%% Open next input file, support "--" and "-" as aliases for stdin.
+pass1_process(ScanState, Ctx) ->
+  case parse:stmt(ScanState) of
+    eof -> {ok, Ctx};
+    {ok, Stmt} ->
+      case pass1_stmt(scan_state_location(ScanState), Ctx, Stmt) of
+        {ok, NewCtx} -> pass1_process(ScanState, NewCtx);
+        {error, _Reason} = Error -> Error
+      end;
+    {error, _Reason} = Error -> Error
+  end.
+
+pass1_stmt(Location, Ctx, Stmt) ->
+  case Stmt of
+    #s_dot_popsection{} -> dot_popsection(Location, Ctx, Stmt);
+    #s_dot_previous{} -> dot_previous(Location, Ctx, Stmt);
+    #s_dot_pushsection{} -> dot_pushsection(Location, Ctx, Stmt);
+    #s_dot_subsection{} -> dot_subsection(Location, Ctx, Stmt);
+    #s_dot_text{} -> dot_text(Location, Ctx, Stmt);
+    _ -> {ok, ctx_append(Ctx, Location, Stmt)}
+  end.
+
+dot_popsection(Location, Ctx0, #s_dot_popsection{}) ->
+  case ctx_try_popsection(Ctx0) of
+    {ok, _Ctx} = Result -> Result;
+    false -> fmterr(Location, ".popsection with empty section stack", [])
+  end.
+
+dot_previous(Location, Ctx0, #s_dot_previous{}) ->
+  case ctx_try_previous(Ctx0) of
+    {ok, _Ctx} = Result -> Result;
+    false -> fmterr(Location, ".previous with empty section stack", [])
+  end.
+
+dot_pushsection(_Location, Ctx, #s_dot_pushsection{name = Section, nr = Subsection}) ->
+  {ok, ctx_pushsection(Ctx, Section, Subsection)}.
+
+dot_subsection(_Location, Ctx, #s_dot_subsection{nr = Subsection}) ->
+  {ok, ctx_subsection(Ctx, Subsection)}.
+
+dot_text(_Location, Ctx, #s_dot_text{nr = Subsection}) ->
+  {ok, ctx_text(Ctx, Subsection)}.
+
+%% Context utilities
+
+ctx_init() ->
+  InitialSection = ".text",
+  InitialSubsection = 0,
+  #ctx{ sections_map = #{InitialSection => #{}}
+      , stack = []
+      , current = {InitialSection, InitialSubsection}
+      , previous = []
+      , stmts = []
+      }.
+
+ctx_fini(Ctx) ->
+  (ctx_flush(Ctx))#ctx.sections_map.
+
+ctx_flush(Ctx) ->
+  #ctx{ sections_map = SectionsMap0
+      , current = {Section, Subsection}
+      , stmts = Stmts
+      } = Ctx,
+  SubsectionsMap0 = maps:get(Section, SectionsMap0, #{}),
+  SubsectionsMap = maps:put(Subsection, Stmts, SubsectionsMap0),
+  SectionsMap = maps:put(Section, SubsectionsMap, SectionsMap0),
+  Ctx#ctx{sections_map = SectionsMap}.
+
+ctx_try_popsection(Ctx0) -> % implements .popsection
+  Ctx = ctx_flush(Ctx0),
+  #ctx{ sections_map = SectionsMap
+      , stack = Stack
+      } = Ctx,
+  case Stack of
+    [] -> false;
+    [{Current = {Section, Subsection}, Previous} | RestStack] ->
+      SubsectionsMap = maps:get(Section, SectionsMap), % must exist
+      Stmts = maps:get(Subsection, SubsectionsMap), % must exist
+      {ok, Ctx#ctx{ stack = RestStack
+                  , current = Current
+                  , previous = Previous
+                  , stmts = Stmts
+                  }}
+  end.
+
+ctx_try_previous(Ctx0) -> % implements .previous
+  Ctx = ctx_flush(Ctx0),
+  #ctx{ sections_map = SectionsMap
+      , current = Current
+      , previous = Previous
+      } = Ctx,
+  case Previous of
+    [] -> false;
+    {Section, Subsection} ->
+      SubsectionsMap = maps:get(Section, SectionsMap), % must exist
+      Stmts = maps:get(Subsection, SubsectionsMap), % must exist
+      {ok, Ctx#ctx{ current = Previous
+                  , previous = Current
+                  , stmts = Stmts
+                  }}
+  end.
+
+ctx_pushsection(Ctx0, Section, Subsection) -> % implements .pushsection
+  Ctx = ctx_flush(Ctx0),
+  #ctx{ sections_map = SectionsMap
+      , stack = Stack
+      , current = Current
+      , previous = Previous
+      } = Ctx,
+  SubsectionsMap = maps:get(Section, SectionsMap, #{}),
+  Stmts = maps:get(Subsection, SubsectionsMap, []),
+  Ctx#ctx{ stack = [{Current, Previous} | Stack]
+         , current = {Section, Subsection}
+         , previous = Current
+         , stmts = Stmts
+         }.
+
+ctx_subsection(Ctx0, Subsection) -> % implements .subsection <nr>
+  Ctx = ctx_flush(Ctx0),
+  #ctx{ sections_map = SectionsMap
+      , current = Current = {Section, _CurSubsection}
+      } = Ctx,
+  SubsectionsMap = maps:get(Section, SectionsMap), % must exist
+  Stmts = maps:get(Subsection, SubsectionsMap, []),
+  Ctx#ctx{ current = {Section, Subsection}
+         , previous = Current
+         , stmts = Stmts
+         }.
+
+ctx_text(Ctx0, Subsection) -> % implements .text <nr>
+  Ctx = ctx_flush(Ctx0),
+  #ctx{ sections_map = SectionsMap
+      , current = Current
+      } = Ctx,
+  Section = ".text",
+  SubsectionsMap = maps:get(Section, SectionsMap, #{}),
+  Stmts = maps:get(Subsection, SubsectionsMap, []),
+  Ctx#ctx{ current = {Section, Subsection}
+         , previous = Current
+         , stmts = Stmts
+         }.
+
+ctx_append(Ctx, Location, Stmt) ->
+  #ctx{stmts = Stmts} = Ctx,
+  Ctx#ctx{stmts = [{Location, Stmt} | Stmts]}.
+
+%% Scan state utilities
+
 scan_state_open(File) ->
   case File of
     "--" -> scan_state:stdin();
@@ -60,31 +228,62 @@ scan_state_open(File) ->
     _ -> scan_state:fopen(File)
   end.
 
-process(ScanState, Tunit) ->
-  case parse:stmt(ScanState) of
-    eof -> {ok, Tunit};
-    {ok, Stmt} ->
-      case interpret(ScanState, Tunit, Stmt) of
-        {ok, NewTunit} -> process(ScanState, NewTunit);
-        {error, _Reason} = Error -> Error
-      end;
+scan_state_location(ScanState) ->
+  {ok, Location = {_FileName, _LineNr}} = scan_state:location(ScanState),
+  Location.
+
+%% Pass 2 ----------------------------------------------------------------------
+%%
+%% - process subsections in order
+%% - interpret stmts
+
+pass2(SectionsMap) ->
+  pass2_sections(maps:to_list(SectionsMap), tunit_init()).
+
+pass2_sections([], Tunit) -> {ok, Tunit};
+pass2_sections([{SectionName, SubsectionsMap} | Sections], Tunit0) ->
+  %% TODO: handle creation of new sections here
+  #section{} = tunit:get_section(Tunit0, SectionName),
+  Tunit = Tunit0#tunit{cursect = SectionName},
+  case pass2_subsections(SectionName, SubsectionsMap, Tunit) of
+    {ok, NewTunit} -> pass2_sections(Sections, NewTunit);
     {error, _Reason} = Error -> Error
   end.
 
-interpret(ScanState, Tunit, Stmt) ->
-  case Stmt of
-    #s_dot_file{} -> dot_file(ScanState, Tunit, Stmt);
-    #s_dot_globl{} -> dot_globl(ScanState, Tunit, Stmt);
-    #s_dot_ident{} -> dot_ident(ScanState, Tunit, Stmt);
-    #s_dot_size{} -> dot_size(ScanState, Tunit, Stmt);
-    #s_dot_text{} -> dot_text(ScanState, Tunit, Stmt);
-    #s_dot_type{} -> dot_type(ScanState, Tunit, Stmt);
-    #s_label{} -> label(ScanState, Tunit, Stmt);
-    #s_local_label{} -> local_label(ScanState, Tunit, Stmt);
-    #s_insn{} -> insn(ScanState, Tunit, Stmt)
+pass2_subsections(_SectionName = ".text", SubsectionsMap, Tunit) ->
+  pass2_subsections(lists:sort(maps:to_list(SubsectionsMap)), Tunit).
+
+pass2_subsections([], Tunit) -> {ok, Tunit};
+pass2_subsections([{_Nr, StmtsRev} | Subsections], Tunit) ->
+  case pass2_stmts(lists:reverse(StmtsRev), Tunit) of
+    {ok, NewTunit} ->
+      %% GAS documentation states that each sub-section is padded to make its
+      %% size a multiple of 4 bytes, but also that other implementations may
+      %% do differently.  We do not insert any implicit padding.
+      pass2_subsections(Subsections, NewTunit);
+    {error, _Reason} = Error -> Error
   end.
 
-dot_file(_ScanState, Tunit, #s_dot_file{string = String}) ->
+pass2_stmts([], Tunit) -> {ok, Tunit};
+pass2_stmts([{Location, Stmt} | Stmts], Tunit) ->
+  case pass2_stmt(Location, Tunit, Stmt) of
+    {ok, NewTunit} -> pass2_stmts(Stmts, NewTunit);
+    {error, _Reason} = Error -> Error
+  end.
+
+pass2_stmt(Location, Tunit, Stmt) ->
+  case Stmt of
+    #s_dot_file{} -> dot_file(Location, Tunit, Stmt);
+    #s_dot_globl{} -> dot_globl(Location, Tunit, Stmt);
+    #s_dot_ident{} -> dot_ident(Location, Tunit, Stmt);
+    #s_dot_size{} -> dot_size(Location, Tunit, Stmt);
+    #s_dot_type{} -> dot_type(Location, Tunit, Stmt);
+    #s_label{} -> label(Location, Tunit, Stmt);
+    #s_local_label{} -> local_label(Location, Tunit, Stmt);
+    #s_insn{} -> insn(Location, Tunit, Stmt)
+  end.
+
+dot_file(_Location, Tunit, #s_dot_file{string = String}) ->
   Symbol = #symbol{ name = String
                   , section = false
                   , st_value = 0
@@ -95,7 +294,7 @@ dot_file(_ScanState, Tunit, #s_dot_file{string = String}) ->
                   },
   {ok, tunit:put_symbol(Tunit, Symbol)}.
 
-dot_globl(ScanState, Tunit, #s_dot_globl{name = Name}) ->
+dot_globl(Location, Tunit, #s_dot_globl{name = Name}) ->
   case tunit:get_symbol(Tunit, Name) of
     false ->
       Symbol =
@@ -115,11 +314,11 @@ dot_globl(ScanState, Tunit, #s_dot_globl{name = Name}) ->
           Symbol = OldSymbol#symbol{st_info = ?ELF_ST_INFO(?STB_GLOBAL, ?ELF_ST_TYPE(StInfo))},
           {ok, tunit:put_symbol(Tunit, Symbol)};
         Bind ->
-          fmterr(ScanState, "symbol ~s has previous incompatible binding type ~p", [Name, Bind])
+          fmterr(Location, "symbol ~s has previous incompatible binding type ~p", [Name, Bind])
       end
   end.
 
-dot_ident(_ScanState, Tunit, #s_dot_ident{} = Stmt) ->
+dot_ident(_Location, Tunit, #s_dot_ident{} = Stmt) ->
   #section{data = {stmts, Stmts}} = OldSection =
     case tunit:get_section(Tunit, ".comment") of
       false -> section_dot_comment();
@@ -128,29 +327,24 @@ dot_ident(_ScanState, Tunit, #s_dot_ident{} = Stmt) ->
   NewSection = OldSection#section{data = {stmts, [Stmt | Stmts]}},
   {ok, tunit:put_section(Tunit, NewSection)}.
 
-dot_size(ScanState, Tunit, #s_dot_size{name = Name}) ->
+dot_size(Location, Tunit, #s_dot_size{name = Name}) ->
   #tunit{cursect = Cursect} = Tunit,
   #section{dot = Dot} = tunit:get_section(Tunit, Cursect),
   case tunit:get_symbol(Tunit, Name) of
     #symbol{st_size = StSize} when StSize =/= false ->
-      fmterr(ScanState, "size of symbol ~s already defined", [Name]);
+      fmterr(Location, "size of symbol ~s already defined", [Name]);
     #symbol{section = Section} when Section =/= Cursect ->
-      fmterr(ScanState, "symbol ~s not defined in same section as dot", [Name]);
+      fmterr(Location, "symbol ~s not defined in same section as dot", [Name]);
     #symbol{st_value = StValue} = OldSymbol when StValue =< Dot -> % note: false > integer()
       Symbol = OldSymbol#symbol{st_size = Dot - StValue},
       {ok, tunit:put_symbol(Tunit, Symbol)};
     #symbol{st_value = StValue} when StValue =/= false, StValue > Dot ->
-      fmterr(ScanState, "cannot make symbol ~s negative size", [Name]);
+      fmterr(Location, "cannot make symbol ~s negative size", [Name]);
     _ ->
-      fmterr(ScanState, "symbol ~s not defined", [Name])
+      fmterr(Location, "symbol ~s not defined", [Name])
   end.
 
-dot_text(_ScanState, Tunit, #s_dot_text{}) ->
-  %% just check that .text has been pre-created
-  #section{} = tunit:get_section(Tunit, ".text"),
-  {ok, Tunit#tunit{cursect = ".text"}}.
-
-dot_type(ScanState, Tunit, #s_dot_type{name = Name}) ->
+dot_type(Location, Tunit, #s_dot_type{name = Name}) ->
   case tunit:get_symbol(Tunit, Name) of
     false ->
       Symbol =
@@ -170,14 +364,14 @@ dot_type(ScanState, Tunit, #s_dot_type{name = Name}) ->
           Symbol = OldSymbol#symbol{st_info = ?ELF_ST_INFO(?ELF_ST_BIND(StInfo), ?STT_FUNC)},
           {ok, tunit:put_symbol(Tunit, Symbol)};
         Type ->
-          fmterr(ScanState, "symbol ~s has previous incompatible type ~p", [Name, Type])
+          fmterr(Location, "symbol ~s has previous incompatible type ~p", [Name, Type])
       end
   end.
 
-label(ScanState, Tunit, #s_label{name = Name}) ->
+label(Location, Tunit, #s_label{name = Name}) ->
   case tunit:get_symbol(Tunit, Name) of
     #symbol{section = false, st_value = false} = Symbol -> define_label(Tunit, Symbol);
-    #symbol{} -> fmterr(ScanState, "label ~s already defined", [Name]);
+    #symbol{} -> fmterr(Location, "label ~s already defined", [Name]);
     false -> define_new_label(Tunit, Name)
   end.
 
@@ -189,7 +383,7 @@ define_label(Tunit, Symbol) ->
   #section{dot = Dot} = tunit:get_section(Tunit, Cursect),
   {ok, tunit:put_symbol(Tunit, Symbol#symbol{section = Cursect, st_value = Dot})}.
 
-local_label(_ScanState, Tunit, #s_local_label{number = Number}) ->
+local_label(_Location, Tunit, #s_local_label{number = Number}) ->
   Serial = local_label_serial(Tunit, Number) + 1,
   Name = local_label_name(Number, Serial),
   define_new_label(tunit:put_local_label(Tunit, Number, Serial), Name).
@@ -203,7 +397,7 @@ local_label_serial(Tunit, Number) ->
 local_label_name(Number, Serial) ->
   lists:flatten(io_lib:format(".L~.10b\^B~.10b", [Number, Serial])).
 
-insn(ScanState, Tunit, #s_insn{} = Stmt) ->
+insn(Location, Tunit, #s_insn{} = Stmt) ->
   #tunit{cursect = Cursect} = Tunit,
   #section{data = {stmts, Stmts}, dot = Dot} = Section = tunit:get_section(Tunit, Cursect),
   case Dot rem 4 of % FIXME: target-specific
@@ -214,7 +408,7 @@ insn(ScanState, Tunit, #s_insn{} = Stmt) ->
                        , dot = Dot + 4 % FIXME: target-specific
                        },
       {ok, tunit:put_section(Tunit, NewSection)};
-    _ -> fmterr(ScanState, "misaligned address for instruction", [])
+    _ -> fmterr(Location, "misaligned address for instruction", [])
   end.
 
 insn_fixup(Tunit, Insn) ->
@@ -270,8 +464,7 @@ section_dot_text() -> % ".text"
 
 %% Error reporting -------------------------------------------------------------
 
-fmterr(ScanState, Fmt, Args) ->
-  {ok, {FileName, LineNr}} = scan_state:location(ScanState),
+fmterr({FileName, LineNr}, Fmt, Args) ->
   {error, {?MODULE, {FileName, LineNr, Fmt, Args}}}.
 
 -spec format_error(term()) -> io_lib:chars().

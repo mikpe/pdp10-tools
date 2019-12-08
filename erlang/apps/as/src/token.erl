@@ -32,7 +32,11 @@ from_symbol(Name) ->
     ".file"             -> ?T_DOT_FILE;
     ".globl"            -> ?T_DOT_GLOBL;
     ".ident"            -> ?T_DOT_IDENT;
+    ".popsection"       -> ?T_DOT_POPSECTION;
+    ".previous"         -> ?T_DOT_PREVIOUS;
+    ".pushsection"      -> ?T_DOT_PUSHSECTION;
     ".size"             -> ?T_DOT_SIZE;
+    ".subsection"       -> ?T_DOT_SUBSECTION;
     ".text"             -> ?T_DOT_TEXT;
     ".type"             -> ?T_DOT_TYPE;
     _                   -> {?T_SYMBOL, Name}
@@ -44,7 +48,11 @@ format(Token) ->
     ?T_DOT_FILE         -> ".file";
     ?T_DOT_GLOBL        -> ".globl";
     ?T_DOT_IDENT        -> ".ident";
+    ?T_DOT_POPSECTION   -> ".popsection";
+    ?T_DOT_PREVIOUS     -> ".previous";
+    ?T_DOT_PUSHSECTION  -> ".pushsection";
     ?T_DOT_SIZE         -> ".size";
+    ?T_DOT_SUBSECTION   -> ".subsection";
     ?T_DOT_TEXT         -> ".text";
     ?T_DOT_TYPE         -> ".type";
     {?T_SYMBOL, Name}   -> io_lib:format("symbol:~s", [Name]);

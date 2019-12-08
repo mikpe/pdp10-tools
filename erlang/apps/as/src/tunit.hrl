@@ -45,11 +45,23 @@
 %% .ident "..."
 -record(s_dot_ident, {string :: string()}).
 
+%% .popsection
+-record(s_dot_popsection, {}).
+
+%% .previous
+-record(s_dot_previous, {}).
+
+%% .pushsection name [, nr] (TODO: extend)
+-record(s_dot_pushsection, {name :: string(), nr :: non_neg_integer()}).
+
 %% .size foo,.-foo (TODO: extend)
 -record(s_dot_size, {name :: string()}).
 
-%% .text
--record(s_dot_text, {}).
+%% .subsection nr
+-record(s_dot_subsection, {nr :: non_neg_integer()}).
+
+%% .text [nr]
+-record(s_dot_text, {nr :: non_neg_integer()}).
 
 %% .type foo,@function (TODO: extend)
 -record(s_dot_type, {name :: string()}).
@@ -69,7 +81,11 @@
 -type stmt() :: #s_dot_file{}
               | #s_dot_globl{}
               | #s_dot_ident{}
+              | #s_dot_popsection{}
+              | #s_dot_previous{}
+              | #s_dot_pushsection{}
               | #s_dot_size{}
+              | #s_dot_subsection{}
               | #s_dot_text{}
               | #s_dot_type{}
               | #s_label{}

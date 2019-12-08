@@ -35,7 +35,11 @@ stmt(ScanState) ->
     {ok, ?T_DOT_FILE} -> dot_file(ScanState);
     {ok, ?T_DOT_GLOBL} -> dot_globl(ScanState);
     {ok, ?T_DOT_IDENT} -> dot_ident(ScanState);
+    {ok, ?T_DOT_POPSECTION} -> dot_popsection(ScanState);
+    {ok, ?T_DOT_PREVIOUS} -> dot_previous(ScanState);
+    {ok, ?T_DOT_PUSHSECTION} -> dot_pushsection(ScanState);
     {ok, ?T_DOT_SIZE} -> dot_size(ScanState);
+    {ok, ?T_DOT_SUBSECTION} -> dot_subsection(ScanState);
     {ok, ?T_DOT_TEXT} -> dot_text(ScanState);
     {ok, ?T_DOT_TYPE} -> dot_type(ScanState);
     {ok, {?T_SYMBOL, Name}} -> stmt_after_symbol(ScanState, Name);
@@ -288,6 +292,44 @@ dot_globl(ScanState) ->
     ScanRes -> badtok(ScanState, "junk after .globl", ScanRes)
   end.
 
+dot_popsection(ScanState) ->
+  case scan:token(ScanState) of
+    {ok, ?T_NEWLINE} -> {ok, #s_dot_popsection{}};
+    ScanRes -> badtok(ScanState, "junk after .popsection", ScanRes)
+  end.
+
+dot_previous(ScanState) ->
+  case scan:token(ScanState) of
+    {ok, ?T_NEWLINE} -> {ok, #s_dot_previous{}};
+    ScanRes -> badtok(ScanState, "junk after .previous", ScanRes)
+  end.
+
+%% For now only accepts ".pushsection <name> [, <nr>]".  TODO: extend
+dot_pushsection(ScanState) ->
+  case scan:token(ScanState) of
+    {ok, {?T_STRING, Name}} -> dot_pushsection(ScanState, Name);
+    {ok, {?T_SYMBOL, Name}} -> dot_pushsection(ScanState, Name);
+    %% TODO: do we need a general mapping from reserved to plain symbols?
+    {ok, ?T_DOT_TEXT} -> dot_pushsection(ScanState, _Name = ".text");
+    ScanRes -> badtok(ScanState, "junk after .pushsection", ScanRes)
+  end.
+
+%% Seen ".pushsection <name>", expects "[, <nr>]".
+dot_pushsection(ScanState, Name) ->
+  case scan:token(ScanState) of
+    {ok, ?T_NEWLINE} -> {ok, #s_dot_pushsection{name = Name, nr = 0}};
+    {ok, ?T_COMMA} ->
+      case scan:token(ScanState) of
+        {ok, {?T_UINTEGER, Nr}} ->
+          case scan:token(ScanState) of
+            {ok, ?T_NEWLINE} -> {ok, #s_dot_pushsection{name = Name, nr = Nr}};
+            ScanRes -> badtok(ScanState, "junk after .pushsection <name>, <nr>", ScanRes)
+          end;
+        ScanRes -> badtok(ScanState, "junk after .pushsection <name>,", ScanRes)
+      end;
+    ScanRes -> badtok(ScanState, "junk after .pushsection <name>", ScanRes)
+  end.
+
 %% For now only accepts ".size <sym>,.-<sym>".  TODO: extend
 dot_size(ScanState) ->
   case scan:token(ScanState) of
@@ -315,9 +357,24 @@ dot_size(ScanState) ->
     ScanRes -> badtok(ScanState, "junk after .size", ScanRes)
   end.
 
+dot_subsection(ScanState) ->
+  case scan:token(ScanState) of
+    {ok, {?T_UINTEGER, Nr}} ->
+      case scan:token(ScanState) of
+        {ok, ?T_NEWLINE} -> {ok, #s_dot_subsection{nr = Nr}};
+        ScanRes -> badtok(ScanState, "junk after .subsection <nr>", ScanRes)
+      end;
+    ScanRes -> badtok(ScanState, "junk after .subsection", ScanRes)
+  end.
+
 dot_text(ScanState) ->
   case scan:token(ScanState) of
-    {ok, ?T_NEWLINE} -> {ok, #s_dot_text{}};
+    {ok, ?T_NEWLINE} -> {ok, #s_dot_text{nr = 0}};
+    {ok, {?T_UINTEGER, Nr}} ->
+      case scan:token(ScanState) of
+        {ok, ?T_NEWLINE} -> {ok, #s_dot_text{nr = Nr}};
+        ScanRes -> badtok(ScanState, "junk after .text <nr>", ScanRes)
+      end;
     ScanRes -> badtok(ScanState, "junk after .text", ScanRes)
   end.
 
