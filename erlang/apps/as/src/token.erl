@@ -29,6 +29,7 @@
 -spec from_symbol(string()) -> token().
 from_symbol(Name) ->
   case Name of
+    ".data"             -> ?T_DOT_DATA;
     ".file"             -> ?T_DOT_FILE;
     ".globl"            -> ?T_DOT_GLOBL;
     ".ident"            -> ?T_DOT_IDENT;
@@ -45,6 +46,7 @@ from_symbol(Name) ->
 -spec format(token()) -> io_lib:chars().
 format(Token) ->
   case Token of
+    ?T_DOT_DATA         -> ".data";
     ?T_DOT_FILE         -> ".file";
     ?T_DOT_GLOBL        -> ".globl";
     ?T_DOT_IDENT        -> ".ident";

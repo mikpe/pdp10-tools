@@ -26,6 +26,7 @@
 %% with attributes (ordinary symbols, literals, errors).
 
 %% reserved symbols including directives
+-define(T_DOT_DATA,             'T_DOT_DATA').          % .data
 -define(T_DOT_FILE,             'T_DOT_FILE').          % .file
 -define(T_DOT_GLOBL,            'T_DOT_GLOBL').         % .globl
 -define(T_DOT_IDENT,            'T_DOT_IDENT').         % .ident
@@ -58,7 +59,8 @@
 -define(T_NEWLINE,      'T_NEWLINE').   % <end-of-line>
 -define(T_EOF,          'T_EOF').       % <end-of-file>
 
--type token() :: ?T_DOT_FILE
+-type token() :: ?T_DOT_DATA
+               | ?T_DOT_FILE
                | ?T_DOT_GLOBL
                | ?T_DOT_IDENT
                | ?T_DOT_POPSECTION
