@@ -36,6 +36,9 @@
 %% either interpreted immediately or appended to the representation of the
 %% current section.
 
+%% .data [nr]
+-record(s_dot_data, {nr :: non_neg_integer()}).
+
 %% .file "foo.c"
 -record(s_dot_file, {string :: string()}).
 
@@ -78,7 +81,8 @@
         , index         :: 0..((1 bsl 4) - 1)
         }).
 
--type stmt() :: #s_dot_file{}
+-type stmt() :: #s_dot_data{}
+              | #s_dot_file{}
               | #s_dot_globl{}
               | #s_dot_ident{}
               | #s_dot_popsection{}
