@@ -32,6 +32,7 @@
       -> {ok, stmt()} | eof | {error, {module(), term()}}.
 stmt(ScanState) ->
   case scan:token(ScanState) of
+    {ok, ?T_DOT_DATA} -> dot_data(ScanState);
     {ok, ?T_DOT_FILE} -> dot_file(ScanState);
     {ok, ?T_DOT_GLOBL} -> dot_globl(ScanState);
     {ok, ?T_DOT_IDENT} -> dot_ident(ScanState);
@@ -264,6 +265,17 @@ badinsn(ScanState, Fmt, Mnemonic) ->
 
 %% Directives ------------------------------------------------------------------
 
+dot_data(ScanState) ->
+  case scan:token(ScanState) of
+    {ok, ?T_NEWLINE} -> {ok, #s_dot_data{nr = 0}};
+    {ok, {?T_UINTEGER, Nr}} ->
+      case scan:token(ScanState) of
+        {ok, ?T_NEWLINE} -> {ok, #s_dot_data{nr = Nr}};
+        ScanRes -> badtok(ScanState, "junk after .data <nr>", ScanRes)
+      end;
+    ScanRes -> badtok(ScanState, "junk after .data", ScanRes)
+  end.
+
 dot_file(ScanState) ->
   dot_file_or_ident(ScanState, fun(String) -> #s_dot_file{string = String} end,
                    "junk after .file").
@@ -310,6 +322,7 @@ dot_pushsection(ScanState) ->
     {ok, {?T_STRING, Name}} -> dot_pushsection(ScanState, Name);
     {ok, {?T_SYMBOL, Name}} -> dot_pushsection(ScanState, Name);
     %% TODO: do we need a general mapping from reserved to plain symbols?
+    {ok, ?T_DOT_DATA} -> dot_pushsection(ScanState, _Name = ".data");
     {ok, ?T_DOT_TEXT} -> dot_pushsection(ScanState, _Name = ".text");
     ScanRes -> badtok(ScanState, "junk after .pushsection", ScanRes)
   end.
