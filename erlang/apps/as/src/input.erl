@@ -42,12 +42,12 @@ files(Files0) ->
 %% - maintain current and previous section and subsection, and stack thereof
 %% - interpret sectioning stmts, accumulate annotated stmts in subsections
 
--type section() :: string().
--type subsection() :: non_neg_integer().
+-type sectionname() :: string().
+-type subsectionnr() :: non_neg_integer().
 -type locationandstmt() :: {scan_state:location(), stmt()}.
--type subsectionsmap() :: #{subsection() => [locationandstmt()]}.
--type sectionsmap() :: #{section() => subsectionsmap()}.
--type sectionandsub() :: {section(), subsection()}.
+-type subsectionsmap() :: #{subsectionnr() => [locationandstmt()]}.
+-type sectionsmap() :: #{sectionname() => subsectionsmap()}.
+-type sectionandsub() :: {sectionname(), subsectionnr()}.
 
 -record(ctx,
         { sections_map :: sectionsmap()
@@ -109,23 +109,24 @@ dot_previous(Location, Ctx0, #s_dot_previous{}) ->
     false -> fmterr(Location, ".previous with empty section stack", [])
   end.
 
-dot_pushsection(_Location, Ctx, #s_dot_pushsection{name = Section, nr = Subsection}) ->
-  {ok, ctx_pushsection(Ctx, Section, Subsection)}.
+dot_pushsection(_Location, Ctx,
+                #s_dot_pushsection{name = SectionName, nr = SubsectionNr}) ->
+  {ok, ctx_pushsection(Ctx, SectionName, SubsectionNr)}.
 
-dot_subsection(_Location, Ctx, #s_dot_subsection{nr = Subsection}) ->
-  {ok, ctx_subsection(Ctx, Subsection)}.
+dot_subsection(_Location, Ctx, #s_dot_subsection{nr = SubsectionNr}) ->
+  {ok, ctx_subsection(Ctx, SubsectionNr)}.
 
-dot_text(_Location, Ctx, #s_dot_text{nr = Subsection}) ->
-  {ok, ctx_text(Ctx, Subsection)}.
+dot_text(_Location, Ctx, #s_dot_text{nr = SubsectionNr}) ->
+  {ok, ctx_text(Ctx, SubsectionNr)}.
 
 %% Context utilities
 
 ctx_init() ->
-  InitialSection = ".text",
-  InitialSubsection = 0,
-  #ctx{ sections_map = #{InitialSection => #{}}
+  SectionName = ".text",
+  SubsectionNr = 0,
+  #ctx{ sections_map = #{SectionName => #{}}
       , stack = []
-      , current = {InitialSection, InitialSubsection}
+      , current = {SectionName, SubsectionNr}
       , previous = []
       , stmts = []
       }.
@@ -135,12 +136,12 @@ ctx_fini(Ctx) ->
 
 ctx_flush(Ctx) ->
   #ctx{ sections_map = SectionsMap0
-      , current = {Section, Subsection}
+      , current = {SectionName, SubsectionNr}
       , stmts = Stmts
       } = Ctx,
-  SubsectionsMap0 = maps:get(Section, SectionsMap0, #{}),
-  SubsectionsMap = maps:put(Subsection, Stmts, SubsectionsMap0),
-  SectionsMap = maps:put(Section, SubsectionsMap, SectionsMap0),
+  SubsectionsMap0 = maps:get(SectionName, SectionsMap0, #{}),
+  SubsectionsMap = maps:put(SubsectionNr, Stmts, SubsectionsMap0),
+  SectionsMap = maps:put(SectionName, SubsectionsMap, SectionsMap0),
   Ctx#ctx{sections_map = SectionsMap}.
 
 ctx_try_popsection(Ctx0) -> % implements .popsection
@@ -150,9 +151,9 @@ ctx_try_popsection(Ctx0) -> % implements .popsection
       } = Ctx,
   case Stack of
     [] -> false;
-    [{Current = {Section, Subsection}, Previous} | RestStack] ->
-      SubsectionsMap = maps:get(Section, SectionsMap), % must exist
-      Stmts = maps:get(Subsection, SubsectionsMap), % must exist
+    [{Current = {SectionName, SubsectionNr}, Previous} | RestStack] ->
+      SubsectionsMap = maps:get(SectionName, SectionsMap), % must exist
+      Stmts = maps:get(SubsectionNr, SubsectionsMap), % must exist
       {ok, Ctx#ctx{ stack = RestStack
                   , current = Current
                   , previous = Previous
@@ -168,51 +169,51 @@ ctx_try_previous(Ctx0) -> % implements .previous
       } = Ctx,
   case Previous of
     [] -> false;
-    {Section, Subsection} ->
-      SubsectionsMap = maps:get(Section, SectionsMap), % must exist
-      Stmts = maps:get(Subsection, SubsectionsMap), % must exist
+    {SectionName, SubsectionNr} ->
+      SubsectionsMap = maps:get(SectionName, SectionsMap), % must exist
+      Stmts = maps:get(SubsectionNr, SubsectionsMap), % must exist
       {ok, Ctx#ctx{ current = Previous
                   , previous = Current
                   , stmts = Stmts
                   }}
   end.
 
-ctx_pushsection(Ctx0, Section, Subsection) -> % implements .pushsection
+ctx_pushsection(Ctx0, SectionName, SubsectionNr) -> % implements .pushsection
   Ctx = ctx_flush(Ctx0),
   #ctx{ sections_map = SectionsMap
       , stack = Stack
       , current = Current
       , previous = Previous
       } = Ctx,
-  SubsectionsMap = maps:get(Section, SectionsMap, #{}),
-  Stmts = maps:get(Subsection, SubsectionsMap, []),
+  SubsectionsMap = maps:get(SectionName, SectionsMap, #{}),
+  Stmts = maps:get(SubsectionNr, SubsectionsMap, []),
   Ctx#ctx{ stack = [{Current, Previous} | Stack]
-         , current = {Section, Subsection}
+         , current = {SectionName, SubsectionNr}
          , previous = Current
          , stmts = Stmts
          }.
 
-ctx_subsection(Ctx0, Subsection) -> % implements .subsection <nr>
+ctx_subsection(Ctx0, SubsectionNr) -> % implements .subsection <nr>
   Ctx = ctx_flush(Ctx0),
   #ctx{ sections_map = SectionsMap
-      , current = Current = {Section, _CurSubsection}
+      , current = Current = {SectionName, _CurSubsectionNr}
       } = Ctx,
-  SubsectionsMap = maps:get(Section, SectionsMap), % must exist
-  Stmts = maps:get(Subsection, SubsectionsMap, []),
-  Ctx#ctx{ current = {Section, Subsection}
+  SubsectionsMap = maps:get(SectionName, SectionsMap), % must exist
+  Stmts = maps:get(SubsectionNr, SubsectionsMap, []),
+  Ctx#ctx{ current = {SectionName, SubsectionNr}
          , previous = Current
          , stmts = Stmts
          }.
 
-ctx_text(Ctx0, Subsection) -> % implements .text <nr>
+ctx_text(Ctx0, SubsectionNr) -> % implements .text <nr>
   Ctx = ctx_flush(Ctx0),
   #ctx{ sections_map = SectionsMap
       , current = Current
       } = Ctx,
-  Section = ".text",
-  SubsectionsMap = maps:get(Section, SectionsMap, #{}),
-  Stmts = maps:get(Subsection, SubsectionsMap, []),
-  Ctx#ctx{ current = {Section, Subsection}
+  SectionName = ".text",
+  SubsectionsMap = maps:get(SectionName, SectionsMap, #{}),
+  Stmts = maps:get(SubsectionNr, SubsectionsMap, []),
+  Ctx#ctx{ current = {SectionName, SubsectionNr}
          , previous = Current
          , stmts = Stmts
          }.
@@ -256,7 +257,7 @@ pass2_subsections(_SectionName = ".text", SubsectionsMap, Tunit) ->
   pass2_subsections(lists:sort(maps:to_list(SubsectionsMap)), Tunit).
 
 pass2_subsections([], Tunit) -> {ok, Tunit};
-pass2_subsections([{_Nr, StmtsRev} | Subsections], Tunit) ->
+pass2_subsections([{_SubsectionNr, StmtsRev} | Subsections], Tunit) ->
   case pass2_stmts(lists:reverse(StmtsRev), Tunit) of
     {ok, NewTunit} ->
       %% GAS documentation states that each sub-section is padded to make its
