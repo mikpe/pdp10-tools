@@ -44,15 +44,17 @@ files(Files0) ->
 
 -type section() :: string().
 -type subsection() :: non_neg_integer().
-
+-type locationandstmt() :: {scan_state:location(), stmt()}.
+-type subsectionsmap() :: #{subsection() => [locationandstmt()]}.
+-type sectionsmap() :: #{section() => subsectionsmap()}.
 -type sectionandsub() :: {section(), subsection()}.
 
 -record(ctx,
-        { sections_map :: #{section() => #{subsection() => [stmt()]}}
+        { sections_map :: sectionsmap()
         , stack :: [{Current :: sectionandsub(), Previous :: sectionandsub()}]
         , current :: sectionandsub()
         , previous :: sectionandsub() | []
-        , stmts :: [{scan_state:location(), stmt()}]
+        , stmts :: [locationandstmt()]
         }).
 
 pass1(Files) ->
