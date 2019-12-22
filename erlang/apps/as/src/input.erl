@@ -120,6 +120,7 @@ dot_text(_Location, Ctx, #s_dot_text{nr = SubsectionNr}) ->
   {ok, ctx_text(Ctx, SubsectionNr)}.
 
 %% Context utilities
+%% INV: any section name in current/previous/stack is bound in sections_map
 
 ctx_init() ->
   SectionName = ".text",
@@ -139,7 +140,7 @@ ctx_flush(Ctx) ->
       , current = {SectionName, SubsectionNr}
       , stmts = Stmts
       } = Ctx,
-  SubsectionsMap0 = maps:get(SectionName, SectionsMap0, #{}),
+  SubsectionsMap0 = maps:get(SectionName, SectionsMap0), % must exist
   SubsectionsMap = maps:put(SubsectionNr, Stmts, SubsectionsMap0),
   SectionsMap = maps:put(SectionName, SubsectionsMap, SectionsMap0),
   Ctx#ctx{sections_map = SectionsMap}.
@@ -152,8 +153,7 @@ ctx_try_popsection(Ctx0) -> % implements .popsection
   case Stack of
     [] -> false;
     [{Current = {SectionName, SubsectionNr}, Previous} | RestStack] ->
-      SubsectionsMap = maps:get(SectionName, SectionsMap), % must exist
-      Stmts = maps:get(SubsectionNr, SubsectionsMap), % must exist
+      Stmts = get_subsection(SectionName, SubsectionNr, SectionsMap),
       {ok, Ctx#ctx{ stack = RestStack
                   , current = Current
                   , previous = Previous
@@ -170,8 +170,7 @@ ctx_try_previous(Ctx0) -> % implements .previous
   case Previous of
     [] -> false;
     {SectionName, SubsectionNr} ->
-      SubsectionsMap = maps:get(SectionName, SectionsMap), % must exist
-      Stmts = maps:get(SubsectionNr, SubsectionsMap), % must exist
+      Stmts = get_subsection(SectionName, SubsectionNr, SectionsMap),
       {ok, Ctx#ctx{ current = Previous
                   , previous = Current
                   , stmts = Stmts
@@ -180,14 +179,14 @@ ctx_try_previous(Ctx0) -> % implements .previous
 
 ctx_pushsection(Ctx0, SectionName, SubsectionNr) -> % implements .pushsection
   Ctx = ctx_flush(Ctx0),
-  #ctx{ sections_map = SectionsMap
+  #ctx{ sections_map = SectionsMap0
       , stack = Stack
       , current = Current
       , previous = Previous
       } = Ctx,
-  SubsectionsMap = maps:get(SectionName, SectionsMap, #{}),
-  Stmts = maps:get(SubsectionNr, SubsectionsMap, []),
-  Ctx#ctx{ stack = [{Current, Previous} | Stack]
+  {Stmts, SectionsMap} = enter_section(SectionName, SubsectionNr, SectionsMap0),
+  Ctx#ctx{ sections_map = SectionsMap
+         , stack = [{Current, Previous} | Stack]
          , current = {SectionName, SubsectionNr}
          , previous = Current
          , stmts = Stmts
@@ -198,8 +197,7 @@ ctx_subsection(Ctx0, SubsectionNr) -> % implements .subsection <nr>
   #ctx{ sections_map = SectionsMap
       , current = Current = {SectionName, _CurSubsectionNr}
       } = Ctx,
-  SubsectionsMap = maps:get(SectionName, SectionsMap), % must exist
-  Stmts = maps:get(SubsectionNr, SubsectionsMap, []),
+  Stmts = enter_subsection(SectionName, SubsectionNr, SectionsMap),
   Ctx#ctx{ current = {SectionName, SubsectionNr}
          , previous = Current
          , stmts = Stmts
@@ -207,13 +205,13 @@ ctx_subsection(Ctx0, SubsectionNr) -> % implements .subsection <nr>
 
 ctx_text(Ctx0, SubsectionNr) -> % implements .text <nr>
   Ctx = ctx_flush(Ctx0),
-  #ctx{ sections_map = SectionsMap
+  #ctx{ sections_map = SectionsMap0
       , current = Current
       } = Ctx,
   SectionName = ".text",
-  SubsectionsMap = maps:get(SectionName, SectionsMap, #{}),
-  Stmts = maps:get(SubsectionNr, SubsectionsMap, []),
-  Ctx#ctx{ current = {SectionName, SubsectionNr}
+  {Stmts, SectionsMap} = enter_section(SectionName, SubsectionNr, SectionsMap0),
+  Ctx#ctx{ sections_map = SectionsMap
+         , current = {SectionName, SubsectionNr}
          , previous = Current
          , stmts = Stmts
          }.
@@ -221,6 +219,26 @@ ctx_text(Ctx0, SubsectionNr) -> % implements .text <nr>
 ctx_append(Ctx, Location, Stmt) ->
   #ctx{stmts = Stmts} = Ctx,
   Ctx#ctx{stmts = [{Location, Stmt} | Stmts]}.
+
+enter_section(SectionName, SubsectionNr, SectionsMap0) ->
+  case maps:get(SectionName, SectionsMap0, false) of
+    false ->
+      SubsectionsMap = #{},
+      SectionsMap = maps:put(SectionName, SubsectionsMap, SectionsMap0),
+      Stmts = [],
+      {Stmts, SectionsMap};
+    SubsectionsMap ->
+      Stmts = maps:get(SubsectionNr, SubsectionsMap, []),
+      {Stmts, SectionsMap0}
+    end.
+
+enter_subsection(SectionName, SubsectionNr, SectionsMap) ->
+  SubsectionsMap = maps:get(SectionName, SectionsMap), % must exist
+  maps:get(SubsectionNr, SubsectionsMap, []). % may be absent
+
+get_subsection(SectionName, SubsectionNr, SectionsMap) ->
+  SubsectionsMap = maps:get(SectionName, SectionsMap), % must exist
+  maps:get(SubsectionNr, SubsectionsMap). % must exist
 
 %% Scan state utilities
 
