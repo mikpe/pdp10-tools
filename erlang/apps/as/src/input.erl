@@ -46,7 +46,7 @@ files(Files0) ->
 -type subsectionnr() :: non_neg_integer().
 -type locationandstmt() :: {scan_state:location(), stmt()}.
 -type subsectionsmap() :: #{subsectionnr() => [locationandstmt()]}.
--type sectionsmap() :: #{sectionname() => subsectionsmap()}.
+-type sectionsmap() :: #{sectionname() => {#section{}, subsectionsmap()}}.
 -type sectionandsub() :: {sectionname(), subsectionnr()}.
 
 -record(ctx,
@@ -124,8 +124,10 @@ dot_text(_Location, Ctx, #s_dot_text{nr = SubsectionNr}) ->
 
 ctx_init() ->
   SectionName = ".text",
+  Section = section_dot_text(),
+  SubsectionsMap = #{},
   SubsectionNr = 0,
-  #ctx{ sections_map = #{SectionName => #{}}
+  #ctx{ sections_map = #{SectionName => {Section, SubsectionsMap}}
       , stack = []
       , current = {SectionName, SubsectionNr}
       , previous = []
@@ -140,9 +142,9 @@ ctx_flush(Ctx) ->
       , current = {SectionName, SubsectionNr}
       , stmts = Stmts
       } = Ctx,
-  SubsectionsMap0 = maps:get(SectionName, SectionsMap0), % must exist
+  {Section, SubsectionsMap0} = maps:get(SectionName, SectionsMap0), % must exist
   SubsectionsMap = maps:put(SubsectionNr, Stmts, SubsectionsMap0),
-  SectionsMap = maps:put(SectionName, SubsectionsMap, SectionsMap0),
+  SectionsMap = maps:put(SectionName, {Section, SubsectionsMap}, SectionsMap0),
   Ctx#ctx{sections_map = SectionsMap}.
 
 ctx_try_popsection(Ctx0) -> % implements .popsection
@@ -223,21 +225,22 @@ ctx_append(Ctx, Location, Stmt) ->
 enter_section(SectionName, SubsectionNr, SectionsMap0) ->
   case maps:get(SectionName, SectionsMap0, false) of
     false ->
+      Section = #section{} = section_from_name(SectionName),
       SubsectionsMap = #{},
-      SectionsMap = maps:put(SectionName, SubsectionsMap, SectionsMap0),
+      SectionsMap = maps:put(SectionName, {Section, SubsectionsMap}, SectionsMap0),
       Stmts = [],
       {Stmts, SectionsMap};
-    SubsectionsMap ->
+    {_Section, SubsectionsMap} ->
       Stmts = maps:get(SubsectionNr, SubsectionsMap, []),
       {Stmts, SectionsMap0}
     end.
 
 enter_subsection(SectionName, SubsectionNr, SectionsMap) ->
-  SubsectionsMap = maps:get(SectionName, SectionsMap), % must exist
+  {_Section, SubsectionsMap} = maps:get(SectionName, SectionsMap), % must exist
   maps:get(SubsectionNr, SubsectionsMap, []). % may be absent
 
 get_subsection(SectionName, SubsectionNr, SectionsMap) ->
-  SubsectionsMap = maps:get(SectionName, SectionsMap), % must exist
+  {_Section, SubsectionsMap} = maps:get(SectionName, SectionsMap), % must exist
   maps:get(SubsectionNr, SubsectionsMap). % must exist
 
 %% Scan state utilities
@@ -262,10 +265,8 @@ pass2(SectionsMap) ->
   pass2_sections(maps:to_list(SectionsMap), tunit_init()).
 
 pass2_sections([], Tunit) -> {ok, Tunit};
-pass2_sections([{SectionName, SubsectionsMap} | Sections], Tunit0) ->
-  %% TODO: handle creation of new sections here
-  #section{} = tunit:get_section(Tunit0, SectionName),
-  Tunit = Tunit0#tunit{cursect = SectionName},
+pass2_sections([{SectionName, {Section, SubsectionsMap}} | Sections], Tunit0) ->
+  Tunit = (tunit:put_section(Tunit0, Section))#tunit{cursect = SectionName},
   case pass2_subsections(SectionName, SubsectionsMap, Tunit) of
     {ok, NewTunit} -> pass2_sections(Sections, NewTunit);
     {error, _Reason} = Error -> Error
@@ -454,6 +455,12 @@ tunit_init() ->
   Tunit#tunit{cursect = SectionText#section.name}.
 
 %% Predefined Sections ---------------------------------------------------------
+
+section_from_name(SectionName) ->
+  case SectionName of
+    ".text" -> section_dot_text();
+    _ -> false
+  end.
 
 section_dot_comment() -> % ".comment"
   #section{ name = ".comment"
