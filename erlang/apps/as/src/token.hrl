@@ -30,6 +30,7 @@
 -define(T_DOT_FILE,             'T_DOT_FILE').          % .file
 -define(T_DOT_GLOBL,            'T_DOT_GLOBL').         % .globl
 -define(T_DOT_IDENT,            'T_DOT_IDENT').         % .ident
+-define(T_DOT_LONG,             'T_DOT_LONG').          % .long
 -define(T_DOT_POPSECTION,       'T_DOT_POPSECTION').    % .popsection
 -define(T_DOT_PREVIOUS,         'T_DOT_PREVIOUS').      % .previous
 -define(T_DOT_PUSHSECTION,      'T_DOT_PUSHSECTION').   % .pushsection
@@ -63,6 +64,7 @@
                | ?T_DOT_FILE
                | ?T_DOT_GLOBL
                | ?T_DOT_IDENT
+               | ?T_DOT_LONG
                | ?T_DOT_POPSECTION
                | ?T_DOT_PREVIOUS
                | ?T_DOT_PUSHSECTION

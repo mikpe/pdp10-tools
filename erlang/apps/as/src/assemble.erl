@@ -43,7 +43,7 @@ section(Section, Tunit) ->
     #section{ name = ".text" ++ _
             , sh_type = ?SHT_PROGBITS
             , sh_flags = ?SHF_ALLOC bor ?SHF_EXECINSTR
-            } -> text(Section, Tunit);
+            } -> stmts(Section, Tunit);
     #section{ name = ".comment"
             , sh_type = ?SHT_PROGBITS
             , sh_flags = ?SHF_MERGE bor ?SHF_STRINGS
@@ -76,31 +76,45 @@ image_size([], Acc) -> Acc;
 image_size(TByte, Acc) when is_integer(TByte), 0 =< TByte, TByte =< 511 ->
   Acc + 1.
 
-%% Assemble .text --------------------------------------------------------------
+%% Assemble user-defined contents ----------------------------------------------
 
-text(Section = #section{data = {stmts, Stmts}}, Tunit) ->
-  case text_image(Stmts, Tunit) of
+stmts(Section = #section{data = {stmts, Stmts}}, Tunit) ->
+  case stmts_image(Stmts, Tunit) of
     {ok, Image} ->
       {ok, tunit:put_section(Tunit, Section#section{data = {image, Image}})};
     {error, _Reason} = Error -> Error
   end.
 
-text_image(Stmts, Tunit) -> text_image(Stmts, Tunit, []).
+stmts_image(Stmts, Tunit) -> stmts_image(Stmts, Tunit, []).
 
-text_image([], _Tunit, Acc) -> {ok, Acc}; % the input Stmts were in reverse order
-text_image([Stmt | Stmts], Tunit, Acc) ->
-  case insn_image(Stmt, Tunit) of
-    {ok, Image} -> text_image(Stmts, Tunit, [Image | Acc]);
+stmts_image([], _Tunit, Acc) -> {ok, Acc}; % the input Stmts were in reverse order
+stmts_image([Stmt | Stmts], Tunit, Acc) ->
+  case stmt_image(Stmt, Tunit) of
+    {ok, Image} -> stmts_image(Stmts, Tunit, [Image | Acc]);
     {error, _Reason} = Error -> Error
   end.
 
-insn_image(Insn, Tunit) ->
+stmt_image(Stmt, Tunit) ->
+  case Stmt of
+    #s_dot_long{} -> dot_long_image(Stmt, Tunit);
+    #s_insn{} -> insn_image(Stmt, Tunit)
+  end.
+
+dot_long_image(Stmt, Tunit) ->
+  #s_dot_long{exprs = Exprs} = Stmt,
+  case exprs_values(Exprs, Tunit) of
+    {ok, Values} ->
+      {ok, [pdp10_extint:uint36_to_ext(Value) || Value <- Values]};
+    {error, _Reason} = Error -> Error
+  end.
+
+insn_image(Stmt, Tunit) ->
   #s_insn{ high13 = High13
          , at = At
          , address = AddressExpr
          , index = Index
-         } = Insn,
-  case insn_address(AddressExpr, Tunit) of
+         } = Stmt,
+  case expr_value(AddressExpr, Tunit) of
     {ok, Address} ->
       Word = (((High13 band ((1 bsl 13) - 1)) bsl (36 - 13)) bor
               ((case At of true -> 1; false -> 0 end) bsl (36 - 14)) bor
@@ -110,8 +124,18 @@ insn_image(Insn, Tunit) ->
     {error, _Reason} = Error -> Error
   end.
 
-insn_address(AddressExpr, Tunit) ->
-  case AddressExpr of
+exprs_values(Exprs, Tunit) ->
+  exprs_values(Exprs, Tunit, []).
+
+exprs_values([], _Tunit, Acc) -> {ok, lists:reverse(Acc)};
+exprs_values([Expr | Exprs], Tunit, Acc) ->
+  case expr_value(Expr, Tunit) of
+    {ok, Value} -> exprs_values(Exprs, Tunit, [Value | Acc]);
+    {error, _Reason} = Error -> Error
+  end.
+
+expr_value(Expr, Tunit) ->
+  case Expr of
     #e_integer{value = Value} -> {ok, Value};
     #e_symbol{name = Name} ->
       case tunit:get_symbol(Tunit, Name) of

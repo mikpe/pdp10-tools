@@ -312,6 +312,7 @@ pass2_stmt(Location, Tunit, Stmt) ->
     #s_dot_file{} -> dot_file(Location, Tunit, Stmt);
     #s_dot_globl{} -> dot_globl(Location, Tunit, Stmt);
     #s_dot_ident{} -> dot_ident(Location, Tunit, Stmt);
+    #s_dot_long{} -> dot_long(Location, Tunit, Stmt);
     #s_dot_size{} -> dot_size(Location, Tunit, Stmt);
     #s_dot_type{} -> dot_type(Location, Tunit, Stmt);
     #s_label{} -> label(Location, Tunit, Stmt);
@@ -362,6 +363,21 @@ dot_ident(_Location, Tunit, #s_dot_ident{} = Stmt) ->
     end,
   NewSection = OldSection#section{data = {stmts, [Stmt | Stmts]}},
   {ok, tunit:put_section(Tunit, NewSection)}.
+
+dot_long(Location, Tunit, #s_dot_long{exprs = Exprs} = Stmt) ->
+  #tunit{cursect = Cursect} = Tunit,
+  #section{data = {stmts, Stmts}, dot = Dot} = Section = tunit:get_section(Tunit, Cursect),
+  case Dot rem 4 of % FIXME: target-specific
+    0 ->
+      NewExprs = [expr_fixup(Tunit, Expr) || Expr <- Exprs],
+      NewStmt = Stmt#s_dot_long{exprs = NewExprs},
+      NewSection =
+        Section#section{ data = {stmts, [NewStmt | Stmts]}
+                       , dot = Dot + 4 * length(NewExprs) % FIXME: target-specific
+                       },
+      {ok, tunit:put_section(Tunit, NewSection)};
+    _ -> fmterr(Location, "misaligned address for .long", [])
+  end.
 
 dot_size(Location, Tunit, #s_dot_size{name = Name}) ->
   #tunit{cursect = Cursect} = Tunit,
@@ -448,7 +464,11 @@ insn(Location, Tunit, #s_insn{} = Stmt) ->
   end.
 
 insn_fixup(Tunit, Insn) ->
-  case Insn#s_insn.address of
+  Address = Insn#s_insn.address,
+  Insn#s_insn{address = expr_fixup(Tunit, Address)}.
+
+expr_fixup(Tunit, Expr) ->
+  case Expr of
     #e_local_label{number = Number, direction = Direction} ->
       LabelSerial = local_label_serial(Tunit, Number),
       ReferenceSerial =
@@ -457,8 +477,8 @@ insn_fixup(Tunit, Insn) ->
           $f -> LabelSerial + 1
         end,
       Name = local_label_name(Number, ReferenceSerial),
-      Insn#s_insn{address = #e_symbol{name = Name}};
-    _ -> Insn
+      #e_symbol{name = Name};
+    _ -> Expr
   end.
 
 %% Initialization --------------------------------------------------------------

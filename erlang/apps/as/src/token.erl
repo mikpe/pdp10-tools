@@ -33,6 +33,7 @@ from_symbol(Name) ->
     ".file"             -> ?T_DOT_FILE;
     ".globl"            -> ?T_DOT_GLOBL;
     ".ident"            -> ?T_DOT_IDENT;
+    ".long"             -> ?T_DOT_LONG;
     ".popsection"       -> ?T_DOT_POPSECTION;
     ".previous"         -> ?T_DOT_PREVIOUS;
     ".pushsection"      -> ?T_DOT_PUSHSECTION;
@@ -50,6 +51,7 @@ format(Token) ->
     ?T_DOT_FILE         -> ".file";
     ?T_DOT_GLOBL        -> ".globl";
     ?T_DOT_IDENT        -> ".ident";
+    ?T_DOT_LONG         -> ".long";
     ?T_DOT_POPSECTION   -> ".popsection";
     ?T_DOT_PREVIOUS     -> ".previous";
     ?T_DOT_PUSHSECTION  -> ".pushsection";

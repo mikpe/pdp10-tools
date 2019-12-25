@@ -48,6 +48,9 @@
 %% .ident "..."
 -record(s_dot_ident, {string :: string()}).
 
+%% .long [expr (, expr)*]
+-record(s_dot_long, {exprs :: [expr()]}).
+
 %% .popsection
 -record(s_dot_popsection, {}).
 
@@ -85,6 +88,7 @@
               | #s_dot_file{}
               | #s_dot_globl{}
               | #s_dot_ident{}
+              | #s_dot_long{}
               | #s_dot_popsection{}
               | #s_dot_previous{}
               | #s_dot_pushsection{}
