@@ -89,6 +89,7 @@ pass1_process(ScanState, Ctx) ->
 
 pass1_stmt(Location, Ctx, Stmt) ->
   case Stmt of
+    #s_dot_data{} -> dot_data(Location, Ctx, Stmt);
     #s_dot_popsection{} -> dot_popsection(Location, Ctx, Stmt);
     #s_dot_previous{} -> dot_previous(Location, Ctx, Stmt);
     #s_dot_pushsection{} -> dot_pushsection(Location, Ctx, Stmt);
@@ -96,6 +97,9 @@ pass1_stmt(Location, Ctx, Stmt) ->
     #s_dot_text{} -> dot_text(Location, Ctx, Stmt);
     _ -> {ok, ctx_append(Ctx, Location, Stmt)}
   end.
+
+dot_data(Location, Ctx, #s_dot_text{nr = SubsectionNr}) ->
+  {ok, ctx_data(Ctx, Location, SubsectionNr)}.
 
 dot_popsection(Location, Ctx0, #s_dot_popsection{}) ->
   case ctx_try_popsection(Ctx0) of
@@ -208,12 +212,18 @@ ctx_subsection(Ctx0, SubsectionNr) -> % implements .subsection <nr>
          , stmts = Stmts
          }.
 
-ctx_text(Ctx0, Location, SubsectionNr) -> % implements .text <nr>
+ctx_data(Ctx, Location, SubsectionNr) -> % implements .data <nr>
+  ctx_enter_section(Ctx, Location, ".data", SubsectionNr).
+
+ctx_text(Ctx, Location, SubsectionNr) -> % implements .text <nr>
+  ctx_enter_section(Ctx, Location, ".text", SubsectionNr).
+
+%% switch to known system section, e.g. .data or .text
+ctx_enter_section(Ctx0, Location, SectionName, SubsectionNr) ->
   Ctx = ctx_flush(Ctx0),
   #ctx{ sections_map = SectionsMap0
       , current = Current
       } = Ctx,
-  SectionName = ".text",
   {ok, {Stmts, SectionsMap}} =
     enter_section(Location, SectionName, SubsectionNr, SectionsMap0),
   Ctx#ctx{ sections_map = SectionsMap
@@ -466,6 +476,7 @@ tunit_init() ->
 
 section_from_name(SectionName) ->
   case SectionName of
+    ".data" -> section_dot_data();
     ".text" -> section_dot_text();
     _ -> false
   end.
@@ -482,6 +493,20 @@ section_dot_comment() -> % ".comment"
           , sh_link = ?SHN_UNDEF
           , sh_addralign = 1
           , sh_entsize = 1
+          }.
+
+section_dot_data() -> % ".data"
+  #section{ name = ".data"
+          , data = {stmts, []}
+          , dot = 0
+          , shndx = 0
+          , sh_name = 0
+          , sh_type = ?SHT_PROGBITS
+          , sh_offset = 0
+          , sh_flags = ?SHF_ALLOC bor ?SHF_WRITE
+          , sh_link = ?SHN_UNDEF
+          , sh_addralign = 4 % FIXME: target-specific
+          , sh_entsize = 0
           }.
 
 section_dot_text() -> % ".text"
