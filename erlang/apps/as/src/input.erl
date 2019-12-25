@@ -109,15 +109,15 @@ dot_previous(Location, Ctx0, #s_dot_previous{}) ->
     false -> fmterr(Location, ".previous with empty section stack", [])
   end.
 
-dot_pushsection(_Location, Ctx,
+dot_pushsection(Location, Ctx,
                 #s_dot_pushsection{name = SectionName, nr = SubsectionNr}) ->
-  {ok, ctx_pushsection(Ctx, SectionName, SubsectionNr)}.
+  ctx_pushsection(Ctx, Location, SectionName, SubsectionNr).
 
 dot_subsection(_Location, Ctx, #s_dot_subsection{nr = SubsectionNr}) ->
   {ok, ctx_subsection(Ctx, SubsectionNr)}.
 
-dot_text(_Location, Ctx, #s_dot_text{nr = SubsectionNr}) ->
-  {ok, ctx_text(Ctx, SubsectionNr)}.
+dot_text(Location, Ctx, #s_dot_text{nr = SubsectionNr}) ->
+  {ok, ctx_text(Ctx, Location, SubsectionNr)}.
 
 %% Context utilities
 %% INV: any section name in current/previous/stack is bound in sections_map
@@ -179,20 +179,23 @@ ctx_try_previous(Ctx0) -> % implements .previous
                   }}
   end.
 
-ctx_pushsection(Ctx0, SectionName, SubsectionNr) -> % implements .pushsection
+ctx_pushsection(Ctx0, Location, SectionName, SubsectionNr) -> % implements .pushsection
   Ctx = ctx_flush(Ctx0),
   #ctx{ sections_map = SectionsMap0
       , stack = Stack
       , current = Current
       , previous = Previous
       } = Ctx,
-  {Stmts, SectionsMap} = enter_section(SectionName, SubsectionNr, SectionsMap0),
-  Ctx#ctx{ sections_map = SectionsMap
-         , stack = [{Current, Previous} | Stack]
-         , current = {SectionName, SubsectionNr}
-         , previous = Current
-         , stmts = Stmts
-         }.
+  case enter_section(Location, SectionName, SubsectionNr, SectionsMap0) of
+    {ok, {Stmts, SectionsMap}} ->
+      {ok, Ctx#ctx{ sections_map = SectionsMap
+                  , stack = [{Current, Previous} | Stack]
+                  , current = {SectionName, SubsectionNr}
+                  , previous = Current
+                  , stmts = Stmts
+                  }};
+    {error, _Reason} = Error -> Error
+  end.
 
 ctx_subsection(Ctx0, SubsectionNr) -> % implements .subsection <nr>
   Ctx = ctx_flush(Ctx0),
@@ -205,13 +208,14 @@ ctx_subsection(Ctx0, SubsectionNr) -> % implements .subsection <nr>
          , stmts = Stmts
          }.
 
-ctx_text(Ctx0, SubsectionNr) -> % implements .text <nr>
+ctx_text(Ctx0, Location, SubsectionNr) -> % implements .text <nr>
   Ctx = ctx_flush(Ctx0),
   #ctx{ sections_map = SectionsMap0
       , current = Current
       } = Ctx,
   SectionName = ".text",
-  {Stmts, SectionsMap} = enter_section(SectionName, SubsectionNr, SectionsMap0),
+  {ok, {Stmts, SectionsMap}} =
+    enter_section(Location, SectionName, SubsectionNr, SectionsMap0),
   Ctx#ctx{ sections_map = SectionsMap
          , current = {SectionName, SubsectionNr}
          , previous = Current
@@ -222,18 +226,22 @@ ctx_append(Ctx, Location, Stmt) ->
   #ctx{stmts = Stmts} = Ctx,
   Ctx#ctx{stmts = [{Location, Stmt} | Stmts]}.
 
-enter_section(SectionName, SubsectionNr, SectionsMap0) ->
+enter_section(Location, SectionName, SubsectionNr, SectionsMap0) ->
   case maps:get(SectionName, SectionsMap0, false) of
     false ->
-      Section = #section{} = section_from_name(SectionName),
-      SubsectionsMap = #{},
-      SectionsMap = maps:put(SectionName, {Section, SubsectionsMap}, SectionsMap0),
-      Stmts = [],
-      {Stmts, SectionsMap};
+      case section_from_name(SectionName) of
+        false ->
+          fmterr(Location, "unknown section ~s", [SectionName]);
+        Section = #section{} ->
+          SubsectionsMap = #{},
+          SectionsMap = maps:put(SectionName, {Section, SubsectionsMap}, SectionsMap0),
+          Stmts = [],
+          {ok, {Stmts, SectionsMap}}
+      end;
     {_Section, SubsectionsMap} ->
       Stmts = maps:get(SubsectionNr, SubsectionsMap, []),
-      {Stmts, SectionsMap0}
-    end.
+      {ok, {Stmts, SectionsMap0}}
+  end.
 
 enter_subsection(SectionName, SubsectionNr, SectionsMap) ->
   {_Section, SubsectionsMap} = maps:get(SectionName, SectionsMap), % must exist
