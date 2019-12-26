@@ -26,36 +26,40 @@
 
 -include("token.hrl").
 
+-type location() :: scan_state:location().
+
 -spec token(scan_state:scan_state())
-      -> {ok, token()} | {error, {module(), term()}}.
+      -> {ok, {location(), token()}} | {error, {module(), term()}}.
 token(ScanState) ->
+  %% TODO: optimize
+  {ok, Location} = scan_state:location(ScanState),
   case scan_state:fgetc(ScanState) of
     {error, _Reason} = Error -> Error;
-    eof -> {ok, ?T_EOF};
+    eof -> {ok, {Location, ?T_EOF}};
     {ok, Ch} ->
       case Ch of
         $\s -> token(ScanState);
         $\t -> token(ScanState);
         $\r -> token(ScanState);
         $\f -> token(ScanState);
-        $\n -> {ok, ?T_NEWLINE};
+        $\n -> {ok, {Location, ?T_NEWLINE}};
         $#  -> do_line_comment(ScanState);
-        $@  -> {ok, ?T_AT};
-        $:  -> {ok, ?T_COLON};
-        $;  -> {ok, ?T_NEWLINE};
-        $,  -> {ok, ?T_COMMA};
-        $(  -> {ok, ?T_LPAREN};
-        $)  -> {ok, ?T_RPAREN};
+        $@  -> {ok, {Location, ?T_AT}};
+        $:  -> {ok, {Location, ?T_COLON}};
+        $;  -> {ok, {Location, ?T_NEWLINE}};
+        $,  -> {ok, {Location, ?T_COMMA}};
+        $(  -> {ok, {Location, ?T_LPAREN}};
+        $)  -> {ok, {Location, ?T_RPAREN}};
         $/  -> do_slash(ScanState);
-        $\" -> do_string(ScanState, []);
-        $-  -> {ok, ?T_MINUS};
+        $\" -> do_string(ScanState, Location, []);
+        $-  -> {ok, {Location, ?T_MINUS}};
         _   ->
-          if $0 =< Ch, Ch =< $9 -> do_number(ScanState, Ch);
+          if $0 =< Ch, Ch =< $9 -> do_number(ScanState, Location, Ch);
              ($A =< Ch andalso Ch =< $Z) orelse
              ($a =< Ch andalso Ch =< $z) orelse
              Ch =:= $. orelse
              Ch =:= $$ orelse
-             Ch =:= $_ -> do_symbol(ScanState, [Ch]);
+             Ch =:= $_ -> do_symbol(ScanState, Location, [Ch]);
              true -> badchar(ScanState, Ch, "")
            end
       end
@@ -66,7 +70,7 @@ do_line_comment(ScanState) ->
   case scan_state:fgetc(ScanState) of
     {error, _Reason} = Error -> Error;
     eof -> badchar(ScanState, eof, "in line comment");
-    {ok, $\n} -> {ok, ?T_NEWLINE};
+    {ok, $\n} -> {ok, {scan_state:location(ScanState), ?T_NEWLINE}};
     {ok, _Ch} -> do_line_comment(ScanState)
   end.
 
@@ -93,18 +97,18 @@ do_c_comment(ScanState, PrevWasStar) ->
   end.
 
 %% Scan after seeing '"'.
-do_string(ScanState, Chars) ->
+do_string(ScanState, Location, Chars) ->
   case scan_state:fgetc(ScanState) of
     {error, _Reason} = Error -> Error;
     eof -> badchar(ScanState, eof, "in string literal");
     {ok, $\n} -> badchar(ScanState, $\n, "in string literal");
-    {ok, $\"} -> {ok, {?T_STRING, lists:reverse(Chars)}};
+    {ok, $\"} -> {ok, {Location, {?T_STRING, lists:reverse(Chars)}}};
     {ok, $\\} ->
       case do_escape(ScanState) of
         {error, _Reason} = Error -> Error;
-        {ok, Ch} -> do_string(ScanState, [Ch | Chars])
+        {ok, Ch} -> do_string(ScanState, Location, [Ch | Chars])
       end;
-    {ok, Ch} -> do_string(ScanState, [Ch | Chars])
+    {ok, Ch} -> do_string(ScanState, Location, [Ch | Chars])
   end.
 
 %% Scan after seeing '\' in a string literal.
@@ -144,38 +148,38 @@ do_octal_escape(ScanState, Val, N) ->
        end
   end.
 
-do_symbol(ScanState, Chars) ->
+do_symbol(ScanState, Location, Chars) ->
   case scan_state:fgetc(ScanState) of
     {error, _Reason} = Error -> Error;
-    eof -> do_symbol(lists:reverse(Chars));
+    eof -> do_symbol(Location, lists:reverse(Chars));
     {ok, Ch} ->
       if ($A =< Ch andalso Ch =< $Z) orelse
          ($a =< Ch andalso Ch =< $z) orelse
          ($0 =< Ch andalso Ch =< $9) orelse
          Ch =:= $. orelse
          Ch =:= $$ orelse
-         Ch =:= $_ -> do_symbol(ScanState, [Ch | Chars]);
+         Ch =:= $_ -> do_symbol(ScanState, Location, [Ch | Chars]);
          true ->
            case scan_state:ungetc(Ch, ScanState) of
              {error, _Reason} = Error -> Error;
-             ok -> do_symbol(lists:reverse(Chars))
+             ok -> do_symbol(Location, lists:reverse(Chars))
            end
       end
   end.
 
-do_symbol(Chars) ->
+do_symbol(Location, Chars) ->
   case Chars of
-    [$.] -> {ok, ?T_DOT};
-    [$. | _] -> {ok, token:from_symbol(Chars)};
-    _ -> {ok, {?T_SYMBOL, Chars}}
+    [$.] -> {ok, {Location, ?T_DOT}};
+    [$. | _] -> {ok, {Location, token:from_symbol(Chars)}};
+    _ -> {ok, {Location, {?T_SYMBOL, Chars}}}
   end.
 
-do_number(ScanState, Dig0) ->
+do_number(ScanState, Location, Dig0) ->
   case Dig0 of
     $0 ->
       case scan_state:fgetc(ScanState) of
         {error, _Reason} = Error -> Error;
-        eof -> {ok, {?T_UINTEGER, Dig0 - $0}};
+        eof -> {ok, {Location, {?T_UINTEGER, Dig0 - $0}}};
         {ok, Ch} ->
           if Ch =:= $x; Ch =:= $X ->
                %% must have hex digit after 0x
@@ -185,34 +189,34 @@ do_number(ScanState, Dig0) ->
                  {ok, Ch} ->
                    case chval(Ch) of
                      ChVal when ChVal < 16 ->
-                       do_number(ScanState, _Base = 16, ChVal);
+                       do_number(ScanState, Location, _Base = 16, ChVal);
                      _Val -> badchar(ScanState, Ch, "after 0x in number")
                    end
                end;
              true ->
                case scan_state:ungetc(Ch, ScanState) of
                  {error, _Reason} = Error -> Error;
-                 ok -> do_number(ScanState, _Base = 8, _Val = 0)
+                 ok -> do_number(ScanState, Location, _Base = 8, _Val = 0)
                end
           end
       end;
-    _ -> do_number(ScanState, _Base = 10, _Val = Dig0 - $0)
+    _ -> do_number(ScanState, Location, _Base = 10, _Val = Dig0 - $0)
   end.
 
-do_number(ScanState, Base, Val) ->
+do_number(ScanState, Location, Base, Val) ->
   case scan_state:fgetc(ScanState) of
     {error, _Reason} = Error -> Error;
-    eof -> {ok, {?T_UINTEGER, Val}};
+    eof -> {ok, {Location, {?T_UINTEGER, Val}}};
     {ok, Ch} ->
       case chval(Ch) of
         ChVal when ChVal < Base ->
-          do_number(ScanState, Base, Val * Base + ChVal);
+          do_number(ScanState, Location, Base, Val * Base + ChVal);
         _ChVal when Base =< 10 andalso (Ch =:= $b orelse Ch =:= $f) ->
-          {ok, {?T_LOCAL_LABEL, Val, Ch}};
+          {ok, {Location, {?T_LOCAL_LABEL, Val, Ch}}};
         _ChVal ->
           case scan_state:ungetc(Ch, ScanState) of
             {error, _Reason} = Error -> Error;
-            ok -> {ok, {?T_UINTEGER, Val}}
+            ok -> {ok, {Location, {?T_UINTEGER, Val}}}
           end
       end
   end.
