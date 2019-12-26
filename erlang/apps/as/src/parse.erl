@@ -28,23 +28,25 @@
 -include("tunit.hrl").
 -include_lib("lib/include/pdp10_opcodes.hrl").
 
+-type location() :: scan_state:location().
+
 -spec stmt(scan_state:scan_state())
-      -> {ok, stmt()} | eof | {error, {module(), term()}}.
+      -> {ok, {location(), stmt()}} | eof | {error, {module(), term()}}.
 stmt(ScanState) ->
   case scan:token(ScanState) of
-    {ok, {_Location, ?T_DOT_DATA}} -> dot_data(ScanState);
-    {ok, {_Location, ?T_DOT_FILE}} -> dot_file(ScanState);
-    {ok, {_Location, ?T_DOT_GLOBL}} -> dot_globl(ScanState);
-    {ok, {_Location, ?T_DOT_IDENT}} -> dot_ident(ScanState);
-    {ok, {_Location, ?T_DOT_POPSECTION}} -> dot_popsection(ScanState);
-    {ok, {_Location, ?T_DOT_PREVIOUS}} -> dot_previous(ScanState);
-    {ok, {_Location, ?T_DOT_PUSHSECTION}} -> dot_pushsection(ScanState);
-    {ok, {_Location, ?T_DOT_SIZE}} -> dot_size(ScanState);
-    {ok, {_Location, ?T_DOT_SUBSECTION}} -> dot_subsection(ScanState);
-    {ok, {_Location, ?T_DOT_TEXT}} -> dot_text(ScanState);
-    {ok, {_Location, ?T_DOT_TYPE}} -> dot_type(ScanState);
+    {ok, {Location, ?T_DOT_DATA}} -> dot_data(ScanState, Location);
+    {ok, {Location, ?T_DOT_FILE}} -> dot_file(ScanState, Location);
+    {ok, {Location, ?T_DOT_GLOBL}} -> dot_globl(ScanState, Location);
+    {ok, {Location, ?T_DOT_IDENT}} -> dot_ident(ScanState, Location);
+    {ok, {Location, ?T_DOT_POPSECTION}} -> dot_popsection(ScanState, Location);
+    {ok, {Location, ?T_DOT_PREVIOUS}} -> dot_previous(ScanState, Location);
+    {ok, {Location, ?T_DOT_PUSHSECTION}} -> dot_pushsection(ScanState, Location);
+    {ok, {Location, ?T_DOT_SIZE}} -> dot_size(ScanState, Location);
+    {ok, {Location, ?T_DOT_SUBSECTION}} -> dot_subsection(ScanState, Location);
+    {ok, {Location, ?T_DOT_TEXT}} -> dot_text(ScanState, Location);
+    {ok, {Location, ?T_DOT_TYPE}} -> dot_type(ScanState, Location);
     {ok, {Location, {?T_SYMBOL, Name}}} -> stmt_after_symbol(ScanState, Location, Name);
-    {ok, {_Location, {?T_UINTEGER, UInt}}} -> stmt_after_uinteger(ScanState, UInt);
+    {ok, {Location, {?T_UINTEGER, UInt}}} -> stmt_after_uinteger(ScanState, Location, UInt);
     {ok, {_Location, ?T_NEWLINE}} -> stmt(ScanState);
     {ok, {_Location, ?T_EOF}} -> eof;
     ScanRes -> badtok("expected directive, label, or instruction", ScanRes)
@@ -96,7 +98,7 @@ stmt(ScanState) ->
 
 stmt_after_symbol(ScanState, Location, Name) ->
   case scan:token(ScanState) of
-    {ok, {_Location, ?T_COLON}} -> {ok, #s_label{name = Name}};
+    {ok, {_Location, ?T_COLON}} -> {ok, {Location, #s_label{name = Name}}};
     {ok, {_Location, ?T_NEWLINE}} -> make_insn(Location, Name, false, false, false, false);
     {ok, {_Location, {?T_UINTEGER, UInt}}} -> insn_uint(ScanState, Location, Name, UInt);
     {ok, {_Location, {?T_SYMBOL, Symbol}}} -> insn_symbol(ScanState, Location, Name, Symbol);
@@ -106,9 +108,9 @@ stmt_after_symbol(ScanState, Location, Name) ->
   end.
 
 %% <stmt> ::= <uinteger> . ":"
-stmt_after_uinteger(ScanState, UInt) ->
+stmt_after_uinteger(ScanState, Location, UInt) ->
   case scan:token(ScanState) of
-    {ok, {_Location, ?T_COLON}} -> {ok, #s_local_label{number = UInt}};
+    {ok, {_Location, ?T_COLON}} -> {ok, {Location, #s_local_label{number = UInt}}};
     ScanRes -> badtok("junk after symbol", ScanRes)
   end.
 
@@ -209,14 +211,16 @@ make_insn(Location, Name, AccOrDev, At, Displacement, Index) ->
         {ok, FinalHigh13} ->
           case check_e(Location, Name, At, Displacement, Index, EUnused) of
             {error, _Reason} = Error -> Error;
-            ok -> {ok, #s_insn{ high13 = FinalHigh13
-                              , at = At
-                              , address = case Displacement of
-                                            false -> #e_integer{value = 0};
-                                            _ -> Displacement
-                                          end
-                              , index = if Index =:= false -> 0; true -> Index end
-                              }}
+            ok ->
+              Stmt = #s_insn{ high13 = FinalHigh13
+                            , at = At
+                            , address = case Displacement of
+                                          false -> #e_integer{value = 0};
+                                          _ -> Displacement
+                                        end
+                            , index = if Index =:= false -> 0; true -> Index end
+                            },
+              {ok, {Location, Stmt}}
           end
       end
   end.
@@ -265,77 +269,79 @@ badinsn(Location, Fmt, Mnemonic) ->
 
 %% Directives ------------------------------------------------------------------
 
-dot_data(ScanState) ->
+dot_data(ScanState, Location) ->
   case scan:token(ScanState) of
-    {ok, {_Location1, ?T_NEWLINE}} -> {ok, #s_dot_data{nr = 0}};
+    {ok, {_Location1, ?T_NEWLINE}} -> {ok, {Location, #s_dot_data{nr = 0}}};
     {ok, {_Location1, {?T_UINTEGER, Nr}}} ->
       case scan:token(ScanState) of
-        {ok, {_Location2, ?T_NEWLINE}} -> {ok, #s_dot_data{nr = Nr}};
+        {ok, {_Location2, ?T_NEWLINE}} -> {ok, {Location, #s_dot_data{nr = Nr}}};
         ScanRes -> badtok("junk after .data <nr>", ScanRes)
       end;
     ScanRes -> badtok("junk after .data", ScanRes)
   end.
 
-dot_file(ScanState) ->
-  dot_file_or_ident(ScanState, fun(String) -> #s_dot_file{string = String} end,
+dot_file(ScanState, Location) ->
+  dot_file_or_ident(ScanState, Location,
+                    fun(String) -> #s_dot_file{string = String} end,
                    "junk after .file").
 
-dot_ident(ScanState) ->
-  dot_file_or_ident(ScanState, fun(String) -> #s_dot_ident{string = String} end,
+dot_ident(ScanState, Location) ->
+  dot_file_or_ident(ScanState, Location,
+                    fun(String) -> #s_dot_ident{string = String} end,
                    "junk after .ident").
 
-dot_file_or_ident(ScanState, MkStmt, ErrMsg) ->
+dot_file_or_ident(ScanState, Location, MkStmt, ErrMsg) ->
   case scan:token(ScanState) of
     {ok, {_Location1, {?T_STRING, String}}} ->
       case scan:token(ScanState) of
-        {ok, {_Location2, ?T_NEWLINE}} -> {ok, MkStmt(String)};
+        {ok, {_Location2, ?T_NEWLINE}} -> {ok, {Location, MkStmt(String)}};
         ScanRes -> badtok(ErrMsg, ScanRes)
       end;
     ScanRes -> badtok(ErrMsg, ScanRes)
   end.
 
-dot_globl(ScanState) ->
+dot_globl(ScanState, Location) ->
   case scan:token(ScanState) of
     {ok, {_Location1, {?T_SYMBOL, Name}}} ->
       case scan:token(ScanState) of
-        {ok, {_Location2, ?T_NEWLINE}} -> {ok, #s_dot_globl{name = Name}};
+        {ok, {_Location2, ?T_NEWLINE}} -> {ok, {Location, #s_dot_globl{name = Name}}};
         ScanRes -> badtok("junk after .globl", ScanRes)
       end;
     ScanRes -> badtok("junk after .globl", ScanRes)
   end.
 
-dot_popsection(ScanState) ->
+dot_popsection(ScanState, Location) ->
   case scan:token(ScanState) of
-    {ok, {_Location, ?T_NEWLINE}} -> {ok, #s_dot_popsection{}};
+    {ok, {_Location, ?T_NEWLINE}} -> {ok, {Location, #s_dot_popsection{}}};
     ScanRes -> badtok("junk after .popsection", ScanRes)
   end.
 
-dot_previous(ScanState) ->
+dot_previous(ScanState, Location) ->
   case scan:token(ScanState) of
-    {ok, {_Location, ?T_NEWLINE}} -> {ok, #s_dot_previous{}};
+    {ok, {_Location, ?T_NEWLINE}} -> {ok, {Location, #s_dot_previous{}}};
     ScanRes -> badtok("junk after .previous", ScanRes)
   end.
 
 %% For now only accepts ".pushsection <name> [, <nr>]".  TODO: extend
-dot_pushsection(ScanState) ->
+dot_pushsection(ScanState, Location) ->
   case scan:token(ScanState) of
-    {ok, {_Location, {?T_STRING, Name}}} -> dot_pushsection(ScanState, Name);
-    {ok, {_Location, {?T_SYMBOL, Name}}} -> dot_pushsection(ScanState, Name);
+    {ok, {_Location, {?T_STRING, Name}}} -> dot_pushsection(ScanState, Location, Name);
+    {ok, {_Location, {?T_SYMBOL, Name}}} -> dot_pushsection(ScanState, Location, Name);
     %% TODO: do we need a general mapping from reserved to plain symbols?
-    {ok, {_Location, ?T_DOT_DATA}} -> dot_pushsection(ScanState, _Name = ".data");
-    {ok, {_Location, ?T_DOT_TEXT}} -> dot_pushsection(ScanState, _Name = ".text");
+    {ok, {_Location, ?T_DOT_DATA}} -> dot_pushsection(ScanState, Location, _Name = ".data");
+    {ok, {_Location, ?T_DOT_TEXT}} -> dot_pushsection(ScanState, Location, _Name = ".text");
     ScanRes -> badtok("junk after .pushsection", ScanRes)
   end.
 
 %% Seen ".pushsection <name>", expects "[, <nr>]".
-dot_pushsection(ScanState, Name) ->
+dot_pushsection(ScanState, Location, Name) ->
   case scan:token(ScanState) of
-    {ok, {_Location1, ?T_NEWLINE}} -> {ok, #s_dot_pushsection{name = Name, nr = 0}};
+    {ok, {_Location1, ?T_NEWLINE}} -> {ok, {Location, #s_dot_pushsection{name = Name, nr = 0}}};
     {ok, {_Location1, ?T_COMMA}} ->
       case scan:token(ScanState) of
         {ok, {_Location2, {?T_UINTEGER, Nr}}} ->
           case scan:token(ScanState) of
-            {ok, {_Location3, ?T_NEWLINE}} -> {ok, #s_dot_pushsection{name = Name, nr = Nr}};
+            {ok, {_Location3, ?T_NEWLINE}} -> {ok, {Location, #s_dot_pushsection{name = Name, nr = Nr}}};
             ScanRes -> badtok("junk after .pushsection <name>, <nr>", ScanRes)
           end;
         ScanRes -> badtok("junk after .pushsection <name>,", ScanRes)
@@ -344,7 +350,7 @@ dot_pushsection(ScanState, Name) ->
   end.
 
 %% For now only accepts ".size <sym>,.-<sym>".  TODO: extend
-dot_size(ScanState) ->
+dot_size(ScanState, Location) ->
   case scan:token(ScanState) of
     {ok, {_Location1, {?T_SYMBOL, Name}}} ->
       case scan:token(ScanState) of
@@ -356,7 +362,7 @@ dot_size(ScanState) ->
                   case scan:token(ScanState) of
                     {ok, {_Location5, {?T_SYMBOL, Name}}} -> % same Name as above
                       case scan:token(ScanState) of
-                        {ok, {_Location6, ?T_NEWLINE}} -> {ok, #s_dot_size{name = Name}};
+                        {ok, {_Location6, ?T_NEWLINE}} -> {ok, {Location, #s_dot_size{name = Name}}};
                         ScanRes -> badtok("junk after .size", ScanRes)
                       end;
                     ScanRes -> badtok("junk after .size", ScanRes)
@@ -370,29 +376,29 @@ dot_size(ScanState) ->
     ScanRes -> badtok("junk after .size", ScanRes)
   end.
 
-dot_subsection(ScanState) ->
+dot_subsection(ScanState, Location) ->
   case scan:token(ScanState) of
     {ok, {_Location1, {?T_UINTEGER, Nr}}} ->
       case scan:token(ScanState) of
-        {ok, {_Location2, ?T_NEWLINE}} -> {ok, #s_dot_subsection{nr = Nr}};
+        {ok, {_Location2, ?T_NEWLINE}} -> {ok, {Location, #s_dot_subsection{nr = Nr}}};
         ScanRes -> badtok("junk after .subsection <nr>", ScanRes)
       end;
     ScanRes -> badtok("junk after .subsection", ScanRes)
   end.
 
-dot_text(ScanState) ->
+dot_text(ScanState, Location) ->
   case scan:token(ScanState) of
-    {ok, {_Location1, ?T_NEWLINE}} -> {ok, #s_dot_text{nr = 0}};
+    {ok, {_Location1, ?T_NEWLINE}} -> {ok, {Location, #s_dot_text{nr = 0}}};
     {ok, {_Location1, {?T_UINTEGER, Nr}}} ->
       case scan:token(ScanState) of
-        {ok, {_Location2, ?T_NEWLINE}} -> {ok, #s_dot_text{nr = Nr}};
+        {ok, {_Location2, ?T_NEWLINE}} -> {ok, {Location, #s_dot_text{nr = Nr}}};
         ScanRes -> badtok("junk after .text <nr>", ScanRes)
       end;
     ScanRes -> badtok("junk after .text", ScanRes)
   end.
 
 %% For now only accepts ".type <sym>,@function".  TODO: extend
-dot_type(ScanState) ->
+dot_type(ScanState, Location) ->
   case scan:token(ScanState) of
     {ok, {_Location1, {?T_SYMBOL, Name}}} ->
       case scan:token(ScanState) of
@@ -402,7 +408,7 @@ dot_type(ScanState) ->
               case scan:token(ScanState) of
                 {ok, {_Location4, {?T_SYMBOL, "function"}}} ->
                   case scan:token(ScanState) of
-                    {ok, {_Location5, ?T_NEWLINE}} -> {ok, #s_dot_type{name = Name}};
+                    {ok, {_Location5, ?T_NEWLINE}} -> {ok, {Location, #s_dot_type{name = Name}}};
                     ScanRes -> badtok("junk after .type", ScanRes)
                   end;
                 ScanRes -> badtok("junk after .type", ScanRes)

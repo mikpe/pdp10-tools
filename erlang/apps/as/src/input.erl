@@ -79,8 +79,8 @@ pass1_file(File, Ctx) ->
 pass1_process(ScanState, Ctx) ->
   case parse:stmt(ScanState) of
     eof -> {ok, Ctx};
-    {ok, Stmt} ->
-      case pass1_stmt(scan_state_location(ScanState), Ctx, Stmt) of
+    {ok, {Location, Stmt}} ->
+      case pass1_stmt(Location, Ctx, Stmt) of
         {ok, NewCtx} -> pass1_process(ScanState, NewCtx);
         {error, _Reason} = Error -> Error
       end;
@@ -269,10 +269,6 @@ scan_state_open(File) ->
     "-" -> scan_state:stdin();
     _ -> scan_state:fopen(File)
   end.
-
-scan_state_location(ScanState) ->
-  {ok, Location = {_FileName, _LineNr}} = scan_state:location(ScanState),
-  Location.
 
 %% Pass 2 ----------------------------------------------------------------------
 %%
