@@ -44,7 +44,7 @@ files(Files0) ->
 
 -type sectionname() :: string().
 -type subsectionnr() :: non_neg_integer().
--type locationandstmt() :: {scan_state:location(), stmt()}.
+-type locationandstmt() :: {scan:location(), stmt()}.
 -type subsectionsmap() :: #{subsectionnr() => [locationandstmt()]}.
 -type sectionsmap() :: #{sectionname() => {#section{}, subsectionsmap()}}.
 -type sectionandsub() :: {sectionname(), subsectionnr()}.
@@ -71,7 +71,7 @@ pass1_file(File, Ctx) ->
   case scan_state_open(File) of
     {ok, ScanState} ->
       try pass1_process(ScanState, Ctx)
-      after scan_state:fclose(ScanState)
+      after scan:fclose(ScanState)
       end;
     {error, _Reason} = Error -> Error
   end.
@@ -265,9 +265,9 @@ get_subsection(SectionName, SubsectionNr, SectionsMap) ->
 
 scan_state_open(File) ->
   case File of
-    "--" -> scan_state:stdin();
-    "-" -> scan_state:stdin();
-    _ -> scan_state:fopen(File)
+    "--" -> scan:stdin();
+    "-" -> scan:stdin();
+    _ -> scan:fopen(File)
   end.
 
 %% Pass 2 ----------------------------------------------------------------------
