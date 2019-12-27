@@ -19,7 +19,6 @@
 %%% along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
 
 -module(scan_state).
--behaviour(gen_server).
 
 %% API
 -export([ % file I/O wrappers
@@ -33,15 +32,6 @@
         , format_error/1
         ]).
 
-%% gen_server callbacks
--export([ init/1
-        , handle_call/3
-        , handle_cast/2
-        , handle_info/2
-        , terminate/2
-        , code_change/3
-        ]).
-
 %% The scanner state records the I/O handle, implements a one-character
 %% pushback buffer, and maintains the current line number.
 %% TODO: maintain column number too?
@@ -52,135 +42,84 @@
         , linenr        :: pos_integer()
         }).
 
--type scan_state() :: pid().
--type location() :: {FileName :: string(), LineNr :: pos_integer()}.
+-type scan_state() :: {scan_state, reference()}.
+-type location() :: {Filename :: string(), LineNr :: pos_integer()}.
 
 -export_type([scan_state/0, location/0]).
 
 %% API -------------------------------------------------------------------------
 
--spec fclose(scan_state()) -> ok | {error, {module(), term()}}.
-fclose(Pid) ->
-  gen_server:call(Pid, fclose, infinity).
-
--spec fgetc(scan_state()) -> {ok, byte()} | eof | {error, {module(), term()}}.
-fgetc(Pid) ->
-  gen_server:call(Pid, fgetc, infinity).
-
--spec fopen(string()) -> {ok, scan_state()} | {error, {module(), term()}}.
-fopen(File) ->
-  do_fopen(File).
-
--spec stdin() -> {ok, scan_state()}.
-stdin() ->
-  do_fopen(stdin).
-
-do_fopen(File) ->
-  case gen_server:start(?MODULE, File, []) of
-    {error, {shutdown, Reason}} -> {error, Reason};
-    Result -> Result
-  end.
-
--spec ungetc(byte(), scan_state()) -> ok | {error, {module(), term()}}.
-ungetc(Ch, Pid) ->
-  gen_server:call(Pid, {ungetc, Ch}, infinity).
-
--spec location(scan_state()) -> {ok, location()}.
-location(Pid) ->
-  gen_server:call(Pid, location, infinity).
-
--spec format_error(term()) -> io_lib:chars().
-format_error(Reason) ->
-  case Reason of
-    {bad_request, Req} ->
-      io_lib:format("internal error: bad request: ~p", [Req]);
-    ungetc ->
-      "internal error: invalid ungetc";
-    _ ->
-      io_lib:format("~p", [Reason])
-  end.
-
-%% gen_server callbacks --------------------------------------------------------
-
-init(stdin) ->
-  do_init("<stdin>", standard_io);
-init(File) ->
-  case file:open(File, [raw, read, read_ahead]) of
-    {ok, IoDev} -> do_init(File, IoDev);
-    {error, Reason} ->
-      %% The {shutdown, ...} wrapper prevents an unwanted crash report.
-      {stop, {shutdown, {file, Reason}}}
-  end.
-
-do_init(FileName, IoDev) ->
-  {ok, #state{ filename = FileName
-             , iodev = IoDev
-             , ungetc = []
-             , linenr = 1
-             }}.
-
-handle_call(Req, _From, State) ->
-  case Req of
-    fclose ->
-      handle_fclose(State);
-    fgetc ->
-      handle_fgetc(State);
-    {ungetc, Ch} ->
-      handle_ungetc(State, Ch);
-    location ->
-      {reply, {ok, {State#state.filename, State#state.linenr}}, State};
-    _ ->
-      {reply, {error, {?MODULE, {bad_request, Req}}}, State}
-  end.
-
-handle_cast(_Req, State) ->
-  {noreply, State}.
-
-handle_info(_Info, State) ->
-  {noreply, State}.
-
-terminate(_Reason, State) ->
-  do_fclose(State).
-
-code_change(_OldVsn, State, _Extra) ->
-  {ok, State}.
-
-%% fclose ----------------------------------------------------------------------
-
-handle_fclose(State) ->
-  {stop, normal, ok, State}.
-
-do_fclose(State) ->
+-spec fclose(scan_state()) -> ok.
+fclose(Handle) ->
+  State = #state{} = get(Handle),
   case State#state.iodev of
     standard_io -> ok;
     IoDev -> file:close(IoDev)
-  end.
+  end,
+  erase(Handle),
+  ok.
 
-%% fgetc -----------------------------------------------------------------------
-
-handle_fgetc(State) ->
+-spec fgetc(scan_state()) -> {ok, byte()} | eof | {error, {module(), term()}}.
+fgetc(Handle) ->
+  State = #state{} = get(Handle),
   case State#state.ungetc of
     [] ->
-      {Result, NewState} =
-        case file:read(State#state.iodev, 1) of
-          {ok, [Byte]} ->
-            {{ok, Byte},
-             case Byte of
-               $\n -> State#state{linenr = State#state.linenr + 1};
-               _ -> State
-             end};
-          eof -> {eof, State};
-          {error, Reason} -> {{error, {file, Reason}}, State}
-        end,
-      {reply, Result, NewState};
+      case file:read(State#state.iodev, 1) of
+        {ok, [Byte]} ->
+          case Byte of
+            $\n ->
+              put(Handle, State#state{linenr = State#state.linenr + 1}),
+              {ok, $\n};
+            _ ->
+              {ok, Byte}
+          end;
+        eof ->
+          eof;
+        {error, Reason} ->
+          {error, {file, Reason}}
+      end;
     Ch ->
-      {reply, {ok, Ch}, State#state{ungetc = []}}
+      put(Handle, State#state{ungetc = []}),
+      {ok, Ch}
   end.
 
-%% ungetc ----------------------------------------------------------------------
+-spec fopen(string()) -> {ok, scan_state()} | {error, {module(), term()}}.
+fopen(Filename) ->
+  case file:open(Filename, [raw, read, read_ahead]) of
+    {ok, IoDev} -> do_fopen(Filename, IoDev);
+    {error, Reason} -> {error, {file, Reason}}
+  end.
 
-handle_ungetc(State, Ch) ->
+-spec stdin() -> {ok, scan_state()}.
+stdin() ->
+  do_fopen(_Filename = "<stdin>", _IoDev = standard_io).
+
+do_fopen(Filename, IoDev) ->
+  State = #state{ filename = Filename
+                , iodev = IoDev
+                , ungetc = []
+                , linenr = 1
+                },
+  Handle = {scan_state, make_ref()},
+  put(Handle, State),
+  {ok, Handle}.
+
+-spec ungetc(byte(), scan_state()) -> ok | {error, {module(), term()}}.
+ungetc(Ch, Handle) ->
+  State = #state{} = get(Handle),
   case State#state.ungetc of
-    [] -> {reply, ok, State#state{ungetc = Ch}};
-    _ -> {reply, {error, {?MODULE, ungetc}}, State}
+    [] ->
+      put(Handle, State#state{ungetc = Ch}),
+      ok;
+    _ ->
+      {error, {?MODULE, ungetc}}
   end.
+
+-spec location(scan_state()) -> {ok, location()}.
+location(Handle) ->
+  State = #state{} = get(Handle),
+  Location = {State#state.filename, State#state.linenr},
+  {ok, Location}.
+
+-spec format_error(term()) -> io_lib:chars().
+format_error(ungetc) -> "internal error: invalid ungetc".
