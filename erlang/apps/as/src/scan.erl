@@ -29,24 +29,94 @@
 
 -include("token.hrl").
 
--type scan_state() :: scan_state:scan_state().
--type location() :: scan_state:location().
+-type scan_state() :: {scan_state, reference()}.
+-type location() :: {Filename :: string(), LineNr :: pos_integer()}.
 
 -export_type([scan_state/0, location/0]).
 
 %% Scan State ------------------------------------------------------------------
 
--spec fclose(scan_state()) -> ok | {error, {module(), term()}}.
-fclose(ScanState) ->
-  scan_state:fclose(ScanState).
+%% The scanner state records the I/O handle, implements a one-character
+%% pushback buffer, and maintains the current line number.
+%% TODO: maintain column number too?
+-record(scan_state,
+        { filename      :: string()
+        , iodev         :: file:fd() | standard_io
+        , ungetc        :: [] | byte()
+        , linenr        :: pos_integer()
+        }).
+
+-spec fclose(scan_state()) -> ok.
+fclose(Handle) ->
+  ScanState = #scan_state{} = get(Handle),
+  case ScanState#scan_state.iodev of
+    standard_io -> ok;
+    IoDev -> file:close(IoDev)
+  end,
+  erase(Handle),
+  ok.
+
+-spec fgetc(scan_state()) -> {ok, byte()} | eof | {error, {module(), term()}}.
+fgetc(Handle) ->
+  ScanState = #scan_state{} = get(Handle),
+  case ScanState#scan_state.ungetc of
+    [] ->
+      case file:read(ScanState#scan_state.iodev, 1) of
+        {ok, [Byte]} ->
+          case Byte of
+            $\n ->
+              put(Handle, ScanState#scan_state{linenr = ScanState#scan_state.linenr + 1}),
+              {ok, $\n};
+            _ ->
+              {ok, Byte}
+          end;
+        eof ->
+          eof;
+        {error, Reason} ->
+          {error, {file, Reason}}
+      end;
+    Ch ->
+      put(Handle, ScanState#scan_state{ungetc = []}),
+      {ok, Ch}
+  end.
 
 -spec fopen(string()) -> {ok, scan_state()} | {error, {module(), term()}}.
-fopen(File) ->
-  scan_state:fopen(File).
+fopen(Filename) ->
+  case file:open(Filename, [raw, read, read_ahead]) of
+    {ok, IoDev} -> do_fopen(Filename, IoDev);
+    {error, Reason} -> {error, {file, Reason}}
+  end.
 
 -spec stdin() -> {ok, scan_state()}.
 stdin() ->
-  scan_state:stdin().
+  do_fopen(_Filename = "<stdin>", _IoDev = standard_io).
+
+do_fopen(Filename, IoDev) ->
+  ScanState = #scan_state{ filename = Filename
+                         , iodev = IoDev
+                         , ungetc = []
+                         , linenr = 1
+                         },
+  Handle = {scan_state, make_ref()},
+  put(Handle, ScanState),
+  {ok, Handle}.
+
+-spec ungetc(byte(), scan_state()) -> ok | {error, {module(), term()}}.
+ungetc(Ch, Handle) ->
+  ScanState = #scan_state{} = get(Handle),
+  case ScanState#scan_state.ungetc of
+    [] ->
+      put(Handle, ScanState#scan_state{ungetc = Ch}),
+      ok;
+    _ ->
+      {error, {?MODULE, ungetc}}
+  end.
+
+-spec location(scan_state()) -> {ok, location()}.
+location(Handle) ->
+  ScanState = #scan_state{} = get(Handle),
+  Location = {ScanState#scan_state.filename, ScanState#scan_state.linenr},
+  {ok, Location}.
 
 %% Scanner ---------------------------------------------------------------------
 
@@ -54,8 +124,8 @@ stdin() ->
       -> {ok, {location(), token()}} | {error, {module(), term()}}.
 token(ScanState) ->
   %% TODO: optimize
-  {ok, Location} = scan_state:location(ScanState),
-  case scan_state:fgetc(ScanState) of
+  {ok, Location} = location(ScanState),
+  case fgetc(ScanState) of
     {error, _Reason} = Error -> Error;
     eof -> {ok, {Location, ?T_EOF}};
     {ok, Ch} ->
@@ -89,20 +159,20 @@ token(ScanState) ->
 
 %% Scan after seeing '#'.
 do_line_comment(ScanState) ->
-  case scan_state:fgetc(ScanState) of
+  case fgetc(ScanState) of
     {error, _Reason} = Error -> Error;
     eof -> badchar(ScanState, eof, "in line comment");
-    {ok, $\n} -> {ok, {scan_state:location(ScanState), ?T_NEWLINE}};
+    {ok, $\n} -> {ok, {location(ScanState), ?T_NEWLINE}};
     {ok, _Ch} -> do_line_comment(ScanState)
   end.
 
 %% Scan after seeing '/'.
 do_slash(ScanState) ->
-  case scan_state:fgetc(ScanState) of
+  case fgetc(ScanState) of
     {error, _Reason} = Error -> Error;
     {ok, $*} -> do_c_comment(ScanState, false);
     {ok, Ch} ->
-      scan_state:ungetc(Ch, ScanState),
+      ungetc(Ch, ScanState),
       badchar(ScanState, Ch, "after /"); % TODO: NYI: T_DIV
     eof ->
       badchar(ScanState, eof, "after /")
@@ -110,7 +180,7 @@ do_slash(ScanState) ->
 
 %% Scan after seeing '/* ...'.
 do_c_comment(ScanState, PrevWasStar) ->
-  case scan_state:fgetc(ScanState) of
+  case fgetc(ScanState) of
     {error, _Reason} = Error -> Error;
     eof -> badchar(ScanState, eof, "in /*...*/ comment");
     {ok, $*} -> do_c_comment(ScanState, true);
@@ -120,7 +190,7 @@ do_c_comment(ScanState, PrevWasStar) ->
 
 %% Scan after seeing '"'.
 do_string(ScanState, Location, Chars) ->
-  case scan_state:fgetc(ScanState) of
+  case fgetc(ScanState) of
     {error, _Reason} = Error -> Error;
     eof -> badchar(ScanState, eof, "in string literal");
     {ok, $\n} -> badchar(ScanState, $\n, "in string literal");
@@ -135,7 +205,7 @@ do_string(ScanState, Location, Chars) ->
 
 %% Scan after seeing '\' in a string literal.
 do_escape(ScanState) ->
-  case scan_state:fgetc(ScanState) of
+  case fgetc(ScanState) of
     {error, _Reason} = Error -> Error;
     eof -> badchar(ScanState, eof, "in \\ character escape");
     {ok, Ch} ->
@@ -157,13 +227,13 @@ do_escape(ScanState) ->
 
 do_octal_escape(_ScanState, Val, 0) -> {ok, Val};
 do_octal_escape(ScanState, Val, N) ->
-  case scan_state:fgetc(ScanState) of
+  case fgetc(ScanState) of
     {error, _Reason} = Error -> Error;
     eof -> badchar(ScanState, eof, "in \\ character escape");
     {ok, Ch} ->
       if $0 =< Ch, Ch =< $t -> do_octal_escape(ScanState, Val * 8 + (Ch - $0), N - 1);
          true ->
-           case scan_state:ungetc(Ch, ScanState) of
+           case ungetc(Ch, ScanState) of
              {error, _Reason} = Error -> Error;
              ok -> {ok, Val}
            end
@@ -171,7 +241,7 @@ do_octal_escape(ScanState, Val, N) ->
   end.
 
 do_symbol(ScanState, Location, Chars) ->
-  case scan_state:fgetc(ScanState) of
+  case fgetc(ScanState) of
     {error, _Reason} = Error -> Error;
     eof -> do_symbol(Location, lists:reverse(Chars));
     {ok, Ch} ->
@@ -182,7 +252,7 @@ do_symbol(ScanState, Location, Chars) ->
          Ch =:= $$ orelse
          Ch =:= $_ -> do_symbol(ScanState, Location, [Ch | Chars]);
          true ->
-           case scan_state:ungetc(Ch, ScanState) of
+           case ungetc(Ch, ScanState) of
              {error, _Reason} = Error -> Error;
              ok -> do_symbol(Location, lists:reverse(Chars))
            end
@@ -199,13 +269,13 @@ do_symbol(Location, Chars) ->
 do_number(ScanState, Location, Dig0) ->
   case Dig0 of
     $0 ->
-      case scan_state:fgetc(ScanState) of
+      case fgetc(ScanState) of
         {error, _Reason} = Error -> Error;
         eof -> {ok, {Location, {?T_UINTEGER, Dig0 - $0}}};
         {ok, Ch} ->
           if Ch =:= $x; Ch =:= $X ->
                %% must have hex digit after 0x
-               case scan_state:fgetc(ScanState) of
+               case fgetc(ScanState) of
                  {error, _Reason} = Error -> Error;
                  eof -> badchar(ScanState, eof, "after 0x in number");
                  {ok, Ch} ->
@@ -216,7 +286,7 @@ do_number(ScanState, Location, Dig0) ->
                    end
                end;
              true ->
-               case scan_state:ungetc(Ch, ScanState) of
+               case ungetc(Ch, ScanState) of
                  {error, _Reason} = Error -> Error;
                  ok -> do_number(ScanState, Location, _Base = 8, _Val = 0)
                end
@@ -226,7 +296,7 @@ do_number(ScanState, Location, Dig0) ->
   end.
 
 do_number(ScanState, Location, Base, Val) ->
-  case scan_state:fgetc(ScanState) of
+  case fgetc(ScanState) of
     {error, _Reason} = Error -> Error;
     eof -> {ok, {Location, {?T_UINTEGER, Val}}};
     {ok, Ch} ->
@@ -236,7 +306,7 @@ do_number(ScanState, Location, Base, Val) ->
         _ChVal when Base =< 10 andalso (Ch =:= $b orelse Ch =:= $f) ->
           {ok, {Location, {?T_LOCAL_LABEL, Val, Ch}}};
         _ChVal ->
-          case scan_state:ungetc(Ch, ScanState) of
+          case ungetc(Ch, ScanState) of
             {error, _Reason} = Error -> Error;
             ok -> {ok, {Location, {?T_UINTEGER, Val}}}
           end
@@ -251,10 +321,11 @@ chval(Ch) ->
   end.
 
 badchar(ScanState, Ch, Context) ->
-  {ok, {FileName, LineNr}} = scan_state:location(ScanState),
+  {ok, {FileName, LineNr}} = location(ScanState),
   {error, {?MODULE, {FileName, LineNr, Ch, Context}}}.
 
 -spec format_error(term()) -> io_lib:chars().
+format_error(ungetc) -> "internal error: invalid ungetc";
 format_error({FileName, LineNr, Ch, Context}) ->
   io_lib:format("~s line ~p: invalid character '~s' ~s",
                 [FileName, LineNr, char_to_string(Ch), Context]).
