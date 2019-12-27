@@ -28,9 +28,9 @@
 -include("tunit.hrl").
 -include_lib("lib/include/pdp10_opcodes.hrl").
 
--type location() :: scan_state:location().
+-type location() :: scan:location().
 
--spec stmt(scan_state:scan_state())
+-spec stmt(scan:scan_state())
       -> {ok, {location(), stmt()}} | eof | {error, {module(), term()}}.
 stmt(ScanState) ->
   case scan:token(ScanState) of
