@@ -22,13 +22,35 @@
 
 -export([ token/1
         , format_error/1
+        , stdin/0
+        , fopen/1
+        , fclose/1
         ]).
 
 -include("token.hrl").
 
+-type scan_state() :: scan_state:scan_state().
 -type location() :: scan_state:location().
 
--spec token(scan_state:scan_state())
+-export_type([scan_state/0, location/0]).
+
+%% Scan State ------------------------------------------------------------------
+
+-spec fclose(scan_state()) -> ok | {error, {module(), term()}}.
+fclose(ScanState) ->
+  scan_state:fclose(ScanState).
+
+-spec fopen(string()) -> {ok, scan_state()} | {error, {module(), term()}}.
+fopen(File) ->
+  scan_state:fopen(File).
+
+-spec stdin() -> {ok, scan_state()}.
+stdin() ->
+  scan_state:stdin().
+
+%% Scanner ---------------------------------------------------------------------
+
+-spec token(scan_state())
       -> {ok, {location(), token()}} | {error, {module(), term()}}.
 token(ScanState) ->
   %% TODO: optimize
