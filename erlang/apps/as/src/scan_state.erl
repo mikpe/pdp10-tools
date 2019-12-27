@@ -55,7 +55,7 @@
 -type scan_state() :: pid().
 -type location() :: {FileName :: string(), LineNr :: pos_integer()}.
 
--export_type([scan_state/0]).
+-export_type([scan_state/0, location/0]).
 
 %% API -------------------------------------------------------------------------
 
