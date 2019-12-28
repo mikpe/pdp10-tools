@@ -21,6 +21,7 @@
 -module(scan).
 
 -export([ token/1
+        , pushback/2
         , format_error/1
         , stdin/0
         , fopen/1
@@ -41,6 +42,7 @@
         { filename      :: string()
         , iodev         :: file:fd() | standard_io
         , charbuf       :: [] | byte() % for ungetc/2
+        , tokbuf        :: [] | {location(), token()} % for pushback/2
         , linenr        :: pos_integer()
         }).
 
@@ -93,6 +95,7 @@ do_fopen(Filename, IoDev) ->
   ScanState = #scan_state{ filename = Filename
                          , iodev = IoDev
                          , charbuf = []
+                         , tokbuf = []
                          , linenr = 1
                          },
   Handle = {scan_state, make_ref()},
@@ -121,7 +124,29 @@ location(Handle) ->
 
 -spec token(scan_state())
       -> {ok, {location(), token()}} | {error, {module(), term()}}.
-token(ScanState) ->
+token(Handle) ->
+  ScanState = #scan_state{} = get(Handle),
+  case ScanState#scan_state.tokbuf of
+    [] ->
+      do_token(Handle);
+    {_Location, _Token} = LocationAndToken ->
+      put(Handle, ScanState#scan_state{tokbuf = []}),
+      {ok, LocationAndToken}
+  end.
+
+-spec pushback(scan_state(), {location(), token()}) -> ok.
+pushback(Handle, {_Location, _Token} = LocationAndToken) ->
+  ScanState = #scan_state{} = get(Handle),
+  case ScanState#scan_state.tokbuf of
+    [] ->
+      put(Handle, ScanState#scan_state{tokbuf = LocationAndToken}),
+      ok;
+    {_Location, _Token} ->
+      %% deliberately crash on internal logic error
+      error({?MODULE, pushback})
+  end.
+
+do_token(ScanState) ->
   %% TODO: optimize
   {ok, Location} = location(ScanState),
   case fgetc(ScanState) of
@@ -129,10 +154,10 @@ token(ScanState) ->
     eof -> {ok, {Location, ?T_EOF}};
     {ok, Ch} ->
       case Ch of
-        $\s -> token(ScanState);
-        $\t -> token(ScanState);
-        $\r -> token(ScanState);
-        $\f -> token(ScanState);
+        $\s -> do_token(ScanState);
+        $\t -> do_token(ScanState);
+        $\r -> do_token(ScanState);
+        $\f -> do_token(ScanState);
         $\n -> {ok, {Location, ?T_NEWLINE}};
         $#  -> do_line_comment(ScanState);
         $@  -> {ok, {Location, ?T_AT}};
@@ -183,7 +208,7 @@ do_c_comment(ScanState, PrevWasStar) ->
     {error, _Reason} = Error -> Error;
     eof -> badchar(ScanState, eof, "in /*...*/ comment");
     {ok, $*} -> do_c_comment(ScanState, true);
-    {ok, $/} when PrevWasStar -> token(ScanState);
+    {ok, $/} when PrevWasStar -> do_token(ScanState);
     {ok, _Ch} -> do_c_comment(ScanState, false)
   end.
 
