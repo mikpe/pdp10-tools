@@ -36,13 +36,11 @@
 
 %% Scan State ------------------------------------------------------------------
 
-%% The scanner state records the I/O handle, implements a one-character
-%% pushback buffer, and maintains the current line number.
 %% TODO: maintain column number too?
 -record(scan_state,
         { filename      :: string()
         , iodev         :: file:fd() | standard_io
-        , ungetc        :: [] | byte()
+        , charbuf       :: [] | byte() % for ungetc/2
         , linenr        :: pos_integer()
         }).
 
@@ -59,7 +57,7 @@ fclose(Handle) ->
 -spec fgetc(scan_state()) -> {ok, byte()} | eof | {error, {module(), term()}}.
 fgetc(Handle) ->
   ScanState = #scan_state{} = get(Handle),
-  case ScanState#scan_state.ungetc of
+  case ScanState#scan_state.charbuf of
     [] ->
       case file:read(ScanState#scan_state.iodev, 1) of
         {ok, [Byte]} ->
@@ -76,7 +74,7 @@ fgetc(Handle) ->
           {error, {file, Reason}}
       end;
     Ch ->
-      put(Handle, ScanState#scan_state{ungetc = []}),
+      put(Handle, ScanState#scan_state{charbuf = []}),
       {ok, Ch}
   end.
 
@@ -94,7 +92,7 @@ stdin() ->
 do_fopen(Filename, IoDev) ->
   ScanState = #scan_state{ filename = Filename
                          , iodev = IoDev
-                         , ungetc = []
+                         , charbuf = []
                          , linenr = 1
                          },
   Handle = {scan_state, make_ref()},
@@ -104,9 +102,9 @@ do_fopen(Filename, IoDev) ->
 -spec ungetc(byte(), scan_state()) -> ok.
 ungetc(Ch, Handle) ->
   ScanState = #scan_state{} = get(Handle),
-  case ScanState#scan_state.ungetc of
+  case ScanState#scan_state.charbuf of
     [] ->
-      put(Handle, ScanState#scan_state{ungetc = Ch}),
+      put(Handle, ScanState#scan_state{charbuf = Ch}),
       ok;
     _ ->
       %% deliberately crash on internal logic error
