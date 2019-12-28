@@ -101,7 +101,7 @@ do_fopen(Filename, IoDev) ->
   put(Handle, ScanState),
   {ok, Handle}.
 
--spec ungetc(byte(), scan_state()) -> ok | {error, {module(), term()}}.
+-spec ungetc(byte(), scan_state()) -> ok.
 ungetc(Ch, Handle) ->
   ScanState = #scan_state{} = get(Handle),
   case ScanState#scan_state.ungetc of
@@ -109,7 +109,8 @@ ungetc(Ch, Handle) ->
       put(Handle, ScanState#scan_state{ungetc = Ch}),
       ok;
     _ ->
-      {error, {?MODULE, ungetc}}
+      %% deliberately crash on internal logic error
+      error({?MODULE, ungetc})
   end.
 
 -spec location(scan_state()) -> {ok, location()}.
@@ -233,11 +234,9 @@ do_octal_escape(ScanState, Val, N) ->
     {ok, Ch} ->
       if $0 =< Ch, Ch =< $t -> do_octal_escape(ScanState, Val * 8 + (Ch - $0), N - 1);
          true ->
-           case ungetc(Ch, ScanState) of
-             {error, _Reason} = Error -> Error;
-             ok -> {ok, Val}
-           end
-       end
+           ungetc(Ch, ScanState),
+           {ok, Val}
+      end
   end.
 
 do_symbol(ScanState, Location, Chars) ->
@@ -252,10 +251,8 @@ do_symbol(ScanState, Location, Chars) ->
          Ch =:= $$ orelse
          Ch =:= $_ -> do_symbol(ScanState, Location, [Ch | Chars]);
          true ->
-           case ungetc(Ch, ScanState) of
-             {error, _Reason} = Error -> Error;
-             ok -> do_symbol(Location, lists:reverse(Chars))
-           end
+           ungetc(Ch, ScanState),
+           do_symbol(Location, lists:reverse(Chars))
       end
   end.
 
@@ -286,10 +283,8 @@ do_number(ScanState, Location, Dig0) ->
                    end
                end;
              true ->
-               case ungetc(Ch, ScanState) of
-                 {error, _Reason} = Error -> Error;
-                 ok -> do_number(ScanState, Location, _Base = 8, _Val = 0)
-               end
+               ungetc(Ch, ScanState),
+               do_number(ScanState, Location, _Base = 8, _Val = 0)
           end
       end;
     _ -> do_number(ScanState, Location, _Base = 10, _Val = Dig0 - $0)
@@ -306,10 +301,8 @@ do_number(ScanState, Location, Base, Val) ->
         _ChVal when Base =< 10 andalso (Ch =:= $b orelse Ch =:= $f) ->
           {ok, {Location, {?T_LOCAL_LABEL, Val, Ch}}};
         _ChVal ->
-          case ungetc(Ch, ScanState) of
-            {error, _Reason} = Error -> Error;
-            ok -> {ok, {Location, {?T_UINTEGER, Val}}}
-          end
+          ungetc(Ch, ScanState),
+          {ok, {Location, {?T_UINTEGER, Val}}}
       end
   end.
 
@@ -325,7 +318,6 @@ badchar(ScanState, Ch, Context) ->
   {error, {?MODULE, {FileName, LineNr, Ch, Context}}}.
 
 -spec format_error(term()) -> io_lib:chars().
-format_error(ungetc) -> "internal error: invalid ungetc";
 format_error({FileName, LineNr, Ch, Context}) ->
   io_lib:format("~s line ~p: invalid character '~s' ~s",
                 [FileName, LineNr, char_to_string(Ch), Context]).
