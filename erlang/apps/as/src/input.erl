@@ -98,7 +98,7 @@ pass1_stmt(Location, Ctx, Stmt) ->
     _ -> {ok, ctx_append(Ctx, Location, Stmt)}
   end.
 
-dot_data(Location, Ctx, #s_dot_text{nr = SubsectionNr}) ->
+dot_data(Location, Ctx, #s_dot_data{nr = SubsectionNr}) ->
   {ok, ctx_data(Ctx, Location, SubsectionNr)}.
 
 dot_popsection(Location, Ctx0, #s_dot_popsection{}) ->
