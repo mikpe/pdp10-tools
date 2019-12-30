@@ -313,16 +313,23 @@ pass2_stmts([{Location, Stmt} | Stmts], Tunit) ->
 
 pass2_stmt(Location, Tunit, Stmt) ->
   case Stmt of
+    #s_dot_byte{} -> dot_byte(Location, Tunit, Stmt);
     #s_dot_file{} -> dot_file(Location, Tunit, Stmt);
     #s_dot_globl{} -> dot_globl(Location, Tunit, Stmt);
     #s_dot_ident{} -> dot_ident(Location, Tunit, Stmt);
     #s_dot_long{} -> dot_long(Location, Tunit, Stmt);
+    #s_dot_short{} -> dot_short(Location, Tunit, Stmt);
     #s_dot_size{} -> dot_size(Location, Tunit, Stmt);
     #s_dot_type{} -> dot_type(Location, Tunit, Stmt);
     #s_label{} -> label(Location, Tunit, Stmt);
     #s_local_label{} -> local_label(Location, Tunit, Stmt);
     #s_insn{} -> insn(Location, Tunit, Stmt)
   end.
+
+dot_byte(Location, Tunit, #s_dot_byte{} = Stmt0) ->
+  integer_data_directive(Location, Tunit, Stmt0, 1, ".byte",
+                         fun(Stmt) -> Stmt#s_dot_byte.exprs end,
+                         fun(Stmt, Exprs) -> Stmt#s_dot_byte{exprs = Exprs} end).
 
 dot_file(_Location, Tunit, #s_dot_file{string = String}) ->
   Symbol = #symbol{ name = String
@@ -368,20 +375,33 @@ dot_ident(_Location, Tunit, #s_dot_ident{} = Stmt) ->
   NewSection = OldSection#section{data = {stmts, [Stmt | Stmts]}},
   {ok, tunit:put_section(Tunit, NewSection)}.
 
-dot_long(Location, Tunit, #s_dot_long{exprs = Exprs} = Stmt) ->
+dot_long(Location, Tunit, #s_dot_long{} = Stmt0) ->
+  Size = 4, % FIXME: target-specific alignof and sizeof
+  integer_data_directive(Location, Tunit, Stmt0, Size, ".long",
+                         fun(Stmt) -> Stmt#s_dot_long.exprs end,
+                         fun(Stmt, Exprs) -> Stmt#s_dot_long{exprs = Exprs} end).
+
+integer_data_directive(Location, Tunit, Stmt, Size, Lexeme, GetExpr, SetExprs) ->
+  Exprs = GetExpr(Stmt),
   #tunit{cursect = Cursect} = Tunit,
   #section{data = {stmts, Stmts}, dot = Dot} = Section = tunit:get_section(Tunit, Cursect),
-  case Dot rem 4 of % FIXME: target-specific
+  case Dot rem Size of
     0 ->
       NewExprs = [expr_fixup(Tunit, Expr) || Expr <- Exprs],
-      NewStmt = Stmt#s_dot_long{exprs = NewExprs},
+      NewStmt = SetExprs(Stmt, NewExprs),
       NewSection =
         Section#section{ data = {stmts, [NewStmt | Stmts]}
-                       , dot = Dot + 4 * length(NewExprs) % FIXME: target-specific
+                       , dot = Dot + Size * length(NewExprs)
                        },
       {ok, tunit:put_section(Tunit, NewSection)};
-    _ -> fmterr(Location, "misaligned address for .long", [])
+    _ -> fmterr(Location, "misaligned address for ~s", [Lexeme])
   end.
+
+dot_short(Location, Tunit, #s_dot_short{} = Stmt0) ->
+  Size = 2, % FIXME: target-specific alignof and sizeof
+  integer_data_directive(Location, Tunit, Stmt0, Size, ".short",
+                         fun(Stmt) -> Stmt#s_dot_short.exprs end,
+                         fun(Stmt, Exprs) -> Stmt#s_dot_short{exprs = Exprs} end).
 
 dot_size(Location, Tunit, #s_dot_size{name = Name}) ->
   #tunit{cursect = Cursect} = Tunit,

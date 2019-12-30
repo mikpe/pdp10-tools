@@ -26,18 +26,22 @@
 %% with attributes (ordinary symbols, literals, errors).
 
 %% reserved symbols including directives
+-define(T_DOT_BYTE,             'T_DOT_BYTE').          % .byte
 -define(T_DOT_DATA,             'T_DOT_DATA').          % .data
 -define(T_DOT_FILE,             'T_DOT_FILE').          % .file
 -define(T_DOT_GLOBL,            'T_DOT_GLOBL').         % .globl
+-define(T_DOT_HWORD,            'T_DOT_HWORD').         % .hword
 -define(T_DOT_IDENT,            'T_DOT_IDENT').         % .ident
 -define(T_DOT_LONG,             'T_DOT_LONG').          % .long
 -define(T_DOT_POPSECTION,       'T_DOT_POPSECTION').    % .popsection
 -define(T_DOT_PREVIOUS,         'T_DOT_PREVIOUS').      % .previous
 -define(T_DOT_PUSHSECTION,      'T_DOT_PUSHSECTION').   % .pushsection
+-define(T_DOT_SHORT,            'T_DOT_SHORT').         % .short
 -define(T_DOT_SIZE,             'T_DOT_SIZE').          % .size
 -define(T_DOT_SUBSECTION,       'T_DOT_SUBSECTION').    % .subsection
 -define(T_DOT_TEXT,             'T_DOT_TEXT').          % .text
 -define(T_DOT_TYPE,             'T_DOT_TYPE').          % .type
+-define(T_DOT_WORD,             'T_DOT_WORD').          % .word
 
 %% ordinary (non-reserved, non-special non-synthetic) symbols
 -define(T_SYMBOL,       'T_SYMBOL').    % pushj, foo, .Lbar
@@ -60,18 +64,22 @@
 -define(T_NEWLINE,      'T_NEWLINE').   % <end-of-line>
 -define(T_EOF,          'T_EOF').       % <end-of-file>
 
--type token() :: ?T_DOT_DATA
+-type token() :: ?T_DOT_BYTE
+               | ?T_DOT_DATA
                | ?T_DOT_FILE
                | ?T_DOT_GLOBL
+               | ?T_DOT_HWORD
                | ?T_DOT_IDENT
                | ?T_DOT_LONG
                | ?T_DOT_POPSECTION
                | ?T_DOT_PREVIOUS
                | ?T_DOT_PUSHSECTION
+               | ?T_DOT_SHORT
                | ?T_DOT_SIZE
                | ?T_DOT_SUBSECTION
                | ?T_DOT_TEXT
                | ?T_DOT_TYPE
+               | ?T_DOT_WORD
                | {?T_SYMBOL, string()}
                | {?T_LOCAL_LABEL, non_neg_integer(), $b | $f}
                | {?T_STRING, string()}

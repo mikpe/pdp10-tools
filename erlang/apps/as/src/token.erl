@@ -29,36 +29,44 @@
 -spec from_symbol(string()) -> token().
 from_symbol(Name) ->
   case Name of
+    ".byte"             -> ?T_DOT_BYTE;
     ".data"             -> ?T_DOT_DATA;
     ".file"             -> ?T_DOT_FILE;
     ".globl"            -> ?T_DOT_GLOBL;
+    ".hword"            -> ?T_DOT_HWORD;
     ".ident"            -> ?T_DOT_IDENT;
     ".long"             -> ?T_DOT_LONG;
     ".popsection"       -> ?T_DOT_POPSECTION;
     ".previous"         -> ?T_DOT_PREVIOUS;
     ".pushsection"      -> ?T_DOT_PUSHSECTION;
+    ".short"            -> ?T_DOT_SHORT;
     ".size"             -> ?T_DOT_SIZE;
     ".subsection"       -> ?T_DOT_SUBSECTION;
     ".text"             -> ?T_DOT_TEXT;
     ".type"             -> ?T_DOT_TYPE;
+    ".word"             -> ?T_DOT_WORD;
     _                   -> {?T_SYMBOL, Name}
   end.
 
 -spec format(token()) -> io_lib:chars().
 format(Token) ->
   case Token of
+    ?T_DOT_BYTE         -> ".byte";
     ?T_DOT_DATA         -> ".data";
     ?T_DOT_FILE         -> ".file";
     ?T_DOT_GLOBL        -> ".globl";
+    ?T_DOT_HWORD        -> ".hword";
     ?T_DOT_IDENT        -> ".ident";
     ?T_DOT_LONG         -> ".long";
     ?T_DOT_POPSECTION   -> ".popsection";
     ?T_DOT_PREVIOUS     -> ".previous";
     ?T_DOT_PUSHSECTION  -> ".pushsection";
+    ?T_DOT_SHORT        -> ".short";
     ?T_DOT_SIZE         -> ".size";
     ?T_DOT_SUBSECTION   -> ".subsection";
     ?T_DOT_TEXT         -> ".text";
     ?T_DOT_TYPE         -> ".type";
+    ?T_DOT_WORD         -> ".word";
     {?T_SYMBOL, Name}   -> io_lib:format("symbol:~s", [Name]);
     {?T_LOCAL_LABEL, Number, Direction} ->
       io_lib:format("label: ~.10b~c", [Number, Direction]);

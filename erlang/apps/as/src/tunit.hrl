@@ -36,6 +36,9 @@
 %% either interpreted immediately or appended to the representation of the
 %% current section.
 
+%% .byte [expr (, expr)*]
+-record(s_dot_byte, {exprs :: [expr()]}).
+
 %% .data [nr]
 -record(s_dot_data, {nr :: non_neg_integer()}).
 
@@ -59,6 +62,9 @@
 
 %% .pushsection name [, nr] (TODO: extend)
 -record(s_dot_pushsection, {name :: string(), nr :: non_neg_integer()}).
+
+%% .short [expr (, expr)*]
+-record(s_dot_short, {exprs :: [expr()]}).
 
 %% .size foo,.-foo (TODO: extend)
 -record(s_dot_size, {name :: string()}).

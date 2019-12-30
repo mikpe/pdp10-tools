@@ -100,17 +100,26 @@ stmts_image([Stmt | Stmts], Tunit, Acc) ->
 
 stmt_image(Stmt, Tunit) ->
   case Stmt of
+    #s_dot_byte{} -> dot_byte_image(Stmt, Tunit);
     #s_dot_long{} -> dot_long_image(Stmt, Tunit);
+    #s_dot_short{} -> dot_short_image(Stmt, Tunit);
     #s_insn{} -> insn_image(Stmt, Tunit)
   end.
 
-dot_long_image(Stmt, Tunit) ->
-  #s_dot_long{exprs = Exprs} = Stmt,
+dot_byte_image(#s_dot_byte{exprs = Exprs}, Tunit) ->
+  integer_data_directive(Exprs, Tunit, fun(Value) -> Value band ?PDP10_UINT9_MAX end).
+
+dot_long_image(#s_dot_long{exprs = Exprs}, Tunit) ->
+  integer_data_directive(Exprs, Tunit, fun pdp10_extint:uint36_to_ext/1).
+
+integer_data_directive(Exprs, Tunit, ValueToExt) ->
   case exprs_values(Exprs, Tunit) of
-    {ok, Values} ->
-      {ok, [pdp10_extint:uint36_to_ext(Value) || Value <- Values]};
+    {ok, Values} -> {ok, lists:map(ValueToExt, Values)};
     {error, _Reason} = Error -> Error
   end.
+
+dot_short_image(#s_dot_short{exprs = Exprs}, Tunit) ->
+  integer_data_directive(Exprs, Tunit, fun pdp10_extint:uint18_to_ext/1).
 
 insn_image(Stmt, Tunit) ->
   #s_insn{ high13 = High13

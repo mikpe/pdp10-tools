@@ -34,18 +34,22 @@
       -> {ok, {location(), stmt()}} | eof | {error, {module(), term()}}.
 stmt(ScanState) ->
   case scan:token(ScanState) of
+    {ok, {Location, ?T_DOT_BYTE}} -> dot_byte(ScanState, Location);
     {ok, {Location, ?T_DOT_DATA}} -> dot_data(ScanState, Location);
     {ok, {Location, ?T_DOT_FILE}} -> dot_file(ScanState, Location);
     {ok, {Location, ?T_DOT_GLOBL}} -> dot_globl(ScanState, Location);
+    {ok, {Location, ?T_DOT_HWORD}} -> dot_hword(ScanState, Location);
     {ok, {Location, ?T_DOT_IDENT}} -> dot_ident(ScanState, Location);
     {ok, {Location, ?T_DOT_LONG}} -> dot_long(ScanState, Location);
     {ok, {Location, ?T_DOT_POPSECTION}} -> dot_popsection(ScanState, Location);
     {ok, {Location, ?T_DOT_PREVIOUS}} -> dot_previous(ScanState, Location);
     {ok, {Location, ?T_DOT_PUSHSECTION}} -> dot_pushsection(ScanState, Location);
+    {ok, {Location, ?T_DOT_SHORT}} -> dot_short(ScanState, Location);
     {ok, {Location, ?T_DOT_SIZE}} -> dot_size(ScanState, Location);
     {ok, {Location, ?T_DOT_SUBSECTION}} -> dot_subsection(ScanState, Location);
     {ok, {Location, ?T_DOT_TEXT}} -> dot_text(ScanState, Location);
     {ok, {Location, ?T_DOT_TYPE}} -> dot_type(ScanState, Location);
+    {ok, {Location, ?T_DOT_WORD}} -> dot_word(ScanState, Location);
     {ok, {Location, {?T_SYMBOL, Name}}} -> stmt_after_symbol(ScanState, Location, Name);
     {ok, {Location, {?T_UINTEGER, UInt}}} -> stmt_after_uinteger(ScanState, Location, UInt);
     {ok, {_Location, ?T_NEWLINE}} -> stmt(ScanState);
@@ -270,6 +274,10 @@ badinsn(Location, Fmt, Mnemonic) ->
 
 %% Directives ------------------------------------------------------------------
 
+dot_byte(ScanState, Location) ->
+  integer_data_directive(ScanState, Location, ".byte",
+                         fun(Exprs) -> #s_dot_byte{exprs = Exprs} end).
+
 dot_data(ScanState, Location) ->
   case scan:token(ScanState) of
     {ok, {_Location1, ?T_NEWLINE}} -> {ok, {Location, #s_dot_data{nr = 0}}};
@@ -311,12 +319,22 @@ dot_globl(ScanState, Location) ->
     ScanRes -> badtok("junk after .globl", ScanRes)
   end.
 
+dot_hword(ScanState, Location) ->
+  dot_short(ScanState, Location, ".hword").
+
 dot_long(ScanState, Location) ->
+  dot_long(ScanState, Location, ".long").
+
+dot_long(ScanState, Location, Lexeme) ->
+  integer_data_directive(ScanState, Location, Lexeme,
+                         fun(Exprs) -> #s_dot_long{exprs = Exprs} end).
+
+integer_data_directive(ScanState, Location, Lexeme, MkStmt) ->
   case expr_list(ScanState) of
     {ok, {Exprs, Follow}} ->
       case Follow of
-        {_Location, ?T_NEWLINE} -> {ok, {Location, #s_dot_long{exprs = Exprs}}};
-        _ -> badtok("junk after .long <exprs>", {ok, Follow})
+        {_Location, ?T_NEWLINE} -> {ok, {Location, MkStmt(Exprs)}};
+        _ -> badtok("junk after " ++ Lexeme ++ " <exprs>", {ok, Follow})
       end;
     {error, _Reason} = Error -> Error
   end.
@@ -359,6 +377,13 @@ dot_pushsection(ScanState, Location, Name) ->
       end;
     ScanRes -> badtok("junk after .pushsection <name>", ScanRes)
   end.
+
+dot_short(ScanState, Location) ->
+  dot_short(ScanState, Location, ".short").
+
+dot_short(ScanState, Location, Lexeme) ->
+  integer_data_directive(ScanState, Location, Lexeme,
+                         fun(Exprs) -> #s_dot_short{exprs = Exprs} end).
 
 %% For now only accepts ".size <sym>,.-<sym>".  TODO: extend
 dot_size(ScanState, Location) ->
@@ -430,6 +455,9 @@ dot_type(ScanState, Location) ->
       end;
     ScanRes -> badtok("junk after .type", ScanRes)
   end.
+
+dot_word(ScanState, Location) ->
+  dot_long(ScanState, Location, ".word").
 
 %% Expressions -----------------------------------------------------------------
 
