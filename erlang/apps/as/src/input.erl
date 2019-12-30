@@ -286,7 +286,11 @@ pass2_sections([{SectionName, {Section, SubsectionsMap}} | Sections], Tunit0) ->
     {error, _Reason} = Error -> Error
   end.
 
-pass2_subsections(_SectionName = ".text", SubsectionsMap, Tunit) ->
+pass2_subsections(SectionName, SubsectionsMap, Tunit) ->
+  case SectionName of
+    ".data" ++ _ -> ok;
+    ".text" ++ _ -> ok
+  end,
   pass2_subsections(lists:sort(maps:to_list(SubsectionsMap)), Tunit).
 
 pass2_subsections([], Tunit) -> {ok, Tunit};

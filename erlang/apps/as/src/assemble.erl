@@ -40,6 +40,10 @@ sections([Section | Sections], Tunit) ->
 
 section(Section, Tunit) ->
   case Section of
+    #section{ name = ".data" ++ _
+            , sh_type = ?SHT_PROGBITS
+            , sh_flags = ?SHF_ALLOC bor ?SHF_WRITE
+            } -> stmts(Section, Tunit);
     #section{ name = ".text" ++ _
             , sh_type = ?SHT_PROGBITS
             , sh_flags = ?SHF_ALLOC bor ?SHF_EXECINSTR
