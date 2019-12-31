@@ -26,6 +26,8 @@
 %% with attributes (ordinary symbols, literals, errors).
 
 %% reserved symbols including directives
+-define(T_DOT_ASCII,            'T_DOT_ASCII').         % .ascii
+-define(T_DOT_ASCIZ,            'T_DOT_ASCIZ').         % .asciz
 -define(T_DOT_BYTE,             'T_DOT_BYTE').          % .byte
 -define(T_DOT_DATA,             'T_DOT_DATA').          % .data
 -define(T_DOT_FILE,             'T_DOT_FILE').          % .file
@@ -64,7 +66,9 @@
 -define(T_NEWLINE,      'T_NEWLINE').   % <end-of-line>
 -define(T_EOF,          'T_EOF').       % <end-of-file>
 
--type token() :: ?T_DOT_BYTE
+-type token() :: ?T_DOT_ASCII
+               | ?T_DOT_ASCIZ
+               | ?T_DOT_BYTE
                | ?T_DOT_DATA
                | ?T_DOT_FILE
                | ?T_DOT_GLOBL

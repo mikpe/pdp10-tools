@@ -313,6 +313,7 @@ pass2_stmts([{Location, Stmt} | Stmts], Tunit) ->
 
 pass2_stmt(Location, Tunit, Stmt) ->
   case Stmt of
+    #s_dot_ascii{} -> dot_ascii(Location, Tunit, Stmt);
     #s_dot_byte{} -> dot_byte(Location, Tunit, Stmt);
     #s_dot_file{} -> dot_file(Location, Tunit, Stmt);
     #s_dot_globl{} -> dot_globl(Location, Tunit, Stmt);
@@ -325,6 +326,21 @@ pass2_stmt(Location, Tunit, Stmt) ->
     #s_local_label{} -> local_label(Location, Tunit, Stmt);
     #s_insn{} -> insn(Location, Tunit, Stmt)
   end.
+
+dot_ascii(_Location, Tunit, #s_dot_ascii{z = Z, strings = Strings} = Stmt) ->
+  #tunit{cursect = Cursect} = Tunit,
+  #section{data = {stmts, Stmts}, dot = Dot} = Section = tunit:get_section(Tunit, Cursect),
+  Size0 = lists:sum(lists:map(fun erlang:length/1, Strings)),
+  Size =
+    case Z of
+      true -> Size0 + length(Strings);
+      false -> Size0
+    end,
+  NewSection =
+    Section#section{ data = {stmts, [Stmt | Stmts]}
+                   , dot = Dot + Size
+                   },
+  {ok, tunit:put_section(Tunit, NewSection)}.
 
 dot_byte(Location, Tunit, #s_dot_byte{} = Stmt0) ->
   integer_data_directive(Location, Tunit, Stmt0, 1, ".byte",

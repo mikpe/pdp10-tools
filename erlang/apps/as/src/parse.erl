@@ -34,6 +34,8 @@
       -> {ok, {location(), stmt()}} | eof | {error, {module(), term()}}.
 stmt(ScanState) ->
   case scan:token(ScanState) of
+    {ok, {Location, ?T_DOT_ASCII}} -> dot_ascii(ScanState, Location);
+    {ok, {Location, ?T_DOT_ASCIZ}} -> dot_asciz(ScanState, Location);
     {ok, {Location, ?T_DOT_BYTE}} -> dot_byte(ScanState, Location);
     {ok, {Location, ?T_DOT_DATA}} -> dot_data(ScanState, Location);
     {ok, {Location, ?T_DOT_FILE}} -> dot_file(ScanState, Location);
@@ -274,6 +276,23 @@ badinsn(Location, Fmt, Mnemonic) ->
 
 %% Directives ------------------------------------------------------------------
 
+dot_ascii(ScanState, Location) ->
+  dot_ascii(ScanState, Location, ".ascii", _Z = false).
+
+dot_asciz(ScanState, Location) ->
+  dot_ascii(ScanState, Location, ".asciz", _Z = true).
+
+dot_ascii(ScanState, Location, Lexeme, Z) ->
+  case string_list(ScanState) of
+    {ok, {Strings, Follow}} ->
+      case Follow of
+        {_Location, ?T_NEWLINE} ->
+          {ok, {Location, #s_dot_ascii{z = Z, strings = Strings}}};
+        _ -> badtok("junk after " ++ Lexeme ++ " <strings>", {ok, Follow})
+      end;
+    {error, _Reason} = Error -> Error
+  end.
+
 dot_byte(ScanState, Location) ->
   integer_data_directive(ScanState, Location, ".byte",
                          fun(Exprs) -> #s_dot_byte{exprs = Exprs} end).
@@ -498,6 +517,29 @@ expr_opt(ScanState) ->
       {false, First};
     {error, _Reason} = Error ->
       Error
+  end.
+
+%% String Lists ----------------------------------------------------------------
+
+%% <string_list> ::= (<string> ("," <string>)*)?
+string_list(ScanState) ->
+  case scan:token(ScanState) of
+    {ok, {_Location, {?T_STRING, String}}} -> string_list(ScanState, [String]);
+    {ok, Follow} -> {ok, {[], Follow}};
+    {error, _Reason} = Error -> Error
+  end.
+
+string_list(ScanState, Strings) ->
+  case scan:token(ScanState) of
+    {ok, {_Location1, ?T_COMMA}} ->
+      case scan:token(ScanState) of
+        {ok, {_Location2, {?T_STRING, String}}} ->
+          string_list(ScanState, [String | Strings]);
+        {ok, First} -> badtok("expected string literal", {ok, First});
+        {error, _Reason} = Error -> Error
+      end;
+    {ok, Follow} -> {ok, {lists:reverse(Strings), Follow}};
+    {error, _Reason} = Error -> Error
   end.
 
 %% Error reporting -------------------------------------------------------------

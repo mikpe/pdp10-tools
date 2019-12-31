@@ -29,6 +29,8 @@
 -spec from_symbol(string()) -> token().
 from_symbol(Name) ->
   case Name of
+    ".ascii"            -> ?T_DOT_ASCII;
+    ".asciz"            -> ?T_DOT_ASCIZ;
     ".byte"             -> ?T_DOT_BYTE;
     ".data"             -> ?T_DOT_DATA;
     ".file"             -> ?T_DOT_FILE;
@@ -51,6 +53,8 @@ from_symbol(Name) ->
 -spec format(token()) -> io_lib:chars().
 format(Token) ->
   case Token of
+    ?T_DOT_ASCII        -> ".ascii";
+    ?T_DOT_ASCIZ        -> ".asciz";
     ?T_DOT_BYTE         -> ".byte";
     ?T_DOT_DATA         -> ".data";
     ?T_DOT_FILE         -> ".file";

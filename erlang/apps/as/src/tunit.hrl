@@ -36,6 +36,9 @@
 %% either interpreted immediately or appended to the representation of the
 %% current section.
 
+%% .asci{i,z} [string (, string)*]
+-record(s_dot_ascii, {z :: boolean(), strings :: [string()]}).
+
 %% .byte [expr (, expr)*]
 -record(s_dot_byte, {exprs :: [expr()]}).
 
@@ -90,7 +93,8 @@
         , index         :: 0..((1 bsl 4) - 1)
         }).
 
--type stmt() :: #s_dot_data{}
+-type stmt() :: #s_dot_ascii{}
+              | #s_dot_data{}
               | #s_dot_file{}
               | #s_dot_globl{}
               | #s_dot_ident{}

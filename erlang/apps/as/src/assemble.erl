@@ -100,11 +100,20 @@ stmts_image([Stmt | Stmts], Tunit, Acc) ->
 
 stmt_image(Stmt, Tunit) ->
   case Stmt of
+    #s_dot_ascii{} -> dot_ascii_image(Stmt, Tunit);
     #s_dot_byte{} -> dot_byte_image(Stmt, Tunit);
     #s_dot_long{} -> dot_long_image(Stmt, Tunit);
     #s_dot_short{} -> dot_short_image(Stmt, Tunit);
     #s_insn{} -> insn_image(Stmt, Tunit)
   end.
+
+dot_ascii_image(#s_dot_ascii{z = Z, strings = Strings}, _Tunit) ->
+  Image =
+    case Z of
+      true -> [String ++ [0] || String <- Strings];
+      false -> Strings
+    end,
+  {ok, Image}.
 
 dot_byte_image(#s_dot_byte{exprs = Exprs}, Tunit) ->
   integer_data_directive(Exprs, Tunit, fun(Value) -> Value band ?PDP10_UINT9_MAX end).
