@@ -92,7 +92,6 @@ pass1_stmt(Location, Ctx, Stmt) ->
     #s_dot_data{} -> dot_data(Location, Ctx, Stmt);
     #s_dot_popsection{} -> dot_popsection(Location, Ctx, Stmt);
     #s_dot_previous{} -> dot_previous(Location, Ctx, Stmt);
-    #s_dot_pushsection{} -> dot_pushsection(Location, Ctx, Stmt);
     #s_dot_section{} -> dot_section(Location, Ctx, Stmt);
     #s_dot_subsection{} -> dot_subsection(Location, Ctx, Stmt);
     #s_dot_text{} -> dot_text(Location, Ctx, Stmt);
@@ -113,10 +112,6 @@ dot_previous(Location, Ctx0, #s_dot_previous{}) ->
     {ok, _Ctx} = Result -> Result;
     false -> fmterr(Location, ".previous with empty section stack", [])
   end.
-
-dot_pushsection(Location, Ctx,
-                #s_dot_pushsection{name = SectionName, nr = SubsectionNr}) ->
-  ctx_pushsection(Ctx, Location, SectionName, SubsectionNr).
 
 dot_section(Location, Ctx, Stmt) ->
   #s_dot_section{ name = SectionName
@@ -192,24 +187,6 @@ ctx_try_previous(Ctx0) -> % implements .previous
                   , previous = Current
                   , stmts = Stmts
                   }}
-  end.
-
-ctx_pushsection(Ctx0, Location, SectionName, SubsectionNr) -> % implements .pushsection
-  Ctx = ctx_flush(Ctx0),
-  #ctx{ sections_map = SectionsMap0
-      , stack = Stack
-      , current = Current
-      , previous = Previous
-      } = Ctx,
-  case enter_section(Location, SectionName, SubsectionNr, SectionsMap0) of
-    {ok, {Stmts, SectionsMap}} ->
-      {ok, Ctx#ctx{ sections_map = SectionsMap
-                  , stack = [{Current, Previous} | Stack]
-                  , current = {SectionName, SubsectionNr}
-                  , previous = Current
-                  , stmts = Stmts
-                  }};
-    {error, _Reason} = Error -> Error
   end.
 
 ctx_section(Ctx0, Location, SectionName, SubsectionNrOpt,

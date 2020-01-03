@@ -372,33 +372,6 @@ dot_previous(ScanState, Location) ->
     ScanRes -> badtok("junk after .previous", ScanRes)
   end.
 
-%% For now only accepts ".pushsection <name> [, <nr>]".  TODO: extend
-dot_pushsection(ScanState, Location) ->
-  case scan:token(ScanState) of
-    {ok, {_Location, {?T_STRING, Name}}} -> dot_pushsection(ScanState, Location, Name);
-    {ok, {_Location, {?T_SYMBOL, Name}}} -> dot_pushsection(ScanState, Location, Name);
-    %% TODO: do we need a general mapping from reserved to plain symbols?
-    {ok, {_Location, ?T_DOT_DATA}} -> dot_pushsection(ScanState, Location, _Name = ".data");
-    {ok, {_Location, ?T_DOT_TEXT}} -> dot_pushsection(ScanState, Location, _Name = ".text");
-    ScanRes -> badtok("junk after .pushsection", ScanRes)
-  end.
-
-%% Seen ".pushsection <name>", expects "[, <nr>]".
-dot_pushsection(ScanState, Location, Name) ->
-  case scan:token(ScanState) of
-    {ok, {_Location1, ?T_NEWLINE}} -> {ok, {Location, #s_dot_pushsection{name = Name, nr = 0}}};
-    {ok, {_Location1, ?T_COMMA}} ->
-      case scan:token(ScanState) of
-        {ok, {_Location2, {?T_UINTEGER, Nr}}} ->
-          case scan:token(ScanState) of
-            {ok, {_Location3, ?T_NEWLINE}} -> {ok, {Location, #s_dot_pushsection{name = Name, nr = Nr}}};
-            ScanRes -> badtok("junk after .pushsection <name>, <nr>", ScanRes)
-          end;
-        ScanRes -> badtok("junk after .pushsection <name>,", ScanRes)
-      end;
-    ScanRes -> badtok("junk after .pushsection <name>", ScanRes)
-  end.
-
 dot_short(ScanState, Location) ->
   dot_short(ScanState, Location, ".short").
 
@@ -503,6 +476,9 @@ dot_word(ScanState, Location) ->
 
 dot_section(ScanState, Location) ->
   dot_section_name(ScanState, Location, _IsPushsection = false).
+
+dot_pushsection(ScanState, Location) ->
+  dot_section_name(ScanState, Location, _IsPushsection = true).
 
 dot_section_name(ScanState, Location, IsPushsection) ->
   case section_name(ScanState) of

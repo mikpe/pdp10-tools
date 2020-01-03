@@ -63,9 +63,6 @@
 %% .previous
 -record(s_dot_previous, {}).
 
-%% .pushsection name [, nr] (TODO: extend)
--record(s_dot_pushsection, {name :: string(), nr :: non_neg_integer()}).
-
 %% .section name, "flags", @type, ...
 %% .pushsection name, [, nr], "flags", @type, ...
 %% TODO: add support for G and ? flags and ,<group>,<linkage>
@@ -114,7 +111,6 @@
               | #s_dot_long{}
               | #s_dot_popsection{}
               | #s_dot_previous{}
-              | #s_dot_pushsection{}
               | #s_dot_section{}
               | #s_dot_size{}
               | #s_dot_subsection{}
