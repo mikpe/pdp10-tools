@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% parser for pdp10-elf as
-%%% Copyright (C) 2013-2019  Mikael Pettersson
+%%% Copyright (C) 2013-2020  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -27,6 +27,7 @@
 -include("token.hrl").
 -include("tunit.hrl").
 -include_lib("lib/include/pdp10_opcodes.hrl").
+-include_lib("lib/include/pdp10_elf36.hrl").
 
 -type location() :: scan:location().
 
@@ -46,6 +47,7 @@ stmt(ScanState) ->
     {ok, {Location, ?T_DOT_POPSECTION}} -> dot_popsection(ScanState, Location);
     {ok, {Location, ?T_DOT_PREVIOUS}} -> dot_previous(ScanState, Location);
     {ok, {Location, ?T_DOT_PUSHSECTION}} -> dot_pushsection(ScanState, Location);
+    {ok, {Location, ?T_DOT_SECTION}} -> dot_section(ScanState, Location);
     {ok, {Location, ?T_DOT_SHORT}} -> dot_short(ScanState, Location);
     {ok, {Location, ?T_DOT_SIZE}} -> dot_size(ScanState, Location);
     {ok, {Location, ?T_DOT_SUBSECTION}} -> dot_subsection(ScanState, Location);
@@ -477,6 +479,177 @@ dot_type(ScanState, Location) ->
 
 dot_word(ScanState, Location) ->
   dot_long(ScanState, Location, ".word").
+
+%% .section/.pushsection directives --------------------------------------------
+%%
+%% .section <name> <sectionspec>
+%% .pushsection <name> [, <nr>] <sectionspec>
+%%
+%% <sectionspec> ::= [, <flags> [, <type>]]
+%%                 | , <flags>, <type>, <entsize>  (if <flags> contain M)
+%%
+%% <flags> ::= '"' <flagschar>* '"'
+%% <flagschar> ::= [adexwMST0-9]
+%%
+%% <type> ::= "@progbits" | "@nobits" | "@note" | "@init_array" | "@fini_array"
+%%          | "@preinit_array"
+%%
+%% TODO: add support for "G" and "?" flags, and <groupname> and <linkage> specs:
+%%
+%% <sectionspec> ::= , <flags>, <type>, <groupname> [, <linkage>]  (if <flags> contain G)
+%%                 | , <flags>, <type>, <entsize>, <groupname> [, <linkage>]  (if <flags> contain both M and G)
+%%
+%% <linkage> ::= "comdat" | ".gnu.linkonce"
+
+dot_section(ScanState, Location) ->
+  dot_section_name(ScanState, Location, _IsPushsection = false).
+
+dot_section_name(ScanState, Location, IsPushsection) ->
+  case section_name(ScanState) of
+    {ok, Name} -> dot_section_subsection(ScanState, Location, Name, IsPushsection);
+    {error, _Reason} = Error -> Error
+  end.
+
+dot_section_subsection(ScanState, Location, Name, IsPushsection) ->
+  case IsPushsection of
+    true ->
+      case scan:token(ScanState) of
+        {ok, {_Location1, ?T_NEWLINE}} ->
+          dot_section_finish(Location, Name, _Nr = 0, _ShFlags = 0, _ShType = 0, _ShEntSize = 0);
+        {ok, {_Location1, ?T_COMMA}} ->
+          case scan:token(ScanState) of
+            {ok, {_Location2, {?T_UINTEGER, Nr}}} ->
+              dot_section_flags(ScanState, Location, Name, Nr);
+            ScanRes ->
+              dot_section_flags(ScanState, Location, Name, _Nr = 0, ScanRes)
+          end;
+        ScanRes -> badtok("expected comma or newline", ScanRes)
+      end;
+    false -> dot_section_flags(ScanState, Location, Name, _Nr = false)
+  end.
+
+dot_section_flags(ScanState, Location, Name, Nr) ->
+  case scan:token(ScanState) of
+    {ok, {_Location, ?T_NEWLINE}} ->
+      dot_section_finish(Location, Name, Nr, _ShFlags = 0, _ShType = 0, _ShEntSize = 0);
+    {ok, {_Location, ?T_COMMA}} ->
+      dot_section_flags(ScanState, Location, Name, Nr, scan:token(ScanState));
+    ScanRes -> badtok("expected comma or newline", ScanRes)
+  end.
+
+dot_section_flags(ScanState, Location, Name, Nr, ScanRes) ->
+  case ScanRes of
+    {ok, {_Location, {?T_STRING, String}}} ->
+      case sh_flags(String) of
+        {ok, ShFlags} -> dot_section_type(ScanState, Location, Name, Nr, ShFlags);
+        false -> badtok("invalid <flags>", ScanRes)
+      end;
+    _ -> badtok("expected <string>", ScanRes)
+  end.
+
+sh_flags(String) -> sh_flags(String, 0).
+
+sh_flags([], ShFlags) -> {ok, ShFlags};
+sh_flags([C | Cs] = String, ShFlags) ->
+  case sh_flag(C) of
+    false ->
+      case strtol:parse(String, _Base = 10) of
+        {ok, {Mask, Rest}} -> sh_flags(Rest, ShFlags bor Mask);
+        {error, _Reason} -> false
+      end;
+    Flag -> sh_flags(Cs, ShFlags bor Flag)
+  end.
+
+sh_flag(C) ->
+  case C of
+    $a -> ?SHF_ALLOC;
+    $d -> ?SHF_GNU_MBIND;
+    $e -> ?SHF_EXCLUDE;
+    $w -> ?SHF_WRITE;
+    $x -> ?SHF_EXECINSTR;
+    $M -> ?SHF_MERGE;
+    $S -> ?SHF_STRINGS;
+    $T -> ?SHF_TLS;
+    %% TODO: permit $G and $?
+    _  -> false
+  end.
+
+dot_section_type(ScanState, Location, Name, Nr, ShFlags) ->
+  case scan:token(ScanState) of
+    {ok, {_Location1, ?T_NEWLINE}} = ScanRes ->
+      case (ShFlags band (?SHF_MERGE bor ?SHF_GROUP)) =/= 0 of
+        true -> badtok("expected ,@type", ScanRes);
+         false ->
+          dot_section_finish(Location, Name, Nr, ShFlags, _ShType = 0, _ShEntSize = 0)
+      end;
+    {ok, {_Location1, ?T_COMMA}} ->
+      case sh_type(ScanState) of
+        {ok, ShType} -> dot_section_entsize(ScanState, Location, Name, Nr, ShFlags, ShType);
+        {error, _Reason} = Error -> Error
+      end;
+    ScanRes -> badtok("expected comma or newline", ScanRes)
+  end.
+
+sh_type(ScanState) ->
+  case scan:token(ScanState) of
+    {ok, {_Location1, ?T_AT}} ->
+      case scan:token(ScanState) of
+        {ok, {_Location2, {?T_SYMBOL, Name}}} = ScanRes ->
+          case Name of
+            "progbits"      -> {ok, ?SHT_PROGBITS};
+            "nobits"        -> {ok, ?SHT_NOBITS};
+            "note"          -> {ok, ?SHT_NOTE};
+            "init_array"    -> {ok, ?SHT_INIT_ARRAY};
+            "fini_array"    -> {ok, ?SHT_FINI_ARRAY};
+            "preinit_array" -> {ok, ?SHT_PREINIT_ARRAY};
+            _ -> badtok("invalid @type", ScanRes)
+          end;
+        {ok, {_Location2, {?T_UINTEGER, ShType}}} -> {ok, ShType};
+        ScanRes -> badtok("expected <symbol> or <uinteger>", ScanRes)
+      end;
+    ScanRes -> badtok("expected @type", ScanRes)
+  end.
+
+dot_section_entsize(ScanState, Location, Name, Nr, ShFlags, ShType) ->
+  case (ShFlags band ?SHF_MERGE) =/= 0 of
+    true ->
+      case scan:token(ScanState) of
+        {ok, {_Location1, ?T_COMMA}} ->
+          case scan:token(ScanState) of
+            {ok, {_Location2, {?T_UINTEGER, ShEntSize}}} ->
+              dot_section_newline(ScanState, Location, Name, Nr, ShFlags, ShType, ShEntSize);
+            ScanRes -> badtok("expected <uinteger>", ScanRes)
+          end;
+        ScanRes -> badtok("expected ,<entsize>", ScanRes)
+      end;
+    false ->
+      dot_section_newline(ScanState, Location, Name, Nr, ShFlags, ShType, _ShEntSize = 0)
+  end.
+
+dot_section_newline(ScanState, Location, Name, Nr, ShFlags, ShType, ShEntSize) ->
+  case scan:token(ScanState) of
+    {ok, {_Location, ?T_NEWLINE}} ->
+      dot_section_finish(Location, Name, Nr, ShFlags, ShType, ShEntSize);
+    ScanRes -> badtok("expected <newline>", ScanRes)
+  end.
+
+dot_section_finish(Location, Name, Nr, ShFlags, ShType, ShEntSize) ->
+  {ok, {Location, #s_dot_section{ name = Name
+                                , nr = Nr
+                                , sh_type = ShType
+                                , sh_flags = ShFlags
+                                , sh_entsize = ShEntSize
+                                }}}.
+
+section_name(ScanState) ->
+  case scan:token(ScanState) of
+    {ok, {_Location, {?T_STRING, Name}}} -> {ok, Name};
+    {ok, {_Location, {?T_SYMBOL, Name}}} -> {ok, Name};
+    %% TODO: do we need a general mapping from reserved to plain symbols?
+    {ok, {_Location, ?T_DOT_DATA}} -> {ok, ".data"};
+    {ok, {_Location, ?T_DOT_TEXT}} -> {ok, ".text"};
+    ScanRes -> badtok("invalid section name", ScanRes)
+  end.
 
 %% Expressions -----------------------------------------------------------------
 

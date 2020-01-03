@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% translation unit declarations for pdp10-elf as.
-%%% Copyright (C) 2013-2019  Mikael Pettersson
+%%% Copyright (C) 2013-2020  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -66,6 +66,19 @@
 %% .pushsection name [, nr] (TODO: extend)
 -record(s_dot_pushsection, {name :: string(), nr :: non_neg_integer()}).
 
+%% .section name, "flags", @type, ...
+%% .pushsection name, [, nr], "flags", @type, ...
+%% TODO: add support for G and ? flags and ,<group>,<linkage>
+-record(s_dot_section,
+        { name :: string()
+        %% nr is false for .section and a subsection number for .pushsection
+        , nr :: false | non_neg_integer()
+        %% the following are as per the Elf36 Shdr spec
+        , sh_type :: non_neg_integer()
+        , sh_flags :: non_neg_integer()
+        , sh_entsize :: non_neg_integer()
+        }).
+
 %% .short [expr (, expr)*]
 -record(s_dot_short, {exprs :: [expr()]}).
 
@@ -102,6 +115,7 @@
               | #s_dot_popsection{}
               | #s_dot_previous{}
               | #s_dot_pushsection{}
+              | #s_dot_section{}
               | #s_dot_size{}
               | #s_dot_subsection{}
               | #s_dot_text{}

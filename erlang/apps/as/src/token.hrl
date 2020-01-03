@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% token definitions for pdp10-elf as
-%%% Copyright (C) 2013-2019  Mikael Pettersson
+%%% Copyright (C) 2013-2020  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -38,6 +38,7 @@
 -define(T_DOT_POPSECTION,       'T_DOT_POPSECTION').    % .popsection
 -define(T_DOT_PREVIOUS,         'T_DOT_PREVIOUS').      % .previous
 -define(T_DOT_PUSHSECTION,      'T_DOT_PUSHSECTION').   % .pushsection
+-define(T_DOT_SECTION,          'T_DOT_SECTION').       % .section
 -define(T_DOT_SHORT,            'T_DOT_SHORT').         % .short
 -define(T_DOT_SIZE,             'T_DOT_SIZE').          % .size
 -define(T_DOT_SUBSECTION,       'T_DOT_SUBSECTION').    % .subsection
@@ -78,6 +79,7 @@
                | ?T_DOT_POPSECTION
                | ?T_DOT_PREVIOUS
                | ?T_DOT_PUSHSECTION
+               | ?T_DOT_SECTION
                | ?T_DOT_SHORT
                | ?T_DOT_SIZE
                | ?T_DOT_SUBSECTION

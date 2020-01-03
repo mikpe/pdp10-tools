@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% token handling for pdp10-elf as
-%%% Copyright (C) 2013-2019  Mikael Pettersson
+%%% Copyright (C) 2013-2020  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -41,6 +41,7 @@ from_symbol(Name) ->
     ".popsection"       -> ?T_DOT_POPSECTION;
     ".previous"         -> ?T_DOT_PREVIOUS;
     ".pushsection"      -> ?T_DOT_PUSHSECTION;
+    ".section"          -> ?T_DOT_SECTION;
     ".short"            -> ?T_DOT_SHORT;
     ".size"             -> ?T_DOT_SIZE;
     ".subsection"       -> ?T_DOT_SUBSECTION;
@@ -65,6 +66,7 @@ format(Token) ->
     ?T_DOT_POPSECTION   -> ".popsection";
     ?T_DOT_PREVIOUS     -> ".previous";
     ?T_DOT_PUSHSECTION  -> ".pushsection";
+    ?T_DOT_SECTION      -> ".section";
     ?T_DOT_SHORT        -> ".short";
     ?T_DOT_SIZE         -> ".size";
     ?T_DOT_SUBSECTION   -> ".subsection";

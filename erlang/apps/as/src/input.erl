@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% input processing phase for pdp10-elf as
-%%% Copyright (C) 2013-2019  Mikael Pettersson
+%%% Copyright (C) 2013-2020  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -93,6 +93,7 @@ pass1_stmt(Location, Ctx, Stmt) ->
     #s_dot_popsection{} -> dot_popsection(Location, Ctx, Stmt);
     #s_dot_previous{} -> dot_previous(Location, Ctx, Stmt);
     #s_dot_pushsection{} -> dot_pushsection(Location, Ctx, Stmt);
+    #s_dot_section{} -> dot_section(Location, Ctx, Stmt);
     #s_dot_subsection{} -> dot_subsection(Location, Ctx, Stmt);
     #s_dot_text{} -> dot_text(Location, Ctx, Stmt);
     _ -> {ok, ctx_append(Ctx, Location, Stmt)}
@@ -116,6 +117,16 @@ dot_previous(Location, Ctx0, #s_dot_previous{}) ->
 dot_pushsection(Location, Ctx,
                 #s_dot_pushsection{name = SectionName, nr = SubsectionNr}) ->
   ctx_pushsection(Ctx, Location, SectionName, SubsectionNr).
+
+dot_section(Location, Ctx, Stmt) ->
+  #s_dot_section{ name = SectionName
+                , nr = SubsectionNrOpt
+                , sh_flags = ShFlags
+                , sh_type = ShType
+                , sh_entsize = ShEntSize
+                } = Stmt,
+  ctx_section(Ctx, Location, SectionName, SubsectionNrOpt,
+              ShFlags, ShType, ShEntSize).
 
 dot_subsection(_Location, Ctx, #s_dot_subsection{nr = SubsectionNr}) ->
   {ok, ctx_subsection(Ctx, SubsectionNr)}.
@@ -201,6 +212,36 @@ ctx_pushsection(Ctx0, Location, SectionName, SubsectionNr) -> % implements .push
     {error, _Reason} = Error -> Error
   end.
 
+ctx_section(Ctx0, Location, SectionName, SubsectionNrOpt,
+            ShFlags, ShType, ShEntSize) ->
+  {IsPushsection, SubsectionNr} =
+    case SubsectionNrOpt of
+      false -> {false, 0};
+      _ -> {true, SubsectionNrOpt}
+    end,
+  Ctx = ctx_flush(Ctx0),
+  #ctx{ sections_map = SectionsMap0
+      , stack = Stack
+      , current = Current
+      , previous = Previous
+      } = Ctx,
+  case enter_section(Location, SectionName, SubsectionNr, SectionsMap0,
+                     ShFlags, ShType, ShEntSize) of
+    {ok, {Stmts, SectionsMap}} ->
+      NewStack =
+        case IsPushsection of
+          true -> [{Current, Previous} | Stack];
+          false -> Stack
+        end,
+      {ok, Ctx#ctx{ sections_map = SectionsMap
+                  , stack = NewStack
+                  , current = {SectionName, SubsectionNr}
+                  , previous = Current
+                  , stmts = Stmts
+                  }};
+    {error, _Reason} = Error -> Error
+  end.
+
 ctx_subsection(Ctx0, SubsectionNr) -> % implements .subsection <nr>
   Ctx = ctx_flush(Ctx0),
   #ctx{ sections_map = SectionsMap
@@ -236,21 +277,118 @@ ctx_append(Ctx, Location, Stmt) ->
   #ctx{stmts = Stmts} = Ctx,
   Ctx#ctx{stmts = [{Location, Stmt} | Stmts]}.
 
-enter_section(Location, SectionName, SubsectionNr, SectionsMap0) ->
-  case maps:get(SectionName, SectionsMap0, false) of
+enter_section(Location, SectionName, SubsectionNr, SectionsMap) ->
+  enter_section(Location, SectionName, SubsectionNr, SectionsMap,
+                _ShFlags = 0, _ShType = 0, _ShEntSize = 0).
+
+enter_section(Location, SectionName, SubsectionNr, SectionsMap0,
+              ShFlags, ShType, ShEntSize) ->
+  {Section0, SubsectionsMap} = get_section(SectionName, SectionsMap0),
+  case update_section(Location, Section0, ShFlags, ShType, ShEntSize) of
+    {ok, Section} ->
+      SectionsMap = maps:put(SectionName, {Section, SubsectionsMap}, SectionsMap0),
+      Stmts = maps:get(SubsectionNr, SubsectionsMap, []),
+      {ok, {Stmts, SectionsMap}};
+    {error, _Reason} = Error -> Error
+  end.
+
+get_section(SectionName, SectionsMap) ->
+  case maps:get(SectionName, SectionsMap, false) of
+    {_Section, _SubsectionsMap} = Result -> Result;
     false ->
       case section_from_name(SectionName) of
-        false ->
-          fmterr(Location, "unknown section ~s", [SectionName]);
-        Section = #section{} ->
+        #section{} = Section ->
           SubsectionsMap = #{},
-          SectionsMap = maps:put(SectionName, {Section, SubsectionsMap}, SectionsMap0),
-          Stmts = [],
-          {ok, {Stmts, SectionsMap}}
+          {Section, SubsectionsMap};
+        false ->
+          Section = make_section(SectionName),
+          SubsectionsMap = #{},
+          {Section, SubsectionsMap}
+      end
+  end.
+
+make_section(SectionName) ->
+  %% update_section/5 will set sh_flags, sh_type, and sh_entsize
+  #section{ name = SectionName
+          , data = {stmts, []}
+          , dot = 0
+          , shndx = 0
+          , sh_name = 0
+          , sh_type = 0
+          , sh_offset = 0
+          , sh_flags = 0
+          , sh_link = ?SHN_UNDEF
+          , sh_addralign = 0
+          , sh_entsize = 0
+          }.
+
+update_section(Location, Section0, ShFlags, ShType, ShEntSize) ->
+  case update_sh_flags(Location, Section0, ShFlags) of
+    {ok, Section1} ->
+      case update_sh_type(Location, Section1, ShType) of
+        {ok, Section2} ->
+          update_sh_entsize(Location, Section2, ShEntSize);
+        {error, _Reason} = Error -> Error
       end;
-    {_Section, SubsectionsMap} ->
-      Stmts = maps:get(SubsectionNr, SubsectionsMap, []),
-      {ok, {Stmts, SectionsMap0}}
+    {error, _Reason} = Error -> Error
+  end.
+
+update_sh_flags(Location, Section, ShFlags) ->
+  case ShFlags of
+    0 -> {ok, Section};
+    _ ->
+      case Section#section.sh_flags of
+        0 -> {ok, Section#section{sh_flags = ShFlags}};
+        ShFlags -> {ok, Section};
+        ShFlags0 ->
+          case may_update_sh_flags(Section, ShFlags) of
+            true -> {ok, Section#section{sh_flags = ShFlags0 bor ShFlags}};
+            false -> fmterr(Location, "cannot change section flags", [])
+          end
+      end
+  end.
+
+may_update_sh_flags(Section, ShFlags) ->
+  %% Processor and application-specific flags may be added to an existing
+  %% section.  The range of application-specific flags isn't defined in the
+  %% ELF spec: we interpret that as any flag outside of the reserved ranges.
+  ReservedMask = (?SHF_COMPRESSED * 2 - 1) bor ?SHF_MASKOS,
+  case (ShFlags band ReservedMask) =:= 0 of
+    true -> true;
+    false ->
+      case ShFlags of
+         ?SHF_ALLOC ->
+           case Section#section.name of
+             ".interp" -> true;
+             ".strtab" -> true;
+             ".symtab" -> true;
+             _         -> false
+           end;
+         ?SHF_EXECINSTR -> Section#section.name =:= ".note.GNU-stack";
+         _ -> false
+      end
+  end.
+
+update_sh_type(Location, Section, ShType) ->
+  case ShType of
+    0 -> {ok, Section};
+    _ ->
+      case Section#section.sh_type of
+        0 -> {ok, Section#section{sh_type = ShType}};
+        ShType -> {ok, Section};
+        _ -> fmterr(Location, "cannot change section type", [])
+      end
+  end.
+
+update_sh_entsize(Location, Section, ShEntSize) ->
+  case ShEntSize of
+    0 -> {ok, Section};
+    _ ->
+      case Section#section.sh_entsize of
+        0 -> {ok, Section#section{sh_entsize = ShEntSize}};
+        ShEntSize -> {ok, Section};
+        _ -> fmterr(Location, "cannot change section element size", [])
+      end
   end.
 
 enter_subsection(SectionName, SubsectionNr, SectionsMap) ->
