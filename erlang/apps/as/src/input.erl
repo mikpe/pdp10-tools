@@ -404,6 +404,7 @@ pass2_sections([{SectionName, {Section, SubsectionsMap}} | Sections], Tunit0) ->
 pass2_subsections(SectionName, SubsectionsMap, Tunit) ->
   case SectionName of
     ".data" ++ _ -> ok;
+    ".rodata" ++ _ -> ok;
     ".text" ++ _ -> ok
   end,
   pass2_subsections(lists:sort(maps:to_list(SubsectionsMap)), Tunit).
@@ -648,6 +649,7 @@ tunit_init() ->
 section_from_name(SectionName) ->
   case SectionName of
     ".data" -> section_dot_data();
+    ".rodata" -> section_dot_rodata();
     ".text" -> section_dot_text();
     _ -> false
   end.
@@ -675,6 +677,20 @@ section_dot_data() -> % ".data"
           , sh_type = ?SHT_PROGBITS
           , sh_offset = 0
           , sh_flags = ?SHF_ALLOC bor ?SHF_WRITE
+          , sh_link = ?SHN_UNDEF
+          , sh_addralign = 4 % FIXME: target-specific
+          , sh_entsize = 0
+          }.
+
+section_dot_rodata() -> % ".rodata"
+  #section{ name = ".rodata"
+          , data = {stmts, []}
+          , dot = 0
+          , shndx = 0
+          , sh_name = 0
+          , sh_type = ?SHT_PROGBITS
+          , sh_offset = 0
+          , sh_flags = ?SHF_ALLOC
           , sh_link = ?SHN_UNDEF
           , sh_addralign = 4 % FIXME: target-specific
           , sh_entsize = 0

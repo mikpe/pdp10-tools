@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% sections assembler for pdp10-elf as
-%%% Copyright (C) 2013-2019  Mikael Pettersson
+%%% Copyright (C) 2013-2020  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -43,6 +43,10 @@ section(Section, Tunit) ->
     #section{ name = ".data" ++ _
             , sh_type = ?SHT_PROGBITS
             , sh_flags = ?SHF_ALLOC bor ?SHF_WRITE
+            } -> stmts(Section, Tunit);
+    #section{ name = ".rodata" ++ _
+            , sh_type = ?SHT_PROGBITS
+            , sh_flags = ?SHF_ALLOC
             } -> stmts(Section, Tunit);
     #section{ name = ".text" ++ _
             , sh_type = ?SHT_PROGBITS
