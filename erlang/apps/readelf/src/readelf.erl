@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% 'readelf' clone for pdp10-elf
-%%% Copyright (C) 2013-2019  Mikael Pettersson
+%%% Copyright (C) 2013-2020  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -440,6 +440,7 @@ sh_flags([], _I, ShFlags, Mask, Acc) ->
 %% print_symtab ================================================================
 
 print_symtab(#options{symbols = false}, _SymTab, _ShNdx, _ShTab) -> ok;
+print_symtab(_Opts, _SymTab, ?SHN_UNDEF, _ShTab) -> ok;
 print_symtab(_Opts, SymTab, ShNdx, ShTab) ->
   Shdr = lists:nth(1 + ShNdx, ShTab),
   io:format("Symbol table '~s' in section ~.10b contains ~.10b entries:\n",
