@@ -296,7 +296,7 @@ dot_ascii(ScanState, Location, Lexeme, Z) ->
   end.
 
 dot_byte(ScanState, Location) ->
-  integer_data_directive(ScanState, Location, ".byte",
+  integer_data_directive(ScanState, Location,
                          fun(Exprs) -> #s_dot_byte{exprs = Exprs} end).
 
 dot_data(ScanState, Location) ->
@@ -341,22 +341,15 @@ dot_globl(ScanState, Location) ->
   end.
 
 dot_hword(ScanState, Location) ->
-  dot_short(ScanState, Location, ".hword").
+  dot_short(ScanState, Location).
 
 dot_long(ScanState, Location) ->
-  dot_long(ScanState, Location, ".long").
-
-dot_long(ScanState, Location, Lexeme) ->
-  integer_data_directive(ScanState, Location, Lexeme,
+  integer_data_directive(ScanState, Location,
                          fun(Exprs) -> #s_dot_long{exprs = Exprs} end).
 
-integer_data_directive(ScanState, Location, Lexeme, MkStmt) ->
+integer_data_directive(ScanState, Location, MkStmt) ->
   case expr_list(ScanState) of
-    {ok, {Exprs, Follow}} ->
-      case Follow of
-        {_Location, ?T_NEWLINE} -> {ok, {Location, MkStmt(Exprs)}};
-        _ -> badtok("junk after " ++ Lexeme ++ " <exprs>", {ok, Follow})
-      end;
+    {ok, Exprs} -> {ok, {Location, MkStmt(Exprs)}};
     {error, _Reason} = Error -> Error
   end.
 
@@ -373,10 +366,7 @@ dot_previous(ScanState, Location) ->
   end.
 
 dot_short(ScanState, Location) ->
-  dot_short(ScanState, Location, ".short").
-
-dot_short(ScanState, Location, Lexeme) ->
-  integer_data_directive(ScanState, Location, Lexeme,
+  integer_data_directive(ScanState, Location,
                          fun(Exprs) -> #s_dot_short{exprs = Exprs} end).
 
 %% For now only accepts ".size <sym>,.-<sym>".  TODO: extend
@@ -451,7 +441,7 @@ dot_type(ScanState, Location) ->
   end.
 
 dot_word(ScanState, Location) ->
-  dot_long(ScanState, Location, ".word").
+  dot_long(ScanState, Location).
 
 %% .section/.pushsection directives --------------------------------------------
 %%
@@ -629,12 +619,15 @@ section_name(ScanState) ->
 
 %% Expressions -----------------------------------------------------------------
 
-%% <expr_list> ::= (<expr> ("," <expr>)*)?
+%% <expr_list> ::= (<expr> ("," <expr>)*)? \n
 expr_list(ScanState) ->
-  case expr_opt(ScanState) of
-    {false, Follow} -> {ok, {[], Follow}};
-    {ok, Expr} -> expr_list(ScanState, [Expr]);
-    {error, _Reason} = Error -> Error
+  case scan:token(ScanState) of
+    {ok, {_Location, ?T_NEWLINE}} -> {ok, []};
+    First ->
+      case do_expr(First) of
+        {ok, Expr} -> expr_list(ScanState, [Expr]);
+        {error, _Reason} = Error -> Error
+      end
   end.
 
 expr_list(ScanState, Exprs) ->
@@ -644,28 +637,23 @@ expr_list(ScanState, Exprs) ->
         {ok, Expr} -> expr_list(ScanState, [Expr | Exprs]);
         {error, _Reason} = Error -> Error
       end;
-    {ok, Follow} -> {ok, {lists:reverse(Exprs), Follow}};
-    {error, _Reason} = Error -> Error
+    {ok, {_Location, ?T_NEWLINE}} -> {ok, lists:reverse(Exprs)};
+    ScanRes -> badtok("expected comma or newline", ScanRes)
   end.
 
 expr(ScanState) ->
-  case expr_opt(ScanState) of
-    {false, First} -> badtok("invalid start of expr", {ok, First});
-    OkOrError -> OkOrError
-  end.
+  do_expr(scan:token(ScanState)).
 
-expr_opt(ScanState) ->
-  case scan:token(ScanState) of
+do_expr(First) ->
+  case First of
     {ok, {_Location, {?T_UINTEGER, UInt}}} ->
       {ok, #e_integer{value = UInt}};
     {ok, {_Location, {?T_LOCAL_LABEL, Number, Direction}}} ->
       {ok, #e_local_label{number = Number, direction = Direction}};
     {ok, {_Location, {?T_SYMBOL, Symbol}}} ->
       {ok, #e_symbol{name = Symbol}};
-    {ok, First} ->
-      {false, First};
-    {error, _Reason} = Error ->
-      Error
+    _ ->
+      badtok("invalid start of expr", First)
   end.
 
 %% String Lists ----------------------------------------------------------------
