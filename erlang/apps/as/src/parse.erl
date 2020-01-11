@@ -130,10 +130,10 @@ insn_uint(ScanState, Location, Name, UInt) ->
     {ok, {_Location, ?T_COMMA}} -> % the Uint is the Accumulator, parse EA next
       insn_ea(ScanState, Location, Name, _AccOrDev = UInt);
     {ok, {_Location, ?T_LPAREN}} -> % the Uint is the Displacement, parse Index next
-      Displacement = #e_integer{value = UInt},
+      Displacement = mk_integer_expr(UInt),
       insn_ea_index(ScanState, Location, Name, _AccOrDev = false, _At = false, Displacement);
     {ok, {_Location, ?T_NEWLINE}} -> % the Uint is the Displacement
-      Displacement = #e_integer{value = UInt},
+      Displacement = mk_integer_expr(UInt),
       make_insn(Location, Name, _AccOrDev = false, _At = false, Displacement, _Index = false);
     ScanRes -> badtok("junk after <symbol> <uinteger>", ScanRes)
   end.
@@ -141,12 +141,12 @@ insn_uint(ScanState, Location, Name, UInt) ->
 %% Seen "<symbol> <symbol2>".  The <symbol2> is (the start of) the <displacement>.
 %% TODO: permit <symbol2> to be the <accumulator> (named register or device).
 insn_symbol(ScanState, Location, Name, Symbol2) ->
-  Displacement = #e_symbol{name = Symbol2},
+  Displacement = mk_symbol_expr(Symbol2),
   insn_ea_disp(ScanState, Location, Name, _AccOrDev = false, _At = false, Displacement).
 
 %% Seen "<symbol> <local label>".  The <local label> is (the start of) the <displacement>.
 insn_local_label(ScanState, Location, Name, Number, Direction) ->
-  Displacement = #e_local_label{number = Number, direction = Direction},
+  Displacement = mk_local_label_expr(Number, Direction),
   insn_ea_disp(ScanState, Location, Name, _AccOrDev = false, _At = false, Displacement).
 
 %% <symbol> <accordev> "," . [ ["@"] <displacement> ["(" <index> ")"] ] <newline>
@@ -156,13 +156,13 @@ insn_ea(ScanState, Location, Name, AccOrDev) ->
       make_insn(Location, Name, AccOrDev, _At = false, _Displacement = false, _Index = false);
     {ok, {_Location, ?T_AT}} -> insn_ea_at(ScanState, Location, Name, AccOrDev);
     {ok, {_Lcation, {?T_UINTEGER, UInt}}} ->
-      Displacement = #e_integer{value = UInt},
+      Displacement = mk_integer_expr(UInt),
       insn_ea_disp(ScanState, Location, Name, AccOrDev, _At = false, Displacement);
     {ok, {_Location, {?T_SYMBOL, Symbol}}} ->
-      Displacement = #e_symbol{name = Symbol},
+      Displacement = mk_symbol_expr(Symbol),
       insn_ea_disp(ScanState, Location, Name, AccOrDev, _At = false, Displacement);
     {ok, {_Location, {?T_LOCAL_LABEL, Number, Direction}}} ->
-      Displacement = #e_local_label{number = Number, direction = Direction},
+      Displacement = mk_local_label_expr(Number, Direction),
       insn_ea_disp(ScanState, Location, Name, AccOrDev, _At = false, Displacement);
     ScanRes -> badtok("junk after comma", ScanRes)
   end.
@@ -171,13 +171,13 @@ insn_ea(ScanState, Location, Name, AccOrDev) ->
 insn_ea_at(ScanState, Location, Name, AccOrDev) ->
   case scan:token(ScanState) of
     {ok, {_Location, {?T_UINTEGER, UInt}}} ->
-      Displacement = #e_integer{value = UInt},
+      Displacement = mk_integer_expr(UInt),
       insn_ea_disp(ScanState, Location, Name, AccOrDev, _At = true, Displacement);
     {ok, {_Location, {?T_SYMBOL, Symbol}}} ->
-      Displacement = #e_symbol{name = Symbol},
+      Displacement = mk_symbol_expr(Symbol),
       insn_ea_disp(ScanState, Location, Name, AccOrDev, _At = true, Displacement);
     {ok, {_Location, {?T_LOCAL_LABEL, Number, Direction}}} ->
-      Displacement = #e_local_label{number = Number, direction = Direction},
+      Displacement = mk_local_label_expr(Number, Direction),
       insn_ea_disp(ScanState, Location, Name, AccOrDev, _At = true, Displacement);
     ScanRes -> badtok("junk after @", ScanRes)
   end.
@@ -224,7 +224,7 @@ make_insn(Location, Name, AccOrDev, At, Displacement, Index) ->
               Stmt = #s_insn{ high13 = FinalHigh13
                             , at = At
                             , address = case Displacement of
-                                          false -> #e_integer{value = 0};
+                                          false -> mk_integer_expr(0);
                                           _ -> Displacement
                                         end
                             , index = if Index =:= false -> 0; true -> Index end
@@ -647,14 +647,19 @@ expr(ScanState) ->
 do_expr(First) ->
   case First of
     {ok, {_Location, {?T_UINTEGER, UInt}}} ->
-      {ok, #e_integer{value = UInt}};
+      {ok, mk_integer_expr(UInt)};
     {ok, {_Location, {?T_LOCAL_LABEL, Number, Direction}}} ->
-      {ok, #e_local_label{number = Number, direction = Direction}};
+      {ok, mk_local_label_expr(Number, Direction)};
     {ok, {_Location, {?T_SYMBOL, Symbol}}} ->
-      {ok, #e_symbol{name = Symbol}};
+      {ok, mk_symbol_expr(Symbol)};
     _ ->
       badtok("invalid start of expr", First)
   end.
+
+mk_integer_expr(Value) -> #e_integer{value = Value}.
+mk_local_label_expr(Number, Direction) ->
+  #e_local_label{number = Number, direction = Direction}.
+mk_symbol_expr(Symbol) -> #e_symbol{name = Symbol}.
 
 %% String Lists ----------------------------------------------------------------
 
