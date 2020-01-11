@@ -162,10 +162,10 @@ exprs_values([Expr | Exprs], Tunit, Acc) ->
 
 expr_value(Expr, Tunit) ->
   case Expr of
-    #e_integer{value = Value} -> {ok, Value};
-    #e_symbol{name = Name} ->
+    #expr{symbol = false, offset = Value} -> {ok, Value};
+    #expr{symbol = Name, offset = Offset} ->
       case tunit:get_symbol(Tunit, Name) of
-        #symbol{st_value = Value} when Value =/= false -> {ok, Value};
+        #symbol{st_value = Value} when Value =/= false -> {ok, Value + Offset};
         _ -> {error, {?MODULE, {undefined_symbol, Name}}}
       end
   end.

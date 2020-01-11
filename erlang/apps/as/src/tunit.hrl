@@ -23,14 +23,11 @@
 
 %% An expression occurring in a statement. (TODO: extend)
 
--record(e_integer, {value :: integer()}).
--record(e_local_label, {number :: non_neg_integer(), direction :: $b | $f}).
--record(e_symbol, {name :: string()}).
-
--type expr() :: #e_integer{}
-              | #e_local_label{}
-              | #e_symbol{}
-              .
+-record(expr,
+        { symbol :: false | string() | {non_neg_integer(), $b | $f}
+        , offset :: integer()
+        }).
+-type expr() :: #expr{}.
 
 %% A directive, label, or instruction is parsed to a statement, which is
 %% either interpreted immediately or appended to the representation of the

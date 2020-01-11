@@ -625,7 +625,7 @@ insn_fixup(Tunit, Insn) ->
 
 expr_fixup(Tunit, Expr) ->
   case Expr of
-    #e_local_label{number = Number, direction = Direction} ->
+    #expr{symbol = {Number, Direction}} ->
       LabelSerial = local_label_serial(Tunit, Number),
       ReferenceSerial =
         case Direction of
@@ -633,7 +633,7 @@ expr_fixup(Tunit, Expr) ->
           $f -> LabelSerial + 1
         end,
       Name = local_label_name(Number, ReferenceSerial),
-      #e_symbol{name = Name};
+      Expr#expr{symbol = Name};
     _ -> Expr
   end.
 

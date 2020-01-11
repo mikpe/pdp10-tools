@@ -656,10 +656,9 @@ do_expr(First) ->
       badtok("invalid start of expr", First)
   end.
 
-mk_integer_expr(Value) -> #e_integer{value = Value}.
-mk_local_label_expr(Number, Direction) ->
-  #e_local_label{number = Number, direction = Direction}.
-mk_symbol_expr(Symbol) -> #e_symbol{name = Symbol}.
+mk_integer_expr(Value) -> #expr{symbol = false, offset = Value}.
+mk_local_label_expr(Number, Direction) -> mk_symbol_expr({Number, Direction}).
+mk_symbol_expr(Symbol) -> #expr{symbol = Symbol, offset = 0}.
 
 %% String Lists ----------------------------------------------------------------
 
