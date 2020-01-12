@@ -116,6 +116,7 @@ stmt_after_symbol(ScanState, Location, Name) ->
   case scan:token(ScanState) of
     {ok, {_Location, ?T_COLON}} -> {ok, {Location, #s_label{name = Name}}};
     {ok, {_Location, ?T_NEWLINE}} -> make_insn(Location, Name, false, false, false, false);
+    {ok, {_Location, ?T_AT}} -> insn_ea_at(ScanState, Location, Name, _AccOrDev = false);
     {ok, {Location2, {?T_UINTEGER, UInt}}} -> insn_uint(ScanState, Location, Name, Location2, UInt);
     {ok, {_Location, _Token} = First} -> insn_disp(ScanState, Location, Name, First);
     {error, _Reason} = Error -> Error
@@ -133,7 +134,7 @@ insn_uint(ScanState, Location, Name, Location2, UInt) ->
     {error, _Reason} = Error -> Error
   end.
 
-%% Seen "<symbol> <first>" where <first> is not <uinteger> followed by ",".
+%% Seen "<symbol> <first>" where <first> is not "@", or <uinteger> followed by ",".
 %% <first> is the start of the <displacement>.
 insn_disp(ScanState, Location, Name, First) ->
   case do_expr({ok, First}) of
