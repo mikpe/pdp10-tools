@@ -630,6 +630,15 @@ expr(ScanState) ->
 
 do_expr(ScanState, First) ->
   case First of
+    {ok, {_Location1, ?T_LPAREN}} ->
+      case expr(ScanState) of
+        {ok, Expr} ->
+          case scan:token(ScanState) of
+            {ok, {_Location2, ?T_RPAREN}} -> {ok, Expr};
+            ScanRes -> badtok("expected ')'", ScanRes)
+          end;
+        {error, _Reason} = Error -> Error
+      end;
     {ok, {_Location1, ?T_MINUS}} ->
       case scan:token(ScanState) of
         {ok, {_Location2, {?T_UINTEGER, UInt}}} ->
