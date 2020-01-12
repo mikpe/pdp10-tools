@@ -137,7 +137,7 @@ insn_uint(ScanState, Location, Name, Location2, UInt) ->
 %% Seen "<symbol> <first>" where <first> is not "@", or <uinteger> followed by ",".
 %% <first> is the start of the <displacement>.
 insn_disp(ScanState, Location, Name, First) ->
-  case do_expr({ok, First}) of
+  case do_expr(ScanState, {ok, First}) of
     {ok, Displacement} ->
       insn_ea_disp(ScanState, Location, Name, _AccOrDev = false, _At = false, Displacement);
     {error, _Reason} = Error -> Error
@@ -150,7 +150,7 @@ insn_ea(ScanState, Location, Name, AccOrDev) ->
       make_insn(Location, Name, AccOrDev, _At = false, _Displacement = false, _Index = false);
     {ok, {_Location, ?T_AT}} -> insn_ea_at(ScanState, Location, Name, AccOrDev);
     {ok, {_Location, _Token}} = ScanRes ->
-      case do_expr(ScanRes) of
+      case do_expr(ScanState, ScanRes) of
         {ok, Displacement} ->
           insn_ea_disp(ScanState, Location, Name, AccOrDev, _At = false, Displacement);
         {error, _Reason} = Error -> Error
@@ -608,7 +608,7 @@ expr_list(ScanState) ->
   case scan:token(ScanState) of
     {ok, {_Location, ?T_NEWLINE}} -> {ok, []};
     First ->
-      case do_expr(First) of
+      case do_expr(ScanState, First) of
         {ok, Expr} -> expr_list(ScanState, [Expr]);
         {error, _Reason} = Error -> Error
       end
@@ -626,10 +626,16 @@ expr_list(ScanState, Exprs) ->
   end.
 
 expr(ScanState) ->
-  do_expr(scan:token(ScanState)).
+  do_expr(ScanState, scan:token(ScanState)).
 
-do_expr(First) ->
+do_expr(ScanState, First) ->
   case First of
+    {ok, {_Location1, ?T_MINUS}} ->
+      case scan:token(ScanState) of
+        {ok, {_Location2, {?T_UINTEGER, UInt}}} ->
+          {ok, mk_integer_expr(-UInt)};
+        ScanRes -> badtok("expected <uinteger> after -", ScanRes)
+      end;
     {ok, {_Location, {?T_UINTEGER, UInt}}} ->
       {ok, mk_integer_expr(UInt)};
     {ok, {_Location, {?T_LOCAL_LABEL, Number, Direction}}} ->
