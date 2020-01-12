@@ -116,38 +116,31 @@ stmt_after_symbol(ScanState, Location, Name) ->
   case scan:token(ScanState) of
     {ok, {_Location, ?T_COLON}} -> {ok, {Location, #s_label{name = Name}}};
     {ok, {_Location, ?T_NEWLINE}} -> make_insn(Location, Name, false, false, false, false);
-    {ok, {_Location, {?T_UINTEGER, UInt}}} -> insn_uint(ScanState, Location, Name, UInt);
-    {ok, {_Location, {?T_SYMBOL, Symbol}}} -> insn_symbol(ScanState, Location, Name, Symbol);
-    {ok, {_Location, {?T_LOCAL_LABEL, Number, Direction}}} ->
-      insn_local_label(ScanState, Location, Name, Number, Direction);
-    ScanRes -> badtok("junk after symbol", ScanRes)
+    {ok, {Location2, {?T_UINTEGER, UInt}}} -> insn_uint(ScanState, Location, Name, Location2, UInt);
+    {ok, {_Location, _Token} = First} -> insn_disp(ScanState, Location, Name, First);
+    {error, _Reason} = Error -> Error
   end.
 
 %% Seen "<symbol> <uinteger>".  The <uinteger> is the <accumulator> if followed
 %% by ",", otherwise (the start of) the <displacement>.
-insn_uint(ScanState, Location, Name, UInt) ->
+insn_uint(ScanState, Location, Name, Location2, UInt) ->
   case scan:token(ScanState) of
     {ok, {_Location, ?T_COMMA}} -> % the Uint is the Accumulator, parse EA next
       insn_ea(ScanState, Location, Name, _AccOrDev = UInt);
-    {ok, {_Location, ?T_LPAREN}} -> % the Uint is the Displacement, parse Index next
-      Displacement = mk_integer_expr(UInt),
-      insn_ea_index(ScanState, Location, Name, _AccOrDev = false, _At = false, Displacement);
-    {ok, {_Location, ?T_NEWLINE}} -> % the Uint is the Displacement
-      Displacement = mk_integer_expr(UInt),
-      make_insn(Location, Name, _AccOrDev = false, _At = false, Displacement, _Index = false);
-    ScanRes -> badtok("junk after <symbol> <uinteger>", ScanRes)
+    {ok, {_Location, _Token} = Follow} -> % the UInt is start of the Displacement
+      scan:pushback(ScanState, Follow),
+      insn_disp(ScanState, Location, Name, {Location2, {?T_UINTEGER, UInt}});
+    {error, _Reason} = Error -> Error
   end.
 
-%% Seen "<symbol> <symbol2>".  The <symbol2> is (the start of) the <displacement>.
-%% TODO: permit <symbol2> to be the <accumulator> (named register or device).
-insn_symbol(ScanState, Location, Name, Symbol2) ->
-  Displacement = mk_symbol_expr(Symbol2),
-  insn_ea_disp(ScanState, Location, Name, _AccOrDev = false, _At = false, Displacement).
-
-%% Seen "<symbol> <local label>".  The <local label> is (the start of) the <displacement>.
-insn_local_label(ScanState, Location, Name, Number, Direction) ->
-  Displacement = mk_local_label_expr(Number, Direction),
-  insn_ea_disp(ScanState, Location, Name, _AccOrDev = false, _At = false, Displacement).
+%% Seen "<symbol> <first>" where <first> is not <uinteger> followed by ",".
+%% <first> is the start of the <displacement>.
+insn_disp(ScanState, Location, Name, First) ->
+  case do_expr({ok, First}) of
+    {ok, Displacement} ->
+      insn_ea_disp(ScanState, Location, Name, _AccOrDev = false, _At = false, Displacement);
+    {error, _Reason} = Error -> Error
+  end.
 
 %% <symbol> <accordev> "," . [ ["@"] <displacement> ["(" <index> ")"] ] <newline>
 insn_ea(ScanState, Location, Name, AccOrDev) ->
@@ -155,31 +148,21 @@ insn_ea(ScanState, Location, Name, AccOrDev) ->
     {ok, {_Location, ?T_NEWLINE}} ->
       make_insn(Location, Name, AccOrDev, _At = false, _Displacement = false, _Index = false);
     {ok, {_Location, ?T_AT}} -> insn_ea_at(ScanState, Location, Name, AccOrDev);
-    {ok, {_Lcation, {?T_UINTEGER, UInt}}} ->
-      Displacement = mk_integer_expr(UInt),
-      insn_ea_disp(ScanState, Location, Name, AccOrDev, _At = false, Displacement);
-    {ok, {_Location, {?T_SYMBOL, Symbol}}} ->
-      Displacement = mk_symbol_expr(Symbol),
-      insn_ea_disp(ScanState, Location, Name, AccOrDev, _At = false, Displacement);
-    {ok, {_Location, {?T_LOCAL_LABEL, Number, Direction}}} ->
-      Displacement = mk_local_label_expr(Number, Direction),
-      insn_ea_disp(ScanState, Location, Name, AccOrDev, _At = false, Displacement);
-    ScanRes -> badtok("junk after comma", ScanRes)
+    {ok, {_Location, _Token}} = ScanRes ->
+      case do_expr(ScanRes) of
+        {ok, Displacement} ->
+          insn_ea_disp(ScanState, Location, Name, AccOrDev, _At = false, Displacement);
+        {error, _Reason} = Error -> Error
+      end;
+    {error, _Reason} = Error -> Error
   end.
 
 %% <symbol> [<accordev> ","] "@" . <displacement> ["(" <index> ")"] <newline>
 insn_ea_at(ScanState, Location, Name, AccOrDev) ->
-  case scan:token(ScanState) of
-    {ok, {_Location, {?T_UINTEGER, UInt}}} ->
-      Displacement = mk_integer_expr(UInt),
+  case expr(ScanState) of
+    {ok, Displacement} ->
       insn_ea_disp(ScanState, Location, Name, AccOrDev, _At = true, Displacement);
-    {ok, {_Location, {?T_SYMBOL, Symbol}}} ->
-      Displacement = mk_symbol_expr(Symbol),
-      insn_ea_disp(ScanState, Location, Name, AccOrDev, _At = true, Displacement);
-    {ok, {_Location, {?T_LOCAL_LABEL, Number, Direction}}} ->
-      Displacement = mk_local_label_expr(Number, Direction),
-      insn_ea_disp(ScanState, Location, Name, AccOrDev, _At = true, Displacement);
-    ScanRes -> badtok("junk after @", ScanRes)
+    {error, _Reason} = Error -> Error
   end.
 
 %% <symbol> [<accordev> ","] ["@"] <displacement> . ["(" <index> ")"] <newline>
