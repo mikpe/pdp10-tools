@@ -105,6 +105,13 @@ stmt(ScanState) ->
 %% This means that "opcode (...)" is interpreted as having a displacement but no
 %% index.  Use "opcode 0(index)" if an index with zero displacement is needed.
 
+%% <stmt> ::= <uinteger> . ":"
+stmt_after_uinteger(ScanState, Location, UInt) ->
+  case scan:token(ScanState) of
+    {ok, {_Location, ?T_COLON}} -> {ok, {Location, #s_local_label{number = UInt}}};
+    ScanRes -> badtok("junk after local label", ScanRes)
+  end.
+
 stmt_after_symbol(ScanState, Location, Name) ->
   case scan:token(ScanState) of
     {ok, {_Location, ?T_COLON}} -> {ok, {Location, #s_label{name = Name}}};
@@ -113,13 +120,6 @@ stmt_after_symbol(ScanState, Location, Name) ->
     {ok, {_Location, {?T_SYMBOL, Symbol}}} -> insn_symbol(ScanState, Location, Name, Symbol);
     {ok, {_Location, {?T_LOCAL_LABEL, Number, Direction}}} ->
       insn_local_label(ScanState, Location, Name, Number, Direction);
-    ScanRes -> badtok("junk after symbol", ScanRes)
-  end.
-
-%% <stmt> ::= <uinteger> . ":"
-stmt_after_uinteger(ScanState, Location, UInt) ->
-  case scan:token(ScanState) of
-    {ok, {_Location, ?T_COLON}} -> {ok, {Location, #s_local_label{number = UInt}}};
     ScanRes -> badtok("junk after symbol", ScanRes)
   end.
 
