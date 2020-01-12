@@ -61,6 +61,7 @@
 -define(T_DOT,          'T_DOT').       % .
 -define(T_LPAREN,       'T_LPAREN').    % (
 -define(T_MINUS,        'T_MINUS').     % -
+-define(T_PLUS,         'T_PLUS').      % +
 -define(T_RPAREN,       'T_RPAREN').    % )
 
 %% synthetic symbols
@@ -96,6 +97,7 @@
                | ?T_DOT
                | ?T_LPAREN
                | ?T_MINUS
+               | ?T_PLUS
                | ?T_RPAREN
                | ?T_NEWLINE
                | ?T_EOF

@@ -84,6 +84,7 @@ format(Token) ->
     ?T_DOT              -> ".";
     ?T_LPAREN           -> "(";
     ?T_MINUS            -> "-";
+    ?T_PLUS             -> "+";
     ?T_RPAREN           -> ")";
     ?T_NEWLINE          -> "<newline>";
     ?T_EOF              -> "<eof>"

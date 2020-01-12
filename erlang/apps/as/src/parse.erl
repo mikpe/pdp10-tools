@@ -639,16 +639,33 @@ do_expr(ScanState, First) ->
     {ok, {_Location, {?T_UINTEGER, UInt}}} ->
       {ok, mk_integer_expr(UInt)};
     {ok, {_Location, {?T_LOCAL_LABEL, Number, Direction}}} ->
-      {ok, mk_local_label_expr(Number, Direction)};
+      do_expr_maybe_offset(ScanState, _Symbol = {Number, Direction});
     {ok, {_Location, {?T_SYMBOL, Symbol}}} ->
-      {ok, mk_symbol_expr(Symbol)};
+      do_expr_maybe_offset(ScanState, Symbol);
     _ ->
       badtok("invalid start of expr", First)
   end.
 
+do_expr_maybe_offset(ScanState, Symbol) ->
+  case scan:token(ScanState) of
+   {ok, {_Location, ?T_MINUS}} -> do_expr_offset(ScanState, Symbol, _IsMinus = true);
+   {ok, {_Location, ?T_PLUS}} -> do_expr_offset(ScanState, Symbol, _IsMinus = false);
+   {ok, {_Location, _Token} = First} ->
+     scan:pushback(ScanState, First),
+     {ok, mk_symbol_expr(Symbol)};
+   {error, _Reason} = Error -> Error
+  end.
+
+do_expr_offset(ScanState, Symbol, IsMinus) ->
+  case scan:token(ScanState) of
+    {ok, {_Location, {?T_UINTEGER, UInt}}} ->
+      {ok, mk_symbol_expr(Symbol, if IsMinus -> -UInt; true -> UInt end)};
+    ScanRes -> badtok("expected <uinteger> after <sign>", ScanRes)
+  end.
+
 mk_integer_expr(Value) -> #expr{symbol = false, offset = Value}.
-mk_local_label_expr(Number, Direction) -> mk_symbol_expr({Number, Direction}).
 mk_symbol_expr(Symbol) -> #expr{symbol = Symbol, offset = 0}.
+mk_symbol_expr(Symbol, Offset) -> #expr{symbol = Symbol, offset = Offset}.
 
 %% String Lists ----------------------------------------------------------------
 

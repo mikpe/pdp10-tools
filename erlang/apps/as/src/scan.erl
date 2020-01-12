@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% scanner for pdp10-elf as
-%%% Copyright (C) 2013-2019  Mikael Pettersson
+%%% Copyright (C) 2013-2020  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -169,6 +169,7 @@ do_token(ScanState) ->
         $/  -> do_slash(ScanState);
         $\" -> do_string(ScanState, Location, []);
         $-  -> {ok, {Location, ?T_MINUS}};
+        $+  -> {ok, {Location, ?T_PLUS}};
         _   ->
           if $0 =< Ch, Ch =< $9 -> do_number(ScanState, Location, Ch);
              ($A =< Ch andalso Ch =< $Z) orelse
