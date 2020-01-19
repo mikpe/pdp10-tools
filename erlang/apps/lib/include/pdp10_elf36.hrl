@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% pdp10_elf36.hrl -- ELF definitions for PDP10
-%%% Copyright (C) 2013-2019  Mikael Pettersson
+%%% Copyright (C) 2013-2020  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -700,6 +700,18 @@
 -define(ELF36_R_SYM(I),         ((I) bsr 8)).
 -define(ELF36_R_TYPE(I),        ((I) band 16#ff)).
 -define(ELF36_R_INFO(S,T),      (((S) bsl 8) + ((T) band 16#ff))).
+
+%% Processor-specific relocation types.
+
+-define(R_PDP10_NONE,           0).     % no reloc
+-define(R_PDP10_IFIW,           1).     % local address to global word (IFIW)
+-define(R_PDP10_EFIW,           2).     % global word (EFIW)
+-define(R_PDP10_LOCAL_W,        3).     % local word
+-define(R_PDP10_LOCAL_B,        4).     % local byte pointer to 9-bit byte
+-define(R_PDP10_LOCAL_H,        5).     % local byte pointer to 18-bit halfword
+-define(R_PDP10_GLOBAL_B,       6).     % global byte pointer to 9-bit byte
+-define(R_PDP10_GLOBAL_H,       7).     % global byte pointer to 18-bit halfword
+-define(R_PDP10_max,            7).     % last entry
 
 %% Note segments
 
