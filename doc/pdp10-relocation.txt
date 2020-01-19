@@ -1,0 +1,139 @@
+doc/pdp10-relocation.txt
+Copyright (C) 2020  Mikael Pettersson
+
+This file is part of pdp10-tools.
+
+pdp10-tools is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+pdp10-tools is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
+
+
+PDP10 ELF Relocation
+
+Relocation entries reside in section headers with
+- sh_type equal to SHT_REL or SHT_RELA
+- sh_info equal to the section header index to which the relocations apply
+- sh_link equal to the section header index of an associated symbol table
+
+Section start addresses are associated with symbols of type STT_SECTION
+and STB_LOCAL bindins.  These symbols are used for relocation.
+
+Symbols with st_shndx SHN_ABS have absolute values not affected by relocation.
+
+Symbols with st_shndx SHN_COMMON record their alignment constraint as st_value.
+
+Otherwise, in relocatable files, st_value is an offset into the section
+identified by st_shndx.
+
+Relocation entries (ELf36_Rel/Rela) consist of
+- r_offset: offset into the section identified by the Shdr's sh_info at
+  which to apply the relocation
+- r_info: records the index of a symbol table entry, in the symbol table
+  identified by the Shdr's sh_link, and a processor-specific relocation
+  type which is applied to the symbol's value
+- an additional constant addend for the relocation:
+  * in SHT_RELA relocations stored in the r_addend field in Elf36_Rela
+  * in SHT_REL relocations stored in the location to be modified
+
+A: the addend used to compute the value of the relocatable field, given
+   by r_addend (SHT_RELA) or the initial contents of the field (SHT_REL)
+P: the place being relocated, given by r_offset
+S: the value of the symbol referenced by r_info
+B: the base address at which a shared object has been loaded into memory
+   during execution
+G: the GOT offset of the relocation entry's symbol
+GOT: the address of the GOT
+L: the place of the PLT entry for the relocation entry's symbol
+
+Relocation Types (8 bits)
+
+Name                    Value   Field Type      Calculation
+
+R_PDP10_NONE            0       none            none
+
+R_PDP10_IFIW            1       uint36          (S+A) >>u 2
+        This produces a local 18-bit address of a global 36-bit word, into the right half-word
+        of an instruction word or instruction format indirect word (IFIW).
+        The result has bits 0 to 17 preserved from the original contents of the place, P,
+        and bits 18 to 35 containing an 18-bit address.
+        Bit 13 (I) will be set by the linker or loader if the word is in a different section
+        than the place, P.
+        (S+A) must be word-aligned.
+        The place, P, must be word-aligned.
+
+R_PDP10_EFIW            2       uint36          (S+A) >>u 2
+        This produces an extended format indirect word (EFIW) containing a global 30-bit word address.
+        The result has bit 0 set to zero, bits 1 (I) and 2 to 5 (X) preserved from the initial
+        contents of the place, P, and bits 6 to 35 containing the address (Y = (S+A) >>u 2).
+        (S+A) must be word-aligned.
+        The place, P, must be word-aligned.
+
+R_PDP10_LOCAL_W         3       uint18          (S+A) >>u 2
+        This produces a local 18-bit address of a 36-bit word in the same section as the place, P.
+        (S+A) must be word-aligned.
+        The place, P, must be half-word aligned.
+
+R_PDP10_LOCAL_B         4       uint36          (S+A) >>u 2
+        This produces a one-word local byte pointer to a 9-bit byte in the same section as the place, P.
+        Its P field is set to (3-((S+A)%4))*9, and its S field is set to 9.
+        Its bit 12 and I and X fields are set to zero.
+        The place, P, must be word-aligned.
+
+R_PDP10_LOCAL_H         5       uint36          (S+A) >>u 2
+        This produces a one-word local byte pointer to an 18-bit halfword in the same section as the place, P.
+        Its P field is set to (2-((S+A)%4))*9, and its S field is set to 18.
+        Its bit 12 and I and X fields are set to zero.
+        (S+A) must be halfword-aligned.
+        The place, P, must be word-aligned.
+
+R_PDP10_GLOBAL_B        6       uint36          (S+A) >>u 2
+        This produces a one-word global byte pointer to a 9-bit byte.
+        Its PS field is set to 070+((S+A)%4).
+        The place, P, must be word-aligned.
+
+R_PDP10_GLOBAL_H        7       uint36          (S+A) >>u 2
+        This produces a one-word global byte pointer to an 18-bit halfword.
+        Its PS field is set to 075+(((S+A)%4)>>1).
+        (S+A) must be halfword-aligned.
+        The place, P, must be word-aligned.
+
+[TODO: extend with GOT, PLT, and TLS relocations]
+
+Assembler Syntax
+
+symbol+offset
+        Produces no relocation if the symbol is absolute.
+
+opcode accumulator,symbol+offset(index)
+opcode accumulator,:ifiw(symbol+offset)(index)
+        Produces R_PDP10_IFIW.
+
+.long symbol+offset
+.long :w(symbol+offset)
+        Produces R_PDP10_LOCAL_W when assembling for -mno-extended,
+        and R_PDP10_EFIW when assembling for -mextended.
+
+.long :b(symbol+offset)
+        Produces R_PDP10_LOCAL_B when assembling for -mno-extended,
+        and R_PDP10_GLOBAL_B when assembling for -mextended.
+
+.long :h(symbol+offset)
+        Produces R_PDP10_LOCAL_H when assembling for -mno-extended,
+        and R_PDP10_GLOBAL_H when assembling for -mextended.
+
+Names of relocation sections
+
+.rel<name>
+.rela<name>
+        SHF_ALLOC set if the relocated segment is loadable, otherwise off.
+        <name> is the name of the section for which the relocations apply,
+        e.g. ".rel.text" or ".rela.text".
