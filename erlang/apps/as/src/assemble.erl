@@ -93,76 +93,82 @@ stmts(Section = #section{data = {stmts, Stmts}}, Tunit) ->
     {error, _Reason} = Error -> Error
   end.
 
-stmts_image(Stmts, Tunit) -> stmts_image(Stmts, Tunit, []).
+stmts_image(Stmts, Tunit) -> stmts_image(Stmts, Tunit, 0, []).
 
-stmts_image([], _Tunit, Acc) -> {ok, lists:reverse(Acc)};
-stmts_image([Stmt | Stmts], Tunit, Acc) ->
-  case stmt_image(Stmt, Tunit) of
-    {ok, Image} -> stmts_image(Stmts, Tunit, [Image | Acc]);
+stmts_image([], _Tunit, _Dot, Acc) -> {ok, lists:reverse(Acc)};
+stmts_image([Stmt | Stmts], Tunit, Dot, Acc) ->
+  case stmt_image(Stmt, Tunit, Dot) of
+    {ok, {Image, NewDot}} -> stmts_image(Stmts, Tunit, NewDot, [Image | Acc]);
     {error, _Reason} = Error -> Error
   end.
 
-stmt_image(Stmt, Tunit) ->
+stmt_image(Stmt, Tunit, Dot) ->
   case Stmt of
-    #s_dot_ascii{} -> dot_ascii_image(Stmt, Tunit);
-    #s_dot_byte{} -> dot_byte_image(Stmt, Tunit);
-    #s_dot_long{} -> dot_long_image(Stmt, Tunit);
-    #s_dot_short{} -> dot_short_image(Stmt, Tunit);
-    #s_insn{} -> insn_image(Stmt, Tunit)
+    #s_dot_ascii{} -> dot_ascii_image(Stmt, Tunit, Dot);
+    #s_dot_byte{} -> dot_byte_image(Stmt, Tunit, Dot);
+    #s_dot_long{} -> dot_long_image(Stmt, Tunit, Dot);
+    #s_dot_short{} -> dot_short_image(Stmt, Tunit, Dot);
+    #s_insn{} -> insn_image(Stmt, Tunit, Dot)
   end.
 
-dot_ascii_image(#s_dot_ascii{z = Z, strings = Strings}, _Tunit) ->
+dot_ascii_image(#s_dot_ascii{z = Z, strings = Strings}, _Tunit, Dot) ->
   Image =
     case Z of
       true -> [String ++ [0] || String <- Strings];
       false -> Strings
     end,
-  {ok, Image}.
+  Size = lists:foldl(fun(String, Sum) -> Sum + length(String) end, 0, Image),
+  {ok, {Image, Dot + Size}}.
 
-dot_byte_image(#s_dot_byte{exprs = Exprs}, Tunit) ->
-  integer_data_directive(Exprs, Tunit, fun(Value) -> Value band ?PDP10_UINT9_MAX end).
+dot_byte_image(#s_dot_byte{exprs = Exprs}, Tunit, Dot) ->
+  integer_data_directive(Exprs, Tunit, Dot, _Size = 1,
+                         fun(Value) -> Value band ?PDP10_UINT9_MAX end).
 
-dot_long_image(#s_dot_long{exprs = Exprs}, Tunit) ->
-  integer_data_directive(Exprs, Tunit, fun pdp10_extint:uint36_to_ext/1).
+dot_long_image(#s_dot_long{exprs = Exprs}, Tunit, Dot) ->
+  integer_data_directive(Exprs, Tunit, Dot, _Size = 4,
+                         fun pdp10_extint:uint36_to_ext/1).
 
-integer_data_directive(Exprs, Tunit, ValueToExt) ->
-  case exprs_values(Exprs, Tunit) of
-    {ok, Values} -> {ok, lists:map(ValueToExt, Values)};
+integer_data_directive(Exprs, Tunit, Dot, Size, ValueToExt) ->
+  case exprs_values(Exprs, Tunit, Dot, Size) of
+    {ok, Values} ->
+      {ok, {lists:map(ValueToExt, Values), Dot + Size * length(Values)}};
     {error, _Reason} = Error -> Error
   end.
 
-dot_short_image(#s_dot_short{exprs = Exprs}, Tunit) ->
-  integer_data_directive(Exprs, Tunit, fun pdp10_extint:uint18_to_ext/1).
+dot_short_image(#s_dot_short{exprs = Exprs}, Tunit, Dot) ->
+  integer_data_directive(Exprs, Tunit, Dot, _Size = 2,
+                         fun pdp10_extint:uint18_to_ext/1).
 
-insn_image(Stmt, Tunit) ->
+insn_image(Stmt, Tunit, Dot) ->
   #s_insn{ high13 = High13
          , at = At
          , address = AddressExpr
          , index = Index
          } = Stmt,
-  case expr_value(AddressExpr, Tunit) of
+  case expr_value(AddressExpr, Tunit, Dot) of
     {ok, Address} ->
       Word = (((High13 band ((1 bsl 13) - 1)) bsl (36 - 13)) bor
               ((case At of true -> 1; false -> 0 end) bsl (36 - 14)) bor
               ((Index band ((1 bsl 4) - 1)) bsl (36 - 18)) bor
               (Address band ((1 bsl 18) - 1))),
-      {ok, pdp10_extint:uint36_to_ext(Word)};
+      {ok, {pdp10_extint:uint36_to_ext(Word), Dot + 4}};
     {error, _Reason} = Error -> Error
   end.
 
-exprs_values(Exprs, Tunit) ->
-  exprs_values(Exprs, Tunit, []).
+exprs_values(Exprs, Tunit, Dot, Size) ->
+  exprs_values(Exprs, Tunit, Dot, Size, []).
 
-exprs_values([], _Tunit, Acc) -> {ok, lists:reverse(Acc)};
-exprs_values([Expr | Exprs], Tunit, Acc) ->
-  case expr_value(Expr, Tunit) of
-    {ok, Value} -> exprs_values(Exprs, Tunit, [Value | Acc]);
+exprs_values([], _Tunit, _Dot, _Size, Acc) -> {ok, lists:reverse(Acc)};
+exprs_values([Expr | Exprs], Tunit, Dot, Size, Acc) ->
+  case expr_value(Expr, Tunit, Dot) of
+    {ok, Value} -> exprs_values(Exprs, Tunit, Dot + Size, Size, [Value | Acc]);
     {error, _Reason} = Error -> Error
   end.
 
-expr_value(Expr, Tunit) ->
+expr_value(Expr, Tunit, Dot) ->
   case Expr of
     #expr{symbol = false, offset = Value} -> {ok, Value};
+    #expr{symbol = ".", offset = Offset} -> {ok, Dot + Offset};
     #expr{symbol = Name, offset = Offset} ->
       case tunit:get_symbol(Tunit, Name) of
         #symbol{st_value = Value} when Value =/= false -> {ok, Value + Offset};
