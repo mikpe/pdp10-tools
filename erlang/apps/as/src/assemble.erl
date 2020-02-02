@@ -65,7 +65,7 @@ section(Section, Tunit) ->
 %% The image starts with a NUL, followed by the strings, all NUL-terminated.
 
 comment(Section = #section{data = {stmts, Stmts}}, Tunit) ->
-  Image = comment_image(Stmts),
+  Image = comment_image(lists:reverse(Stmts)),
   NewSection = Section#section{data = {image, Image}, dot = image_size(Image)},
   {ok, tunit:put_section(Tunit, NewSection)}.
 
@@ -87,7 +87,7 @@ image_size(TByte, Acc) when is_integer(TByte), 0 =< TByte, TByte =< 511 ->
 %% Assemble user-defined contents ----------------------------------------------
 
 stmts(Section = #section{data = {stmts, Stmts}}, Tunit) ->
-  case stmts_image(Stmts, Tunit) of
+  case stmts_image(lists:reverse(Stmts), Tunit) of
     {ok, Image} ->
       {ok, tunit:put_section(Tunit, Section#section{data = {image, Image}})};
     {error, _Reason} = Error -> Error
@@ -95,7 +95,7 @@ stmts(Section = #section{data = {stmts, Stmts}}, Tunit) ->
 
 stmts_image(Stmts, Tunit) -> stmts_image(Stmts, Tunit, []).
 
-stmts_image([], _Tunit, Acc) -> {ok, Acc}; % the input Stmts were in reverse order
+stmts_image([], _Tunit, Acc) -> {ok, lists:reverse(Acc)};
 stmts_image([Stmt | Stmts], Tunit, Acc) ->
   case stmt_image(Stmt, Tunit) of
     {ok, Image} -> stmts_image(Stmts, Tunit, [Image | Acc]);
