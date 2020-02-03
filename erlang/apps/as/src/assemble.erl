@@ -86,32 +86,43 @@ image_size(TByte, Acc) when is_integer(TByte), 0 =< TByte, TByte =< 511 ->
 
 %% Assemble user-defined contents ----------------------------------------------
 
-stmts(Section = #section{data = {stmts, Stmts}}, Tunit) ->
-  case stmts_image(lists:reverse(Stmts), Tunit) of
+stmts(Section = #section{name = Name, data = {stmts, Stmts}}, Tunit0) ->
+  SectionSymbol = #symbol{ name = Name
+                         , section = Name
+                         , st_value = 0
+                         , st_size = 0
+                         , st_info = ?ELF_ST_INFO(?STB_LOCAL, ?STT_SECTION)
+                         , st_name = 0
+                         , st_shndx = 0
+                         },
+  Tunit = tunit:put_symbol(Tunit0, SectionSymbol),
+  case stmts_image(lists:reverse(Stmts), Tunit, Name) of
     {ok, Image} ->
       {ok, tunit:put_section(Tunit, Section#section{data = {image, Image}})};
     {error, _Reason} = Error -> Error
   end.
 
-stmts_image(Stmts, Tunit) -> stmts_image(Stmts, Tunit, 0, []).
+stmts_image(Stmts, Tunit, SectionName) ->
+  stmts_image(Stmts, Tunit, SectionName, 0, []).
 
-stmts_image([], _Tunit, _Dot, Acc) -> {ok, lists:reverse(Acc)};
-stmts_image([Stmt | Stmts], Tunit, Dot, Acc) ->
-  case stmt_image(Stmt, Tunit, Dot) of
-    {ok, {Image, NewDot}} -> stmts_image(Stmts, Tunit, NewDot, [Image | Acc]);
+stmts_image([], _Tunit, _SectionName, _Dot, Acc) -> {ok, lists:reverse(Acc)};
+stmts_image([Stmt | Stmts], Tunit, SectionName, Dot, Acc) ->
+  case stmt_image(Stmt, Tunit, SectionName, Dot) of
+    {ok, {Image, NewDot}} ->
+      stmts_image(Stmts, Tunit, SectionName, NewDot, [Image | Acc]);
     {error, _Reason} = Error -> Error
   end.
 
-stmt_image(Stmt, Tunit, Dot) ->
+stmt_image(Stmt, Tunit, SectionName, Dot) ->
   case Stmt of
-    #s_dot_ascii{} -> dot_ascii_image(Stmt, Tunit, Dot);
-    #s_dot_byte{} -> dot_byte_image(Stmt, Tunit, Dot);
-    #s_dot_long{} -> dot_long_image(Stmt, Tunit, Dot);
-    #s_dot_short{} -> dot_short_image(Stmt, Tunit, Dot);
-    #s_insn{} -> insn_image(Stmt, Tunit, Dot)
+    #s_dot_ascii{} -> dot_ascii_image(Stmt, Tunit, SectionName, Dot);
+    #s_dot_byte{} -> dot_byte_image(Stmt, Tunit, SectionName, Dot);
+    #s_dot_long{} -> dot_long_image(Stmt, Tunit, SectionName, Dot);
+    #s_dot_short{} -> dot_short_image(Stmt, Tunit, SectionName, Dot);
+    #s_insn{} -> insn_image(Stmt, Tunit, SectionName, Dot)
   end.
 
-dot_ascii_image(#s_dot_ascii{z = Z, strings = Strings}, _Tunit, Dot) ->
+dot_ascii_image(#s_dot_ascii{z = Z, strings = Strings}, _Tunit, _SectionName, Dot) ->
   Image =
     case Z of
       true -> [String ++ [0] || String <- Strings];
@@ -120,32 +131,32 @@ dot_ascii_image(#s_dot_ascii{z = Z, strings = Strings}, _Tunit, Dot) ->
   Size = lists:foldl(fun(String, Sum) -> Sum + length(String) end, 0, Image),
   {ok, {Image, Dot + Size}}.
 
-dot_byte_image(#s_dot_byte{exprs = Exprs}, Tunit, Dot) ->
-  integer_data_directive(Exprs, Tunit, Dot, _Size = 1,
+dot_byte_image(#s_dot_byte{exprs = Exprs}, Tunit, SectionName Dot) ->
+  integer_data_directive(Exprs, Tunit, SectionName, Dot, _Size = 1,
                          fun(Value) -> Value band ?PDP10_UINT9_MAX end).
 
-dot_long_image(#s_dot_long{exprs = Exprs}, Tunit, Dot) ->
-  integer_data_directive(Exprs, Tunit, Dot, _Size = 4,
+dot_long_image(#s_dot_long{exprs = Exprs}, Tunit, SectionName, Dot) ->
+  integer_data_directive(Exprs, Tunit, SectionName, Dot, _Size = 4,
                          fun pdp10_extint:uint36_to_ext/1).
 
-integer_data_directive(Exprs, Tunit, Dot, Size, ValueToExt) ->
-  case exprs_values(Exprs, Tunit, Dot, Size) of
+integer_data_directive(Exprs, Tunit, SectionName, Dot, Size, ValueToExt) ->
+  case exprs_values(Exprs, Tunit, SectionName, Dot, Size) of
     {ok, Values} ->
       {ok, {lists:map(ValueToExt, Values), Dot + Size * length(Values)}};
     {error, _Reason} = Error -> Error
   end.
 
-dot_short_image(#s_dot_short{exprs = Exprs}, Tunit, Dot) ->
-  integer_data_directive(Exprs, Tunit, Dot, _Size = 2,
+dot_short_image(#s_dot_short{exprs = Exprs}, Tunit, SectionName, Dot) ->
+  integer_data_directive(Exprs, Tunit, SectionName, Dot, _Size = 2,
                          fun pdp10_extint:uint18_to_ext/1).
 
-insn_image(Stmt, Tunit, Dot) ->
+insn_image(Stmt, Tunit, SectionName, Dot) ->
   #s_insn{ high13 = High13
          , at = At
          , address = AddressExpr
          , index = Index
          } = Stmt,
-  case expr_value(AddressExpr, Tunit, Dot) of
+  case expr_value(AddressExpr, Tunit, SectionName, Dot) of
     {ok, Address} ->
       Word = (((High13 band ((1 bsl 13) - 1)) bsl (36 - 13)) bor
               ((case At of true -> 1; false -> 0 end) bsl (36 - 14)) bor
@@ -155,17 +166,18 @@ insn_image(Stmt, Tunit, Dot) ->
     {error, _Reason} = Error -> Error
   end.
 
-exprs_values(Exprs, Tunit, Dot, Size) ->
-  exprs_values(Exprs, Tunit, Dot, Size, []).
+exprs_values(Exprs, Tunit, SectionName, Dot, Size) ->
+  exprs_values(Exprs, Tunit, SectionName, Dot, Size, []).
 
-exprs_values([], _Tunit, _Dot, _Size, Acc) -> {ok, lists:reverse(Acc)};
-exprs_values([Expr | Exprs], Tunit, Dot, Size, Acc) ->
-  case expr_value(Expr, Tunit, Dot) of
-    {ok, Value} -> exprs_values(Exprs, Tunit, Dot + Size, Size, [Value | Acc]);
+exprs_values([], _Tunit, _SectionName, _Dot, _Size, Acc) -> {ok, lists:reverse(Acc)};
+exprs_values([Expr | Exprs], Tunit, SectionName, Dot, Size, Acc) ->
+  case expr_value(Expr, Tunit, SectionName, Dot) of
+    {ok, Value} ->
+      exprs_values(Exprs, Tunit, SectionName, Dot + Size, Size, [Value | Acc]);
     {error, _Reason} = Error -> Error
   end.
 
-expr_value(Expr, Tunit, Dot) ->
+expr_value(Expr, Tunit, _SectionName, Dot) ->
   case Expr of
     #expr{symbol = false, offset = Value} -> {ok, Value};
     #expr{symbol = ".", offset = Offset} -> {ok, Dot + Offset};
