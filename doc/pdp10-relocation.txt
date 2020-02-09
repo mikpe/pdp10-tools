@@ -24,8 +24,8 @@ Relocation entries reside in section headers with
 - sh_info equal to the section header index to which the relocations apply
 - sh_link equal to the section header index of an associated symbol table
 
-Section start addresses are associated with symbols of type STT_SECTION
-and STB_LOCAL bindins.  These symbols are used for relocation.
+Section start addresses are associated with symbols having STT_SECTION type
+and STB_LOCAL binding.  These symbols are used for relocation.
 
 Symbols with st_shndx SHN_ABS have absolute values not affected by relocation.
 
@@ -106,29 +106,50 @@ R_PDP10_GLOBAL_H        7       uint36          (S+A) >>u 2
         (S+A) must be halfword-aligned.
         The place, P, must be word-aligned.
 
+R_PDP10_LITERAL_W       8       uint36          S+A
+R_PDP10_LITERAL_H       9       uint18          S+A
+R_PDP10_LITERAL_B      10       uint9           S+A
+        These produce a literal value of the indicated size.
+        (S+A) must fit in the destination without loss of precision.
+        The place, P, must be aligned to an integer multiple of the value size.
+
 [TODO: extend with GOT, PLT, and TLS relocations]
 
 Assembler Syntax
 
-symbol+offset
-        Produces no relocation if the symbol is absolute.
+opcode accumulator,@?symbol+offset(index)
+        Produces R_PDP10_IFIW, unless the symbol is absolute,
+        in which case the value is emitted as-is with no relocation.
 
-opcode accumulator,symbol+offset(index)
-opcode accumulator,:ifiw(symbol+offset)(index)
-        Produces R_PDP10_IFIW.
-
-.long symbol+offset
 .long :w(symbol+offset)
         Produces R_PDP10_LOCAL_W when assembling for -mno-extended,
         and R_PDP10_EFIW when assembling for -mextended.
+        If the symbol is absolute, produces the appropriately encoded
+        value with no relocation.
 
 .long :b(symbol+offset)
         Produces R_PDP10_LOCAL_B when assembling for -mno-extended,
         and R_PDP10_GLOBAL_B when assembling for -mextended.
+        If the symbol is absolute, produces the appropriately encoded
+        value with no relocation.
 
 .long :h(symbol+offset)
         Produces R_PDP10_LOCAL_H when assembling for -mno-extended,
         and R_PDP10_GLOBAL_H when assembling for -mextended.
+        If the symbol is absolute, produces the appropriately encoded
+        value with no relocation.
+
+.long symbol+offset
+        Produces R_PDP10_LITERAL_W, unless the symbol is absolute,
+        in which case the value is emitted as-is with no relocation.
+
+.hword symbol+offset
+        Produces R_PDP10_LITERAL_H, unless the symbol is absolute,
+        in which case the value is emitted as-is with no relocation.
+
+.byte symbol+offset
+        Produces R_PDP10_LITERAL_B, unless the symbol is absolute,
+        in which case the value is emitted as-is with no relocation.
 
 Names of relocation sections
 
