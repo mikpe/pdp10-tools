@@ -131,23 +131,23 @@ dot_ascii_image(#s_dot_ascii{z = Z, strings = Strings}, _Tunit, _SectionName, Do
   Size = lists:foldl(fun(String, Sum) -> Sum + length(String) end, 0, Image),
   {ok, {Image, Dot + Size}}.
 
-dot_byte_image(#s_dot_byte{exprs = Exprs}, Tunit, SectionName Dot) ->
-  integer_data_directive(Exprs, Tunit, SectionName, Dot, _Size = 1,
+dot_byte_image(#s_dot_byte{exprs = Exprs}, Tunit, SectionName, Dot) ->
+  integer_data_directive(Exprs, Tunit, SectionName, Dot, _Size = 1, _Context = byte,
                          fun(Value) -> Value band ?PDP10_UINT9_MAX end).
 
 dot_long_image(#s_dot_long{exprs = Exprs}, Tunit, SectionName, Dot) ->
-  integer_data_directive(Exprs, Tunit, SectionName, Dot, _Size = 4,
+  integer_data_directive(Exprs, Tunit, SectionName, Dot, _Size = 4, _Context = long,
                          fun pdp10_extint:uint36_to_ext/1).
 
-integer_data_directive(Exprs, Tunit, SectionName, Dot, Size, ValueToExt) ->
-  case exprs_values(Exprs, Tunit, SectionName, Dot, Size) of
+integer_data_directive(Exprs, Tunit, SectionName, Dot, Size, Context, ValueToExt) ->
+  case exprs_values(Exprs, Tunit, SectionName, Dot, Size, Context) of
     {ok, Values} ->
       {ok, {lists:map(ValueToExt, Values), Dot + Size * length(Values)}};
     {error, _Reason} = Error -> Error
   end.
 
 dot_short_image(#s_dot_short{exprs = Exprs}, Tunit, SectionName, Dot) ->
-  integer_data_directive(Exprs, Tunit, SectionName, Dot, _Size = 2,
+  integer_data_directive(Exprs, Tunit, SectionName, Dot, _Size = 2, _Context = short,
                          fun pdp10_extint:uint18_to_ext/1).
 
 insn_image(Stmt, Tunit, SectionName, Dot) ->
@@ -156,7 +156,7 @@ insn_image(Stmt, Tunit, SectionName, Dot) ->
          , address = AddressExpr
          , index = Index
          } = Stmt,
-  case expr_value(AddressExpr, Tunit, SectionName, Dot) of
+  case expr_value(AddressExpr, Tunit, SectionName, Dot, _Context = ifiw) of
     {ok, Address} ->
       Word = (((High13 band ((1 bsl 13) - 1)) bsl (36 - 13)) bor
               ((case At of true -> 1; false -> 0 end) bsl (36 - 14)) bor
@@ -166,18 +166,18 @@ insn_image(Stmt, Tunit, SectionName, Dot) ->
     {error, _Reason} = Error -> Error
   end.
 
-exprs_values(Exprs, Tunit, SectionName, Dot, Size) ->
-  exprs_values(Exprs, Tunit, SectionName, Dot, Size, []).
+exprs_values(Exprs, Tunit, SectionName, Dot, Size, Context) ->
+  exprs_values(Exprs, Tunit, SectionName, Dot, Size, Context, []).
 
-exprs_values([], _Tunit, _SectionName, _Dot, _Size, Acc) -> {ok, lists:reverse(Acc)};
-exprs_values([Expr | Exprs], Tunit, SectionName, Dot, Size, Acc) ->
-  case expr_value(Expr, Tunit, SectionName, Dot) of
+exprs_values([], _Tunit, _SectionName, _Dot, _Size, _Context, Acc) -> {ok, lists:reverse(Acc)};
+exprs_values([Expr | Exprs], Tunit, SectionName, Dot, Size, Context, Acc) ->
+  case expr_value(Expr, Tunit, SectionName, Dot, Context) of
     {ok, Value} ->
-      exprs_values(Exprs, Tunit, SectionName, Dot + Size, Size, [Value | Acc]);
+      exprs_values(Exprs, Tunit, SectionName, Dot + Size, Size, Context, [Value | Acc]);
     {error, _Reason} = Error -> Error
   end.
 
-expr_value(Expr, Tunit, _SectionName, Dot) ->
+expr_value(Expr, Tunit, _SectionName, Dot, _Context) ->
   case Expr of
     #expr{symbol = false, offset = Value} -> {ok, Value};
     #expr{symbol = ".", offset = Offset} -> {ok, Dot + Offset};
