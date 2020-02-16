@@ -136,9 +136,12 @@ process_symbol(Symbol, Context) ->
   #context{tunit = Tunit, strtab = StrTab} = Context,
   {StName, NewStrTab} = strtab_enter(StrTab, Name),
   StShndx =
-    case tunit:get_section(Tunit, Section) of
-      false -> ?SHN_ABS;
-      #section{shndx = Shndx} -> Shndx % assigned in append_section/2 above
+    case Section of
+      false -> ?SHN_UNDEF;
+      abs -> ?SHN_ABS;
+      _ ->
+        #section{shndx = Shndx} = tunit:get_section(Tunit, Section),
+        Shndx % assigned in append_section/2 above
     end,
   NewSymbol = Symbol#symbol{st_name = StName, st_shndx = StShndx},
   NewTunit = tunit:put_symbol(Tunit, NewSymbol),

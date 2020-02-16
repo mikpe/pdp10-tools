@@ -465,7 +465,7 @@ dot_byte(Location, Tunit, #s_dot_byte{} = Stmt0) ->
 
 dot_file(_Location, Tunit, #s_dot_file{string = String}) ->
   Symbol = #symbol{ name = String
-                  , section = false
+                  , section = abs
                   , st_value = 0
                   , st_size = 0
                   , st_info = ?ELF_ST_INFO(?STB_LOCAL, ?STT_FILE)

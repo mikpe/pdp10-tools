@@ -149,7 +149,7 @@
 
 -record(symbol,
         { name          :: string()
-        , section       :: false | string() % false if UNDEF or ABS
+        , section       :: false | abs | string()
         %% FIXME: should contain an #elf36_Sym{} here instead
         , st_value      :: false | non_neg_integer()
         , st_size       :: false | non_neg_integer()
