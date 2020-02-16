@@ -26,7 +26,7 @@
 -record(expr,
         { symbol :: false | string() | {non_neg_integer(), $b | $f}
         , offset :: integer()
-        , modifier :: ifiw | w | b | h
+        , modifier :: false | w | b | h
         }).
 -type expr() :: #expr{}.
 

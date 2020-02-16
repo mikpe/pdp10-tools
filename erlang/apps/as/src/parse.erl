@@ -134,7 +134,7 @@ insn_uint(ScanState, Location, Name, Location2, UInt) ->
 %% Seen "<symbol> <first>" where <first> is not "@", or <uinteger> followed by ",".
 %% <first> is the start of the <displacement>.
 insn_disp(ScanState, Location, Name, First) ->
-  case do_expr(ScanState, {ok, First}, ifiw) of
+  case do_expr(ScanState, {ok, First}) of
     {ok, Displacement} ->
       insn_ea_disp(ScanState, Location, Name, _AccOrDev = false, _At = false, Displacement);
     {error, _Reason} = Error -> Error
@@ -147,7 +147,7 @@ insn_ea(ScanState, Location, Name, AccOrDev) ->
       make_insn(Location, Name, AccOrDev, _At = false, _Displacement = false, _Index = false);
     {ok, {_Location, ?T_AT}} -> insn_ea_at(ScanState, Location, Name, AccOrDev);
     {ok, {_Location, _Token}} = ScanRes ->
-      case do_expr(ScanState, ScanRes, ifiw) of
+      case do_expr(ScanState, ScanRes) of
         {ok, Displacement} ->
           insn_ea_disp(ScanState, Location, Name, AccOrDev, _At = false, Displacement);
         {error, _Reason} = Error -> Error
@@ -157,7 +157,7 @@ insn_ea(ScanState, Location, Name, AccOrDev) ->
 
 %% <symbol> [<accordev> ","] "@" . <displacement> ["(" <index> ")"] <newline>
 insn_ea_at(ScanState, Location, Name, AccOrDev) ->
-  case expr(ScanState, ifiw) of
+  case expr(ScanState) of
     {ok, Displacement} ->
       insn_ea_disp(ScanState, Location, Name, AccOrDev, _At = true, Displacement);
     {error, _Reason} = Error -> Error
@@ -205,7 +205,7 @@ make_insn(Location, Name, AccOrDev, At, Displacement, Index) ->
               Stmt = #s_insn{ high13 = FinalHigh13
                             , at = At
                             , address = case Displacement of
-                                          false -> mk_integer_expr(0, ifiw);
+                                          false -> mk_integer_expr(0, false);
                                           _ -> Displacement
                                         end
                             , index = if Index =:= false -> 0; true -> Index end
@@ -607,18 +607,17 @@ section_name(ScanState) ->
 %%                | "-"? <uinteger>
 %%                | (<symbol> | <local_label>) (("+" | "-") <uinteger>)?
 %%
-%% <modifier> ::= "ifiw" | "w" | "b" | "h"
+%% <modifier> ::= "w" | "b" | "h"
 %%
-%% Note: <modifier> defaults to "ifiw" in <insn> and "w" in data directives.
-%% It describes how the value should be represented, which also determines
-%% which relocation to use for it.
+%% Note: <modifier> describes how the value should be represented, which also
+%% determines which relocation to use for it.
 
 %% <expr_list> ::= (<expr> ("," <expr>)*)? \n
 expr_list(ScanState) ->
   case scan:token(ScanState) of
     {ok, {_Location, ?T_NEWLINE}} -> {ok, []};
     First ->
-      case do_expr(ScanState, First, _DefaultModifier = w) of
+      case do_expr(ScanState, First) of
         {ok, Expr} -> expr_list(ScanState, [Expr]);
         {error, _Reason} = Error -> Error
       end
@@ -627,7 +626,7 @@ expr_list(ScanState) ->
 expr_list(ScanState, Exprs) ->
   case scan:token(ScanState) of
     {ok, {_Location, ?T_COMMA}} ->
-      case expr(ScanState, _DefaultModifier = w) of
+      case expr(ScanState) of
         {ok, Expr} -> expr_list(ScanState, [Expr | Exprs]);
         {error, _Reason} = Error -> Error
       end;
@@ -635,20 +634,20 @@ expr_list(ScanState, Exprs) ->
     ScanRes -> badtok("expected comma or newline", ScanRes)
   end.
 
-expr(ScanState, DefaultModifier) ->
-  do_expr(ScanState, scan:token(ScanState), DefaultModifier).
+expr(ScanState) ->
+  do_expr(ScanState, scan:token(ScanState)).
 
-do_expr(ScanState, First, DefaultModifier) ->
+do_expr(ScanState, First) ->
   case First of
     {ok, {_Location, ?T_COLON}} -> modifier_expr(ScanState);
-    _ -> do_plain_expr(ScanState, First, DefaultModifier)
+    _ -> do_plain_expr(ScanState, First, _Modifier = false)
   end.
 
 modifier_expr(ScanState) ->
   case scan:token(ScanState) of
     {ok, {_Location1, {?T_SYMBOL, Symbol}}} = ScanRes1 ->
       case symbol_modifier(Symbol) of
-        false -> badtok("invalid modifier", ScanRes1);
+        error -> badtok("invalid modifier", ScanRes1);
         Modifier ->
           case scan:token(ScanState) of
             {ok, {_Location2, ?T_LPAREN}} ->
@@ -715,11 +714,10 @@ do_expr_offset(ScanState, Symbol, IsMinus, Modifier) ->
 
 symbol_modifier(Symbol) ->
   case Symbol of
-    "ifiw" -> ifiw;
     "w"    -> w;
     "b"    -> b;
     "h"    -> h;
-    _      -> false
+    _      -> error
   end.
 
 mk_integer_expr(Value, Modifier) -> #expr{symbol = false, offset = Value, modifier = Modifier}.
