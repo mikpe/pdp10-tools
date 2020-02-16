@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% pdp10_stdint.hrl -- stdint.h clone for PDP10
-%%% Copyright (C) 2013-2019  Mikael Pettersson
+%%% Copyright (C) 2013-2020  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -20,10 +20,9 @@
 %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%
-%%% Provide stdint.h-like type names and macros for 9, 18, and 36-bit unsigned
-%%% integer types.
+%%% Provide stdint.h-like type names and macros for 9, 18, and 36-bit integers.
 %%%
-%%% Standard uint<N>_t types must not contain any any extraneous bits, but that
+%%% Standard {u,}int<N>_t types must not contain any extraneous bits, but that
 %%% cannot be guaranteed for these 9, 18, and 36-bit types embedded in Erlang
 %%% integers of unbounded precision.  For arithmetic on these types, use the
 %%% operations provided by pdp10_arith.
@@ -38,8 +37,16 @@
 -define(PDP10_UINT9_MAX, ((1 bsl 9) - 1)).
 -type uint9_t() :: 0..?PDP10_UINT9_MAX.
 
+-define(PDP10_INT9_MAX, ((1 bsl (9 - 1)) - 1)).
+-define(PDP10_INT9_MIN, (-?PDP10_INT9_MAX - 1)).
+-type int9_t() :: ?PDP10_INT9_MIN..?PDP10_INT9_MAX.
+
 -define(PDP10_UINT18_MAX, ((1 bsl 18) - 1)).
 -type uint18_t() :: 0..?PDP10_UINT18_MAX.
+
+-define(PDP10_INT18_MAX, ((1 bsl (18 - 1)) - 1)).
+-define(PDP10_INT18_MIN, (-?PDP10_INT18_MAX - 1)).
+-type int18_t() :: ?PDP10_INT18_MIN..?PDP10_INT18_MAX.
 
 -define(PDP10_UINT36_MAX, ((1 bsl 36) - 1)).
 -type uint36_t() :: 0..?PDP10_UINT36_MAX.
