@@ -177,15 +177,68 @@ exprs_values([Expr | Exprs], Tunit, SectionName, Dot, Size, Context, Acc) ->
     {error, _Reason} = Error -> Error
   end.
 
-expr_value(Expr, Tunit, _SectionName, Dot, _Context) ->
-  case Expr of
-    #expr{symbol = false, offset = Value} -> {ok, Value};
-    #expr{symbol = ".", offset = Offset} -> {ok, Dot + Offset};
-    #expr{symbol = Name, offset = Offset} ->
+expr_value(Expr, Tunit, _SectionName, Dot, Context) ->
+  #expr{symbol = Name, offset = Offset, modifier = Modifier} = Expr,
+  case Name of
+    false -> make_abs(Context, Modifier, Offset);
+    "." -> make_abs(Context, Modifier, Dot + Offset);
+    _ ->
       case tunit:get_symbol(Tunit, Name) of
-        #symbol{st_value = Value} when Value =/= false -> {ok, Value + Offset};
+        #symbol{st_value = Value} when Value =/= false ->
+          make_abs(Context, Modifier, Value + Offset);
         _ -> {error, {?MODULE, {undefined_symbol, Name}}}
       end
+  end.
+
+make_abs(Context, Modifier, Value) ->
+  Word =
+    case {Context, Modifier} of
+      {ifiw, false}  -> make_abs18(Value);
+      {long, false}  -> make_abs36(Value);
+      {long, w}      -> make_abs36(Value);
+      {long, b}      -> make_abs36_b(Value);
+      {long, h}      -> make_abs36_h(Value);
+      {short, false} -> make_abs18(Value);
+      {byte, false}  -> make_abs9(Value)
+    end,
+  {ok, Word}.
+
+%% Produces a one-word global byte pointer to a 9-bit byte.
+%% TODO: produce a one-word local byte pointer if -mno-extended.
+make_abs36_b(Value) when Value >= 0, Value =< ((1 bsl 32) - 1) ->
+  PS = 8#70 + (Value band 3),
+  Y = Value bsr 2,
+  (PS bsl 30) + Y.
+
+%% Produces a one-word global byte pointer to an aligned 18-bit halfword.
+%% TODO: produce a one-word local byte pointer if -mno-extended.
+make_abs36_h(Value) when Value >= 0, Value =< ((1 bsl 32) - 1), (Value band 1) =:= 0 ->
+  PS = 8#75 + ((Value band 2) bsr 1),
+  Y = Value bsr 2,
+  (PS bsl 30) + Y.
+
+make_abs36(Value) ->
+  case Value of
+    _ when Value >= 0, Value =< ?PDP10_UINT36_MAX ->
+      Value;
+    _ when Value >= ?PDP10_INT36_MIN, Value =< ?PDP10_INT36_MAX ->
+      Value band ((1 bsl 36) - 1)
+  end.
+
+make_abs18(Value) ->
+  case Value of
+    _ when Value >= 0, Value =< ?PDP10_UINT18_MAX ->
+      Value;
+    _ when Value >= ?PDP10_INT18_MIN, Value =< ?PDP10_INT18_MAX ->
+      Value band ((1 bsl 18) - 1)
+  end.
+
+make_abs9(Value) ->
+  case Value of
+    _ when Value >= 0, Value =< ?PDP10_UINT9_MAX ->
+      Value;
+    _ when Value >= ?PDP10_INT9_MIN, Value =< ?PDP10_INT9_MAX ->
+      Value band ((1 bsl 9) - 1)
   end.
 
 %% Error reporting -------------------------------------------------------------
