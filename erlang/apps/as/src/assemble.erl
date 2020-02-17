@@ -97,19 +97,20 @@ stmts(Section = #section{name = Name, data = {stmts, Stmts}}, Tunit0) ->
                          },
   Tunit = tunit:put_symbol(Tunit0, SectionSymbol),
   case stmts_image(lists:reverse(Stmts), Tunit, Name) of
-    {ok, Image} ->
+    {ok, {Image, _Relocs = []}} ->
       {ok, tunit:put_section(Tunit, Section#section{data = {image, Image}})};
     {error, _Reason} = Error -> Error
   end.
 
 stmts_image(Stmts, Tunit, SectionName) ->
-  stmts_image(Stmts, Tunit, SectionName, 0, []).
+  stmts_image(Stmts, Tunit, SectionName, 0, [], []).
 
-stmts_image([], _Tunit, _SectionName, _Dot, Acc) -> {ok, lists:reverse(Acc)};
-stmts_image([Stmt | Stmts], Tunit, SectionName, Dot, Acc) ->
+stmts_image([], _Tunit, _SectionName, _Dot, AccImage, AccRelocs) ->
+  {ok, {lists:reverse(AccImage), lists:reverse(AccRelocs)}};
+stmts_image([Stmt | Stmts], Tunit, SectionName, Dot, AccImage, AccRelocs) ->
   case stmt_image(Stmt, Tunit, SectionName, Dot) of
-    {ok, {Image, NewDot}} ->
-      stmts_image(Stmts, Tunit, SectionName, NewDot, [Image | Acc]);
+    {ok, {Image, NewDot, NewRelocs}} ->
+      stmts_image(Stmts, Tunit, SectionName, NewDot, [Image | AccImage], NewRelocs ++ AccRelocs);
     {error, _Reason} = Error -> Error
   end.
 
@@ -129,7 +130,7 @@ dot_ascii_image(#s_dot_ascii{z = Z, strings = Strings}, _Tunit, _SectionName, Do
       false -> Strings
     end,
   Size = lists:foldl(fun(String, Sum) -> Sum + length(String) end, 0, Image),
-  {ok, {Image, Dot + Size}}.
+  {ok, {Image, Dot + Size, _Relocs = []}}.
 
 dot_byte_image(#s_dot_byte{exprs = Exprs}, Tunit, SectionName, Dot) ->
   integer_data_directive(Exprs, Tunit, SectionName, Dot, _Size = 1, _Context = byte,
@@ -141,8 +142,8 @@ dot_long_image(#s_dot_long{exprs = Exprs}, Tunit, SectionName, Dot) ->
 
 integer_data_directive(Exprs, Tunit, SectionName, Dot, Size, Context, ValueToExt) ->
   case exprs_values(Exprs, Tunit, SectionName, Dot, Size, Context) of
-    {ok, Values} ->
-      {ok, {lists:map(ValueToExt, Values), Dot + Size * length(Values)}};
+    {ok, {Values, Relocs}} ->
+      {ok, {lists:map(ValueToExt, Values), Dot + Size * length(Values), Relocs}};
     {error, _Reason} = Error -> Error
   end.
 
@@ -157,23 +158,24 @@ insn_image(Stmt, Tunit, SectionName, Dot) ->
          , index = Index
          } = Stmt,
   case expr_value(AddressExpr, Tunit, SectionName, Dot, _Context = ifiw) of
-    {ok, Address} ->
+    {ok, {Address, Relocs}} ->
       Word = (((High13 band ((1 bsl 13) - 1)) bsl (36 - 13)) bor
               ((case At of true -> 1; false -> 0 end) bsl (36 - 14)) bor
               ((Index band ((1 bsl 4) - 1)) bsl (36 - 18)) bor
               (Address band ((1 bsl 18) - 1))),
-      {ok, {pdp10_extint:uint36_to_ext(Word), Dot + 4}};
+      {ok, {pdp10_extint:uint36_to_ext(Word), Dot + 4, Relocs}};
     {error, _Reason} = Error -> Error
   end.
 
 exprs_values(Exprs, Tunit, SectionName, Dot, Size, Context) ->
-  exprs_values(Exprs, Tunit, SectionName, Dot, Size, Context, []).
+  exprs_values(Exprs, Tunit, SectionName, Dot, Size, Context, [], []).
 
-exprs_values([], _Tunit, _SectionName, _Dot, _Size, _Context, Acc) -> {ok, lists:reverse(Acc)};
-exprs_values([Expr | Exprs], Tunit, SectionName, Dot, Size, Context, Acc) ->
+exprs_values([], _Tunit, _SectionName, _Dot, _Size, _Context, AccValues, AccRelocs) ->
+  {ok, {lists:reverse(AccValues), AccRelocs}};
+exprs_values([Expr | Exprs], Tunit, SectionName, Dot, Size, Context, AccValues, AccRelocs) ->
   case expr_value(Expr, Tunit, SectionName, Dot, Context) of
-    {ok, Value} ->
-      exprs_values(Exprs, Tunit, SectionName, Dot + Size, Size, Context, [Value | Acc]);
+    {ok, {Value, Relocs}} ->
+      exprs_values(Exprs, Tunit, SectionName, Dot + Size, Size, Context, [Value | AccValues], Relocs ++ AccRelocs);
     {error, _Reason} = Error -> Error
   end.
 
@@ -201,7 +203,7 @@ make_abs(Context, Modifier, Value) ->
       {short, false} -> make_abs18(Value);
       {byte, false}  -> make_abs9(Value)
     end,
-  {ok, Word}.
+  {ok, {Word, _Relocs = []}}.
 
 %% Produces a one-word global byte pointer to a 9-bit byte.
 %% TODO: produce a one-word local byte pointer if -mno-extended.
