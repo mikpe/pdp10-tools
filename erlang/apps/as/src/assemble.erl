@@ -198,18 +198,32 @@ exprs_values([Expr | Exprs], Tunit, SectionName, Dot, Size, Context, AccValues, 
     {error, _Reason} = Error -> Error
   end.
 
-expr_value(Expr, Tunit, _SectionName, Dot, Context) ->
+expr_value(Expr, Tunit, SectionName, Dot, Context) ->
   #expr{symbol = Name, offset = Offset, modifier = Modifier} = Expr,
   case Name of
     false -> make_abs(Context, Modifier, Offset);
-    "." -> make_abs(Context, Modifier, Dot + Offset);
+    "." -> make_rel(Context, Modifier, Dot, SectionName, Dot + Offset);
     _ ->
       case tunit:get_symbol(Tunit, Name) of
-        #symbol{st_value = Value} when Value =/= false ->
+        #symbol{section = abs, st_value = Value} when Value =/= false ->
           make_abs(Context, Modifier, Value + Offset);
-        _ -> {error, {?MODULE, {undefined_symbol, Name}}}
+        _ -> make_rel(Context, Modifier, Dot, Name, Offset)
       end
   end.
+
+make_rel(Context, Modifier, Dot, Symbol, Addend) ->
+  Reloc =
+    case {Context, Modifier} of
+      {ifiw, false}  -> ?R_PDP10_IFIW;
+      {long, false}  -> ?R_PDP10_LITERAL_W;
+      {long, w}      -> ?R_PDP10_EFIW;
+      {long, b}      -> ?R_PDP10_GLOBAL_B;
+      {long, h}      -> ?R_PDP10_GLOBAL_H;
+      {short, false} -> ?R_PDP10_LITERAL_H;
+      {byte, false}  -> ?R_PDP10_LITERAL_B
+    end,
+  Rela = #rela{offset = Dot, type = Reloc, symbol = Symbol, addend = Addend},
+  {ok, {_Value = 0, [Rela]}}.
 
 make_abs(Context, Modifier, Value) ->
   Word =
@@ -266,6 +280,4 @@ make_abs9(Value) ->
 
 -spec format_error(term()) -> io_lib:chars().
 format_error({cannot_assemble, Name}) ->
-  io_lib:format("don't know how to assemble section ~s", [Name]);
-format_error({undefined_symbol, Name}) ->
-  io_lib:format("reference to undefined symbol ~s", [Name]).
+  io_lib:format("don't know how to assemble section ~s", [Name]).
