@@ -295,6 +295,7 @@ make_section(SectionName) ->
           , sh_offset = 0
           , sh_flags = 0
           , sh_link = ?SHN_UNDEF
+          , sh_info = 0
           , sh_addralign = 0
           , sh_entsize = 0
           }.
@@ -664,6 +665,7 @@ section_dot_comment() -> % ".comment"
           , sh_offset = 0
           , sh_flags = ?SHF_MERGE bor ?SHF_STRINGS
           , sh_link = ?SHN_UNDEF
+          , sh_info = 0
           , sh_addralign = 1
           , sh_entsize = 1
           }.
@@ -678,6 +680,7 @@ section_dot_data() -> % ".data"
           , sh_offset = 0
           , sh_flags = ?SHF_ALLOC bor ?SHF_WRITE
           , sh_link = ?SHN_UNDEF
+          , sh_info = 0
           , sh_addralign = 4 % FIXME: target-specific
           , sh_entsize = 0
           }.
@@ -692,6 +695,7 @@ section_dot_rodata() -> % ".rodata"
           , sh_offset = 0
           , sh_flags = ?SHF_ALLOC
           , sh_link = ?SHN_UNDEF
+          , sh_info = 0
           , sh_addralign = 4 % FIXME: target-specific
           , sh_entsize = 0
           }.
@@ -706,6 +710,7 @@ section_dot_text() -> % ".text"
           , sh_offset = 0
           , sh_flags = ?SHF_ALLOC bor ?SHF_EXECINSTR
           , sh_link = ?SHN_UNDEF
+          , sh_info = 0
           , sh_addralign = 4 % FIXME: target-specific
           , sh_entsize = 0
           }.

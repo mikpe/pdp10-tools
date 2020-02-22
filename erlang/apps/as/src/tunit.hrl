@@ -127,12 +127,21 @@
 -type tbyte() :: 0..511. % may contain octets or nonets
 -type image() :: tbyte() | [image()].
 
+%% Relocations.
+
+-record(rela, { offset  :: non_neg_integer()
+              , type    :: byte() % ?R_PDP10_*
+              , symbol  :: string()
+              , addend  :: integer()
+              }).
+
 %% Sections accumulate code or data, and define symbols.
 
 -record(section,
         { name          :: string()
         , data          :: {stmts, [stmt()]} % before assembly, in reverse
                          | {image, image()}  % after assembly
+                         | {relocs, string(), [#rela{}]}  % after assembly
         , dot           :: non_neg_integer()
         , shndx         :: non_neg_integer() % assigned during output
         %% FIXME: should contain an #elf36_Shdr{} here instead
@@ -141,6 +150,7 @@
         , sh_offset     :: non_neg_integer() % assigned during output
         , sh_flags      :: non_neg_integer()
         , sh_link       :: non_neg_integer() % assigned during output
+        , sh_info       :: non_neg_integer() % assigned during output
         , sh_addralign  :: non_neg_integer()
         , sh_entsize    :: non_neg_integer()
         }).

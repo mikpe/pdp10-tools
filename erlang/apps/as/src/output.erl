@@ -162,6 +162,7 @@ create_strtab(Context) ->
                 , sh_type = ?SHT_STRTAB
                 , sh_flags = ?SHF_MERGE bor ?SHF_STRINGS % FIXME: check
                 , sh_link = ?SHN_UNDEF
+                , sh_info = 0
                 , sh_addralign = 1 % FIXME: check
                 , sh_entsize = 1 % FIXME: check
                 },
@@ -187,6 +188,7 @@ create_symtab(Context) ->
                 , sh_type = ?SHT_SYMTAB
                 , sh_flags = 0
                 , sh_link = StrTabShndx
+                , sh_info = 0
                 , sh_addralign = 4 % FIXME: check
                 , sh_entsize = ?ELF36_SYM_SIZEOF
                 },
@@ -282,6 +284,7 @@ create_shstrtab(Context) ->
                 , sh_type = ?SHT_STRTAB
                 , sh_flags = ?SHF_MERGE bor ?SHF_STRINGS % FIXME: check
                 , sh_link = ?SHN_UNDEF
+                , sh_info = 0
                 , sh_addralign = 1 % FIXME: check
                 , sh_entsize = 1 % FIXME: check
                 },
@@ -426,6 +429,7 @@ emit_shdr(Section, FP, Offset) ->
               , sh_offset = ShOffset
               , sh_flags = ShFlags
               , sh_link = ShLink
+              , sh_info = ShInfo
               , sh_addralign = ShAddrAlign
               , sh_entsize = ShEntSize
               } = Section,
@@ -437,7 +441,7 @@ emit_shdr(Section, FP, Offset) ->
                    , sh_offset = ShOffset
                    , sh_size = Dot
                    , sh_link = ShLink
-                   , sh_info = 0 % FIXME: for symtab, LAST_LOCAL + 1
+                   , sh_info = ShInfo % FIXME: for symtab, LAST_LOCAL + 1
                    , sh_addralign = ShAddrAlign
                    , sh_entsize = ShEntSize
                    },
