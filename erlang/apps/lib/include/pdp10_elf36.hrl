@@ -695,6 +695,9 @@
         , r_info        :: elf36_Word()  % index and type of relocation
         , r_addend      :: elf36_Sword() % Constant addend used to compute value
         }).
+
+-define(ELF36_RELA_SIZEOF, (3 * 4)).
+
 %% Relocation info handling macros.
 
 -define(ELF36_R_SYM(I),         ((I) bsr 8)).
