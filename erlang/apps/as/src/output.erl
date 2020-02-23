@@ -35,6 +35,7 @@
 %%% for each section:
 %%% - add name to .shstrtab, assign sh_name
 %%% - assign sh_offset and shndx
+%%% - if section contains relocations, ensure all their symbols are in symtab
 %%% - update context
 %%% for each symbol:
 %%% - add name to .strtab, assign st_name
@@ -101,8 +102,9 @@ process_section(Section, Context) ->
   append_section(Context, Section).
 
 append_section(Context, Section) ->
-  #section{ dot = Dot
-          , name = Name
+  #section{ name = Name
+          , data = Data
+          , dot = Dot
           , sh_addralign = ShAddrAlign
           } = Section,
   case Dot of
@@ -117,12 +119,34 @@ append_section(Context, Section) ->
       ShOffset = (Offset + ShAddrAlign - 1) band bnot (ShAddrAlign - 1),
       NewSection =
         Section#section{sh_name = ShName, sh_offset = ShOffset, shndx = ShNum},
-      NewTunit = tunit:put_section(Tunit, NewSection),
+      NewTunit = process_relocs(tunit:put_section(Tunit, NewSection), Data),
       Context#context{ tunit = NewTunit
                      , shnum = ShNum + 1
                      , offset = ShOffset + Dot
                      , shstrtab = NewShStrTab
                      }
+  end.
+
+process_relocs(Tunit, SectionData) ->
+  case SectionData of
+    {relocs, _Name, Relocs} ->
+      lists:foldl(fun process_reloc/2, Tunit, Relocs);
+    _ -> Tunit
+  end.
+
+process_reloc(#rela{symbol = Name}, Tunit) ->
+  case tunit:get_symbol(Tunit, Name) of
+    #symbol{} -> Tunit;
+    false ->
+      Symbol = #symbol{ name = Name
+                      , section = false
+                      , st_value = false
+                      , st_size = false
+                      , st_info = ?ELF_ST_INFO(?STB_GLOBAL, ?STT_NOTYPE)
+                      , st_name = 0
+                      , st_shndx = 0
+                      },
+      tunit:put_symbol(Tunit, Symbol)
   end.
 
 %% Symbols ---------------------------------------------------------------------
