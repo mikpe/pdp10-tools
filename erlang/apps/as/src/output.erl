@@ -40,6 +40,7 @@
 %%% for each symbol:
 %%% - add name to .strtab, assign st_name
 %%% - assign st_shndx
+%%% order the symbols and record their symtab indices
 %%% append .strtab to list of sections
 %%% append .symtab to list of sections
 %%% append .shstrtab to list of sections
@@ -64,6 +65,8 @@
         , offset   :: pos_integer()
         , shstrtab :: #strtab{}
         , strtab   :: #strtab{}
+        , symbols  :: [#symbol{}]
+        , symndxmap:: #{string() => pos_integer()}
         }).
 
 -spec tunit(#tunit{}, string()) -> ok | {error, {module(), term()}}.
@@ -78,6 +81,7 @@ layout(Tunit) ->
     context_new(Tunit),
     [ fun process_sections/1
     , fun process_symbols/1
+    , fun order_symbols/1
     , fun create_strtab/1
     , fun create_symtab/1
     , fun create_shstrtab/1
@@ -90,6 +94,8 @@ context_new(Tunit) ->
           , offset = ?ELF36_EHDR_SIZEOF
           , shstrtab = strtab_new()
           , strtab = strtab_new()
+          , symbols = []
+          , symndxmap = #{}
           }.
 
 %% Sections --------------------------------------------------------------------
@@ -171,12 +177,26 @@ process_symbol(Symbol, Context) ->
   NewTunit = tunit:put_symbol(Tunit, NewSymbol),
   Context#context{tunit = NewTunit, strtab = NewStrTab}.
 
+%% Order symbols ---------------------------------------------------------------
+
+order_symbols(Context) ->
+  #context{tunit = #tunit{symbols = SymbolsMap}} = Context,
+  %% FIXME: local symbols first, followed by the weak or global ones
+  Symbols = maps:values(SymbolsMap),
+  SymNdxMap = lists:foldl(fun add_symbol_index/2, #{}, Symbols),
+  %% From this point on we must not use the symbols map in the tunit.
+  Context#context{symbols = Symbols, symndxmap = SymNdxMap}.
+
+add_symbol_index(#symbol{name = SymName}, SymNdxMap) ->
+  SymNdx = maps:size(SymNdxMap) + 1,
+  maps:put(SymName, SymNdx, SymNdxMap).
+
 %% Symbol string table (.strtab) -----------------------------------------------
 
 create_strtab(Context) ->
-  case maps:size(Context#context.tunit#tunit.symbols) of
-    0 -> Context;
-    _ ->
+  case Context#context.symbols of
+    [] -> Context;
+    [_|_] ->
       StrTab = Context#context.strtab,
       Image = strtab_image(StrTab),
       Section =
@@ -196,9 +216,8 @@ create_strtab(Context) ->
 %% Symbol table (.symtab) ------------------------------------------------------
 
 create_symtab(Context) ->
-  #context{tunit = Tunit} = Context,
-  #tunit{symbols = Symbols} = Tunit,
-  case maps:size(Symbols) of
+  #context{tunit = Tunit, symbols = Symbols} = Context,
+  case length(Symbols) of
     0 -> Context;
     NrSyms ->
       #section{shndx = StrTabShndx} = tunit:get_section(Tunit, ".strtab"),
@@ -228,9 +247,8 @@ symbols_image(Symbols) ->
               , st_other = 0
               , st_shndx = ?SHN_UNDEF
               },
-  %% FIXME: local symbols first, followed by the weak or global ones
   [elf36_Sym_image(ElfSym0) |
-   lists:map(fun symbol_image/1, maps:values(Symbols))].
+   lists:map(fun symbol_image/1, Symbols)].
 
 symbol_image(Symbol) ->
   #symbol{ st_value = StValue
