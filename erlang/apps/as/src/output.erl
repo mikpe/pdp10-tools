@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% ELF output for pdp10-elf as
-%%% Copyright (C) 2013-2019  Mikael Pettersson
+%%% Copyright (C) 2013-2020  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -34,7 +34,7 @@
 %%% initialize context
 %%% for each section:
 %%% - add name to .shstrtab, assign sh_name
-%%% - assign sh_offset and st_shndx
+%%% - assign sh_offset and shndx
 %%% - update context
 %%% for each symbol:
 %%% - add name to .strtab, assign st_name
