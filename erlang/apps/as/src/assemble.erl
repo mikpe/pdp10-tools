@@ -95,10 +95,29 @@ stmts(Section = #section{name = Name, data = {stmts, Stmts}}, Tunit0) ->
                          , st_name = 0
                          , st_shndx = 0
                          },
-  Tunit = tunit:put_symbol(Tunit0, SectionSymbol),
-  case stmts_image(lists:reverse(Stmts), Tunit, Name) of
-    {ok, {Image, _Relocs = []}} ->
-      {ok, tunit:put_section(Tunit, Section#section{data = {image, Image}})};
+  Tunit1 = tunit:put_symbol(Tunit0, SectionSymbol),
+  case stmts_image(lists:reverse(Stmts), Tunit1, Name) of
+    {ok, {Image, Relocs}} ->
+      Tunit = tunit:put_section(Tunit1, Section#section{data = {image, Image}}),
+      case Relocs of
+        [] -> {ok, Tunit};
+        _ ->
+          RelocationSection =
+            #section{ name = ".rela" ++ Name
+                    , data = {relocs, Name, Relocs}
+                    , dot = ?ELF36_RELA_SIZEOF * length(Relocs)
+                    , shndx = 0
+                    , sh_name = 0
+                    , sh_type = ?SHT_RELA
+                    , sh_offset = 0
+                    , sh_flags = ?SHF_INFO_LINK
+                    , sh_link = ?SHN_UNDEF % assigned during output
+                    , sh_info = ?SHN_UNDEF % assigned during output
+                    , sh_addralign = 4
+                    , sh_entsize = ?ELF36_RELA_SIZEOF
+                    },
+          {ok, tunit:put_section(Tunit, RelocationSection)}
+      end;
     {error, _Reason} = Error -> Error
   end.
 
