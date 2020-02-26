@@ -86,6 +86,7 @@ layout(Tunit) ->
     , fun create_symtab/1
     , fun create_shstrtab/1
     , fun align_shtab/1
+    , fun encode_relocation_sections/1
     ]).
 
 context_new(Tunit) ->
@@ -288,6 +289,7 @@ elf36_Sym_image(ElfSym) ->
 elf36_Addr_image(Addr) -> uint36_image(Addr).
 elf36_Half_image(Half) -> uint18_image(Half).
 elf36_Off_image(Off) -> uint36_image(Off).
+elf36_Sword_image(Sword) -> uint36_image(Sword band ?PDP10_UINT36_MAX).
 elf36_Word_image(Word) -> uint36_image(Word).
 elf36_Uchar_image(Uchar) -> uint9_image(Uchar).
 
@@ -344,6 +346,58 @@ align_shtab(Context) ->
       ShTabOffset = (Offset + (4 - 1)) band bnot (4 - 1),
       Context#context{offset = ShTabOffset}
   end.
+
+%% Encode Relocation Sections --------------------------------------------------
+
+encode_relocation_sections(Context) ->
+  #context{tunit = #tunit{sections = Sections}} = Context,
+  lists:foldl(fun encode_relocation_section/2, Context, maps:values(Sections)).
+
+encode_relocation_section(Section, Context) ->
+  case Section of
+    #section{sh_type = ?SHT_RELA, data = {relocs, Name, Relocs}} ->
+      Image = relocs_image(Context, Relocs),
+      #context{tunit = Tunit} = Context,
+      #section{shndx = ShLink} = tunit:get_section(Tunit, ".symtab"),
+      #section{shndx = ShInfo} = tunit:get_section(Tunit, Name),
+      NewSection = Section#section{ data = {image, Image}
+                                  , sh_link = ShLink
+                                  , sh_info = ShInfo
+                                  },
+      NewTunit = tunit:put_section(Tunit, NewSection),
+      Context#context{tunit = NewTunit};
+    _ -> Context
+  end.
+
+relocs_image(#context{symndxmap = SymNdxMap}, Relocs) ->
+  lists:map(fun(Reloc) -> reloc_image(SymNdxMap, Reloc) end, Relocs).
+
+reloc_image(SymNdxMap, Rela) ->
+  #rela{ offset = Offset
+       , type = Type
+       , symbol = SymName
+       , addend = Addend
+       } = Rela,
+  SymNdx = maps:get(SymName, SymNdxMap),
+  Info = ?ELF36_R_INFO(SymNdx, Type),
+  ElfRela =
+    #elf36_Rela{ r_offset = Offset
+               , r_info = Info
+               , r_addend = Addend
+               },
+  elf36_Rela_image(ElfRela).
+
+%% FIXME: the code below belongs in a library
+
+elf36_Rela_image(ElfRela) ->
+  #elf36_Rela{ r_offset = Offset
+             , r_info = Info
+             , r_addend = Addend
+             } = ElfRela,
+  [ elf36_Addr_image(Offset)
+  , elf36_Word_image(Info)
+  , elf36_Sword_image(Addend)
+  ].
 
 %% String Tables ---------------------------------------------------------------
 %% FIXME: duplicates code for .ident directive / .comment section
