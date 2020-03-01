@@ -211,8 +211,12 @@ readelf_shtab(Opts, FP, Ehdr) ->
 readelf_symtab(Opts, FP, ShTab) ->
   case pdp10_elf36:read_SymTab(FP, ShTab) of
     {ok, {SymTab, ShNdx}} ->
-      case print_symtab(Opts, SymTab, ShNdx, ShTab) of
-        ok -> disassemble(Opts, FP, ShTab, SymTab);
+      case print_relatab(Opts, FP, SymTab, ShNdx, ShTab) of
+        ok ->
+          case print_symtab(Opts, SymTab, ShNdx, ShTab) of
+            ok -> disassemble(Opts, FP, ShTab, SymTab);
+            {error, _Reason} = Error -> Error
+          end;
         {error, _Reason} = Error -> Error
       end;
     {error, _Reason} = Error -> Error
@@ -437,6 +441,87 @@ sh_flags([], _I, ShFlags, Mask, Acc) ->
     _ -> io_lib:format("0x~.16b", [ShFlags])
   end.
 
+%% print_relatab ===============================================================
+
+print_relatab(#options{relocs = false}, _FP, _SymTab, _ShNdx, _ShTab) -> ok;
+print_relatab(_Opts, _FP, _SymTab, _SymTabShNdx = ?SHN_UNDEF, _ShTab) -> ok;
+print_relatab(_Opts, FP, SymTab, SymTabShNdx, ShTab) ->
+  print_relatab2(ShTab, FP, SymTab, SymTabShNdx, _Any = false).
+
+print_relatab2([Shdr | ShTab], FP, SymTab, SymTabNdx, Any) ->
+  NewAny =
+    case Shdr of
+      #elf36_Shdr{sh_type = ?SHT_RELA, sh_link = ShLink} ->
+        case ShLink of
+          SymTabNdx ->
+            print_relatab(Shdr, FP, SymTab);
+          _ ->
+            escript_runtime:errmsg("Relocation section '~s' has bogus sh_link ~p\n",
+                                   [sh_name(Shdr), ShLink])
+         end,
+         true;
+      #elf36_Shdr{} -> Any
+    end,
+  print_relatab2(ShTab, FP, SymTab, SymTabNdx, NewAny);
+print_relatab2([], _FP, _SymTab, _SymTabNdx, _Any = false) ->
+  io:format("There are no relocation sections in this file.\n\n");
+print_relatab2([], _FP, _SymTab, _SymTabNdx, _Any = true) ->
+  ok.
+
+print_relatab(Shdr, FP, SymTab) ->
+  case pdp10_elf36:read_RelaTab(FP, Shdr) of
+    {ok, Relas} ->
+      NrRelas = length(Relas),
+      io:format("Relocation section '~s' at offset 0x~.16b contains ~.10b entr~s:\n",
+                [sh_name(Shdr), Shdr#elf36_Shdr.sh_offset, NrRelas,
+                 case NrRelas of 1 -> "y"; _ -> "ies" end]),
+      io:format("  Offset  Info      Type         Symbol's Value Symbol's Name + Addend\n"),
+      lists:foreach(fun(Rela) -> print_rela(Rela, SymTab) end, Relas),
+      io:format("\n");
+    {error, _Reason} = Error -> Error
+  end.
+
+print_rela(Rela, SymTab) ->
+  #elf36_Rela{r_offset = Offset, r_info = Info, r_addend = Addend} = Rela,
+  SymNdx = ?ELF36_R_SYM(Info),
+  Type = r_type(Rela),
+  case SymNdx of
+    ?SHN_UNDEF -> print_rela(Offset, Info, Type, _Value = 0, _Name = "", Addend);
+    _ ->
+      try lists:nth(SymNdx + 1, SymTab) of
+        Sym = #elf36_Sym{st_value = Value} ->
+          print_rela(Offset, Info, Type, Value, st_name(Sym), Addend)
+      catch _:_ ->
+        escript_runtime:errmsg("Relocation refers to bogus symbol index ~p\n", [SymNdx])
+      end
+  end.
+
+print_rela(Offset, Info, Type, Value, Name, Addend) ->
+  io:format("~*.*.*b ~*.*.*b ~*s ~*.*.*b ~s + ~.10b\n",
+            [ 9, 16, $0, Offset
+            , 9, 16, $0, Info
+            , -17, Type
+            , 9, 16, $0, Value
+            , Name
+            , Addend
+            ]).
+
+r_type(#elf36_Rela{r_info = Info}) ->
+  case ?ELF36_R_TYPE(Info) of
+    ?R_PDP10_NONE -> "R_PDP10_NONE";
+    ?R_PDP10_IFIW -> "R_PDP10_IFIW";
+    ?R_PDP10_EFIW -> "R_PDP10_EFIW";
+    ?R_PDP10_LOCAL_W -> "R_PDP10_LOCAL_W";
+    ?R_PDP10_LOCAL_B -> "R_PDP10_LOCAL_B";
+    ?R_PDP10_LOCAL_H -> "R_PDP10_LOCAL_H";
+    ?R_PDP10_GLOBAL_B -> "R_PDP10_GLOBAL_B";
+    ?R_PDP10_GLOBAL_H -> "R_PDP10_GLOBAL_H";
+    ?R_PDP10_LITERAL_W -> "R_PDP10_LITERAL_W";
+    ?R_PDP10_LITERAL_H -> "R_PDP10_LITERAL_H";
+    ?R_PDP10_LITERAL_B -> "R_PDP10_LITERAL_B";
+    Type -> io_lib:format("~.10b", [Type])
+  end.
+
 %% print_symtab ================================================================
 
 print_symtab(#options{symbols = false}, _SymTab, _ShNdx, _ShTab) -> ok;
@@ -444,7 +529,7 @@ print_symtab(_Opts, _SymTab, ?SHN_UNDEF, _ShTab) -> ok;
 print_symtab(_Opts, SymTab, ShNdx, ShTab) ->
   Shdr = lists:nth(1 + ShNdx, ShTab),
   io:format("Symbol table '~s' in section ~.10b contains ~.10b entries:\n",
-            [Shdr#elf36_Shdr.sh_name, ShNdx, length(SymTab)]),
+            [sh_name(Shdr), ShNdx, length(SymTab)]),
   io:format("  Num Value Size Type Bind Vis Ndx Name\n"),
   print_syms(SymTab, 0).
 
