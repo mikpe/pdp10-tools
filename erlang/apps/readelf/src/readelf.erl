@@ -49,6 +49,7 @@
 main(Argv) ->
   escript_runtime:start(fun main_/1, Argv).
 
+-spec main_([string()]) -> no_return().
 main_(Argv) ->
   case getopt:parse(Argv, "ahlSgtesnrudVADcIvW",
                     [
@@ -191,34 +192,25 @@ readelf_file(Opts, File) ->
 readelf_ehdr(Opts, FP) ->
   case pdp10_elf36:read_Ehdr(FP) of
     {ok, Ehdr} ->
-      case print_ehdr(Opts, Ehdr) of
-        ok -> readelf_shtab(Opts, FP, Ehdr);
-        {error, _Reason} = Error -> Error
-      end;
+      print_ehdr(Opts, Ehdr),
+      readelf_shtab(Opts, FP, Ehdr);
     {error, _Reason} = Error -> Error
   end.
 
 readelf_shtab(Opts, FP, Ehdr) ->
   case pdp10_elf36:read_ShTab(FP, Ehdr) of
     {ok, ShTab} ->
-      case print_shtab(Opts, ShTab) of
-        ok -> readelf_symtab(Opts, FP, ShTab);
-        {error, _Reason} = Error -> Error
-      end;
+      print_shtab(Opts, ShTab),
+      readelf_symtab(Opts, FP, ShTab);
     {error, _Reason} = Error -> Error
   end.
 
 readelf_symtab(Opts, FP, ShTab) ->
   case pdp10_elf36:read_SymTab(FP, ShTab) of
     {ok, {SymTab, ShNdx}} ->
-      case print_relatab(Opts, FP, SymTab, ShNdx, ShTab) of
-        ok ->
-          case print_symtab(Opts, SymTab, ShNdx, ShTab) of
-            ok -> disassemble(Opts, FP, ShTab, SymTab);
-            {error, _Reason} = Error -> Error
-          end;
-        {error, _Reason} = Error -> Error
-      end;
+      print_relatab(Opts, FP, SymTab, ShNdx, ShTab),
+      print_symtab(Opts, SymTab, ShNdx, ShTab),
+      disassemble(Opts, FP, ShTab, SymTab);
     {error, _Reason} = Error -> Error
   end.
 
@@ -478,7 +470,9 @@ print_relatab(Shdr, FP, SymTab) ->
       io:format("  Offset  Info      Type         Symbol's Value Symbol's Name + Addend\n"),
       lists:foreach(fun(Rela) -> print_rela(Rela, SymTab) end, Relas),
       io:format("\n");
-    {error, _Reason} = Error -> Error
+    {error, Reason} ->
+      escript_runtime:errmsg("Error reading relocation section '~s': ~s\n",
+                             [sh_name(Shdr), error:format(Reason)])
   end.
 
 print_rela(Rela, SymTab) ->
@@ -577,8 +571,7 @@ st_vis(#elf36_Sym{st_other = StOther}) ->
     ?STV_DEFAULT -> "DEFAULT";
     ?STV_INTERNAL -> "INTERNAL";
     ?STV_HIDDEN -> "HIDDEN";
-    ?STV_PROTECTED -> "PROTECTED";
-    StVis -> io_lib:format("~.10b", [StVis])
+    ?STV_PROTECTED -> "PROTECTED"
   end.
 
 st_name(#elf36_Sym{st_name = StName}) ->
