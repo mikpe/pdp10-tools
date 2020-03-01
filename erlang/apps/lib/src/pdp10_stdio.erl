@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% stdio() clone for I/O with 9-bit bytes
-%%% Copyright (C) 2013-2019  Mikael Pettersson
+%%% Copyright (C) 2013-2020  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -127,7 +127,7 @@ fgetc(#file{pid = Pid}) ->
 fread(Size, NMemb, #file{pid = Pid}) ->
   gen_server:call(Pid, {fread, Size, NMemb}, infinity).
 
--spec fputc(#file{}, nonet()) -> ok | {error, {module(), term()}}.
+-spec fputc(nonet(), #file{}) -> ok | {error, {module(), term()}}.
 fputc(Nonet, #file{pid = Pid}) ->
   gen_server:call(Pid, {fputc, Nonet}, infinity).
 
@@ -220,6 +220,7 @@ handle_cast(_Req, State) ->
 handle_info(_Info, State) ->
   {noreply, State}.
 
+terminate(_Reason, _State = []) -> ok;
 terminate(_Reason, State) ->
   handle_fclose(State).
 
@@ -281,7 +282,7 @@ handle_fclose(State) ->
       ok -> Result2;
       {error, _Reason} -> Result1
     end,
-  {stop, normal, Result, #state{}}.
+  {stop, normal, Result, []}.
 
 %% fgetc -----------------------------------------------------------------------
 
