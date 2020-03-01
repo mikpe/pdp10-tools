@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% I/O of PDP10 Elf36 entities
-%%% Copyright (C) 2013-2019  Mikael Pettersson
+%%% Copyright (C) 2013-2020  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -21,6 +21,7 @@
 -module(pdp10_elf36).
 
 -export([ read_Ehdr/1
+        , read_RelaTab/2
         , read_ShTab/2
         , read_SymTab/2
         , read_uint36/1
@@ -225,6 +226,45 @@ check_Ehdr_e_shentsize(Ehdr) ->
     _ -> {error, {?MODULE, {wrong_e_shentsize, ShEntSize}}}
   end.
 
+%% I/O of relocation tables ====================================================
+
+-spec read_RelaTab(pdp10_stdio:file(), #elf36_Shdr{})
+      -> {ok, [#elf36_Rela{}]} | {error, {module(), term()}}.
+read_RelaTab(FP, Shdr) ->
+  #elf36_Shdr{ sh_type = ShType
+             , sh_size = ShSize
+             , sh_offset = ShOffset
+             , sh_entsize = ShEntSize
+             } = Shdr,
+  case ShType of
+    ?SHT_RELA ->
+      case ShEntSize of
+        ?ELF36_RELA_SIZEOF ->
+          case ShSize rem ?ELF36_RELA_SIZEOF of
+            0 ->
+              RelaNum = ShSize div ?ELF36_RELA_SIZEOF,
+              case RelaNum of
+                0 -> {ok, []};
+                _ ->
+                  case pdp10_stdio:fseek(FP, {bof, ShOffset}) of
+                    ok -> read_RelaTab(FP, RelaNum, []);
+                    {error, _Reason} = Error -> Error
+                  end
+              end;
+            _ -> {error, {?MODULE, {wrong_relatab_sh_size, ShSize}}}
+          end;
+        _ -> {error, {?MODULE, {wrong_relatab_sh_entsize, ShEntSize}}}
+      end;
+    _ -> {error, {?MODULE, {wrong_relatab_sh_type, ShType}}}
+  end.
+
+read_RelaTab(_FP, _RelaNum = 0, Relas) -> {ok, lists:reverse(Relas)};
+read_RelaTab(FP, RelaNum, Relas) when RelaNum > 0 ->
+  case read_Rela(FP) of
+    {ok, Rela} -> read_RelaTab(FP, RelaNum - 1, [Rela | Relas]);
+    {error, _Reason} = Error -> Error
+  end.
+
 %% I/O of ShTab ================================================================
 
 -spec read_ShTab(pdp10_stdio:file(), #elf36_Ehdr{})
@@ -400,6 +440,19 @@ read_Sym_name(Sym = #elf36_Sym{st_name = StName}, StrTab) ->
     {error, _Reason} = Error -> Error
   end.
 
+%% I/O of #elf36_Rela{} ========================================================
+
+read_Rela(FP) -> read_record(FP, elf36_Rela_desc()).
+
+elf36_Rela_desc() ->
+  #record_desc{ tag = elf36_Rela
+              , fields =
+                  [ fun read_Addr/1             % r_offset
+                  , fun read_Word/1             % r_info
+                  , fun read_Sword/1            % r_addend
+                  ]
+              }.
+
 %% I/O of #elf36_Shdr{} ========================================================
 
 read_Shdr(FP) -> read_record(FP, elf36_Shdr_desc()).
@@ -441,8 +494,15 @@ elf36_Sym_desc() ->
 read_Addr(FP)  -> read_uint36(FP).
 read_Half(FP)  -> read_uint18(FP).
 read_Off(FP)   -> read_uint36(FP).
+read_Sword(FP) -> read_sint36(FP).
 read_Uchar(FP) -> read_uint9(FP).
 read_Word(FP)  -> read_uint36(FP).
+
+read_sint36(FP) ->
+  case read_uint36(FP) of
+    {ok, UInt36} -> {ok, (UInt36 bxor (1 bsl 35)) - (1 bsl 35)}; % sign-extend
+    {error, _Reason} = Error -> Error
+  end.
 
 read_uint9(FP) ->
   case pdp10_stdio:fgetc(FP) of
@@ -498,6 +558,12 @@ format_error(Reason) ->
       io_lib:format("wrong e_shentsize ~p", [ShEntSize]);
     {eof_in_strtab, Index} ->
       io_lib:format("premature EOF in string table at index ~p", [Index]);
+    {wrong_relatab_sh_entsize, ShEntSize} ->
+      io_lib:format("wrong sh_entsize ~p in relocation table header", [ShEntSize]);
+    {wrong_relatab_sh_size, ShSize} ->
+      io_lib:format("wrong sh_size ~p in relocation table header", [ShSize]);
+    {wrong_relatab_sh_type, ShType} ->
+      io_lib:format("wrong sh_type ~p in relocation table header", [ShType]);
     {wrong_strtab_sh_type, ShType, Index} ->
       io_lib:format("wrong sh_type ~p for string table at index ~p",
                     [ShType, Index]);
