@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% translation unit handling for pdp10-elf as.
-%%% Copyright (C) 2013-2019  Mikael Pettersson
+%%% Copyright (C) 2013-2020  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -20,7 +20,7 @@
 
 -module(tunit).
 
--export([ new/0
+-export([ new/1
         , get_section/2
         , put_section/2
         , get_symbol/2
@@ -33,10 +33,10 @@
 
 %% API -------------------------------------------------------------------------
 
--spec new() -> #tunit{}.
-new() ->
+-spec new(string()) -> #tunit{}.
+new(Cursect) ->
   #tunit{ sections = #{}
-        , cursect = false
+        , cursect = Cursect
         , symbols = #{}
         , local_labels = #{}
         }.

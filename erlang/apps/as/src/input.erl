@@ -642,8 +642,8 @@ expr_fixup(Tunit, Expr) ->
 
 tunit_init() ->
   SectionText = section_dot_text(),
-  Tunit = tunit:put_section(tunit:new(), SectionText),
-  Tunit#tunit{cursect = SectionText#section.name}.
+  Cursect = SectionText#section.name,
+  tunit:put_section(tunit:new(Cursect), SectionText).
 
 %% Predefined Sections ---------------------------------------------------------
 
