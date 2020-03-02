@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% 'ar' clone for PDP10
-%%% Copyright (C) 2013-2019  Mikael Pettersson
+%%% Copyright (C) 2013-2020  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -97,6 +97,7 @@
 main(Argv) ->
   escript_runtime:start(fun main_/1, Argv).
 
+-spec main_([string()]) -> no_return().
 main_(Argv) ->
   case parse_argv(Argv) of
     {ok, {Opts, ArchiveFile, Files}} ->
@@ -219,10 +220,8 @@ read_output_archive(ArchiveFile) ->
 
 ar_dqr(Opts, ArchiveFile, OldFP, Archive, Files) ->
   try
-    case ar_dqr_dispatch(Opts, Archive, Files) of
-      {ok, NewArchive} -> write_tmp_archive(ArchiveFile, OldFP, NewArchive);
-      {error, _Reason} = Error -> Error
-    end
+    {ok, NewArchive} = ar_dqr_dispatch(Opts, Archive, Files),
+    write_tmp_archive(ArchiveFile, OldFP, NewArchive)
   after
     case OldFP of
       [] -> ok;
@@ -870,9 +869,9 @@ make_symtab(Offsets, StrBuf) ->
     {ok, Names} ->
       case safe_zip(Offsets, Names) of
         {ok, OffsetNamePairs} ->
-          lists:foldl(fun({Offset, Name}, SymTab) ->
-                        symtab_insert(SymTab, Name, Offset)
-                      end, symtab_new(), OffsetNamePairs);
+          {ok, lists:foldl(fun({Offset, Name}, SymTab) ->
+                             symtab_insert(SymTab, Name, Offset)
+                           end, symtab_new(), OffsetNamePairs)};
         {error, _Reason} -> {error, invalid_symbol_table}
       end;
     {error, _Reason} = Error -> Error
@@ -976,7 +975,7 @@ strtab_none() -> [].
 strtab_new() -> gb_trees:empty().
 strtab_insert(StrTab, Offset, String) -> gb_trees:insert(Offset, String, StrTab).
 strtab_lookup(StrTab, Offset) when StrTab =/= [] ->
-  case gb_trees:lookup(StrTab, Offset) of
+  case gb_trees:lookup(Offset, StrTab) of
     {value, String} -> {ok, String};
     none -> false % ar_name doesn't match the start of a strtab entry
   end.
@@ -991,7 +990,7 @@ strtab_lookup(StrTab, Offset) when StrTab =/= [] ->
 -record(record_desc,
           { tag :: atom()
           , fields :: [{read_field(), write_field()}]
-          , tail = [] :: [] | {read_tail(), write_tail()}
+          , tail :: {read_tail(), write_tail()}
           }).
 
 read_record(FP, #record_desc{tag = Tag, fields = Fields, tail = Tail}) ->
@@ -1004,16 +1003,11 @@ read_record(FP, [{Reader, _Writer} | Fields], Tail, Values) ->
     {error, _Reason} = Error ->
       Error
   end;
-read_record(FP, _Fields = [], Tail, Values) ->
-  case Tail of
-    [] -> ok;
-    {Reader, _Writer} ->
-      case Reader(FP) of
-        ok -> ok;
-        {error, _Reason} = Error -> Error
-      end
-  end,
-  {ok, list_to_tuple(lists:reverse(Values))}.
+read_record(FP, _Fields = [], _Tail = {Reader, _Writer}, Values) ->
+  case Reader(FP) of
+    ok -> {ok, list_to_tuple(lists:reverse(Values))};
+    {error, _Reason} = Error -> Error
+  end.
 
 write_record(FP, Record, #record_desc{tag = Tag, fields = Fields, tail = Tail}) ->
   [Tag | Values] = tuple_to_list(Record),
@@ -1024,7 +1018,6 @@ write_record(FP, [{_Reader, Writer} | Fields], Tail, [Value | Values]) ->
     ok -> write_record(FP, Fields, Tail, Values);
     {error, _Reason} = Error -> Error
   end;
-write_record(_FP, _Fields = [], _Tail = [], _Values = []) -> ok;
 write_record(FP, _Fields = [], _Tail = {_Reader, Writer}, _Values = []) ->
   Writer(FP).
 
