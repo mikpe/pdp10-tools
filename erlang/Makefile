@@ -1,5 +1,5 @@
 # Makefile for pdp10-tools/erlang
-# Copyright (C) 2018-2019  Mikael Pettersson
+# Copyright (C) 2018-2020  Mikael Pettersson
 #
 # This file is part of pdp10-tools.
 #
@@ -26,7 +26,7 @@ PROGRAMS=8to9 ar as nm od readelf
 default: compile link
 
 compile:	$(REBAR3)
-	$(REBAR3) do compile, xref
+	$(REBAR3) do compile, xref, dialyzer
 
 link:	$(REBAR3)
 	for PROG in $(PROGRAMS); do \
