@@ -585,7 +585,16 @@ label(Location, Tunit, #s_label{name = Name}) ->
   end.
 
 define_new_label(Tunit, Name) ->
-  define_label(Tunit, #symbol{name = Name, st_size = false, st_info = 0}).
+  Symbol =
+    #symbol{ name = Name
+           , section = false % overridden below
+           , st_value = false % overridden below
+           , st_size = false
+           , st_info = 0
+           , st_name = 0
+           , st_shndx = 0
+           },
+  define_label(Tunit, Symbol).
 
 define_label(Tunit, Symbol) ->
   #tunit{cursect = Cursect} = Tunit,
@@ -658,7 +667,7 @@ section_from_name(SectionName) ->
 section_dot_comment() -> % ".comment"
   #section{ name = ".comment"
           , data = {stmts, []}
-          , dot = false % do not allow dot or labels here
+          , dot = 0
           , shndx = 0
           , sh_name = 0
           , sh_type = ?SHT_PROGBITS
