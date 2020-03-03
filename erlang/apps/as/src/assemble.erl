@@ -96,29 +96,26 @@ stmts(Section = #section{name = Name, data = {stmts, Stmts}}, Tunit0) ->
                          , st_shndx = 0
                          },
   Tunit1 = tunit:put_symbol(Tunit0, SectionSymbol),
-  case stmts_image(lists:reverse(Stmts), Tunit1, Name) of
-    {ok, {Image, Relocs}} ->
-      Tunit = tunit:put_section(Tunit1, Section#section{data = {image, Image}}),
-      case Relocs of
-        [] -> {ok, Tunit};
-        _ ->
-          RelocationSection =
-            #section{ name = ".rela" ++ Name
-                    , data = {relocs, Name, Relocs}
-                    , dot = ?ELF36_RELA_SIZEOF * length(Relocs)
-                    , shndx = 0
-                    , sh_name = 0
-                    , sh_type = ?SHT_RELA
-                    , sh_offset = 0
-                    , sh_flags = ?SHF_INFO_LINK
-                    , sh_link = ?SHN_UNDEF % assigned during output
-                    , sh_info = ?SHN_UNDEF % assigned during output
-                    , sh_addralign = 4
-                    , sh_entsize = ?ELF36_RELA_SIZEOF
-                    },
-          {ok, tunit:put_section(Tunit, RelocationSection)}
-      end;
-    {error, _Reason} = Error -> Error
+  {ok, {Image, Relocs}} = stmts_image(lists:reverse(Stmts), Tunit1, Name),
+  Tunit = tunit:put_section(Tunit1, Section#section{data = {image, Image}}),
+  case Relocs of
+    [] -> {ok, Tunit};
+    _ ->
+      RelocationSection =
+        #section{ name = ".rela" ++ Name
+                , data = {relocs, Name, Relocs}
+                , dot = ?ELF36_RELA_SIZEOF * length(Relocs)
+                , shndx = 0
+                , sh_name = 0
+                , sh_type = ?SHT_RELA
+                , sh_offset = 0
+                , sh_flags = ?SHF_INFO_LINK
+                , sh_link = ?SHN_UNDEF % assigned during output
+                , sh_info = ?SHN_UNDEF % assigned during output
+                , sh_addralign = 4
+                , sh_entsize = ?ELF36_RELA_SIZEOF
+                },
+      {ok, tunit:put_section(Tunit, RelocationSection)}
   end.
 
 stmts_image(Stmts, Tunit, SectionName) ->
@@ -127,11 +124,8 @@ stmts_image(Stmts, Tunit, SectionName) ->
 stmts_image([], _Tunit, _SectionName, _Dot, AccImage, AccRelocs) ->
   {ok, {lists:reverse(AccImage), lists:reverse(AccRelocs)}};
 stmts_image([Stmt | Stmts], Tunit, SectionName, Dot, AccImage, AccRelocs) ->
-  case stmt_image(Stmt, Tunit, SectionName, Dot) of
-    {ok, {Image, NewDot, NewRelocs}} ->
-      stmts_image(Stmts, Tunit, SectionName, NewDot, [Image | AccImage], NewRelocs ++ AccRelocs);
-    {error, _Reason} = Error -> Error
-  end.
+  {ok, {Image, NewDot, NewRelocs}} = stmt_image(Stmt, Tunit, SectionName, Dot),
+  stmts_image(Stmts, Tunit, SectionName, NewDot, [Image | AccImage], NewRelocs ++ AccRelocs).
 
 stmt_image(Stmt, Tunit, SectionName, Dot) ->
   case Stmt of
@@ -160,11 +154,8 @@ dot_long_image(#s_dot_long{exprs = Exprs}, Tunit, SectionName, Dot) ->
                          fun pdp10_extint:uint36_to_ext/1).
 
 integer_data_directive(Exprs, Tunit, SectionName, Dot, Size, Context, ValueToExt) ->
-  case exprs_values(Exprs, Tunit, SectionName, Dot, Size, Context) of
-    {ok, {Values, Relocs}} ->
-      {ok, {lists:map(ValueToExt, Values), Dot + Size * length(Values), Relocs}};
-    {error, _Reason} = Error -> Error
-  end.
+  {ok, {Values, Relocs}} = exprs_values(Exprs, Tunit, SectionName, Dot, Size, Context),
+  {ok, {lists:map(ValueToExt, Values), Dot + Size * length(Values), Relocs}}.
 
 dot_short_image(#s_dot_short{exprs = Exprs}, Tunit, SectionName, Dot) ->
   integer_data_directive(Exprs, Tunit, SectionName, Dot, _Size = 2, _Context = short,
@@ -176,15 +167,12 @@ insn_image(Stmt, Tunit, SectionName, Dot) ->
          , address = AddressExpr
          , index = Index
          } = Stmt,
-  case expr_value(AddressExpr, Tunit, SectionName, Dot, _Context = ifiw) of
-    {ok, {Address, Relocs}} ->
-      Word = (((High13 band ((1 bsl 13) - 1)) bsl (36 - 13)) bor
-              ((case At of true -> 1; false -> 0 end) bsl (36 - 14)) bor
-              ((Index band ((1 bsl 4) - 1)) bsl (36 - 18)) bor
-              (Address band ((1 bsl 18) - 1))),
-      {ok, {pdp10_extint:uint36_to_ext(Word), Dot + 4, Relocs}};
-    {error, _Reason} = Error -> Error
-  end.
+  {ok, {Address, Relocs}} = expr_value(AddressExpr, Tunit, SectionName, Dot, _Context = ifiw),
+  Word = (((High13 band ((1 bsl 13) - 1)) bsl (36 - 13)) bor
+          ((case At of true -> 1; false -> 0 end) bsl (36 - 14)) bor
+          ((Index band ((1 bsl 4) - 1)) bsl (36 - 18)) bor
+          (Address band ((1 bsl 18) - 1))),
+  {ok, {pdp10_extint:uint36_to_ext(Word), Dot + 4, Relocs}}.
 
 exprs_values(Exprs, Tunit, SectionName, Dot, Size, Context) ->
   exprs_values(Exprs, Tunit, SectionName, Dot, Size, Context, [], []).
@@ -192,11 +180,8 @@ exprs_values(Exprs, Tunit, SectionName, Dot, Size, Context) ->
 exprs_values([], _Tunit, _SectionName, _Dot, _Size, _Context, AccValues, AccRelocs) ->
   {ok, {lists:reverse(AccValues), AccRelocs}};
 exprs_values([Expr | Exprs], Tunit, SectionName, Dot, Size, Context, AccValues, AccRelocs) ->
-  case expr_value(Expr, Tunit, SectionName, Dot, Context) of
-    {ok, {Value, Relocs}} ->
-      exprs_values(Exprs, Tunit, SectionName, Dot + Size, Size, Context, [Value | AccValues], Relocs ++ AccRelocs);
-    {error, _Reason} = Error -> Error
-  end.
+  {ok, {Value, Relocs}} = expr_value(Expr, Tunit, SectionName, Dot, Context),
+  exprs_values(Exprs, Tunit, SectionName, Dot + Size, Size, Context, [Value | AccValues], Relocs ++ AccRelocs).
 
 expr_value(Expr, Tunit, SectionName, Dot, Context) ->
   #expr{symbol = Name, offset = Offset, modifier = Modifier} = Expr,

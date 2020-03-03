@@ -102,6 +102,7 @@
         }).
 
 -type stmt() :: #s_dot_ascii{}
+              | #s_dot_byte{}
               | #s_dot_data{}
               | #s_dot_file{}
               | #s_dot_globl{}
@@ -110,6 +111,7 @@
               | #s_dot_popsection{}
               | #s_dot_previous{}
               | #s_dot_section{}
+              | #s_dot_short{}
               | #s_dot_size{}
               | #s_dot_subsection{}
               | #s_dot_text{}
