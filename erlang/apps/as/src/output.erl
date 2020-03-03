@@ -61,8 +61,8 @@
 
 -record(context,
         { tunit    :: #tunit{}
-        , shnum    :: pos_integer()
-        , offset   :: pos_integer()
+        , shnum    :: non_neg_integer()
+        , offset   :: non_neg_integer()
         , shstrtab :: #strtab{}
         , strtab   :: #strtab{}
         , symbols  :: [#symbol{}]
@@ -204,7 +204,10 @@ create_strtab(Context) ->
         #section{ name = ".strtab"
                 , data = {image, Image}
                 , dot = image_size(Image)
+                , shndx = 0 % assigned by append_section/2
+                , sh_name = 0 % assigned by append_section/2
                 , sh_type = ?SHT_STRTAB
+                , sh_offset = 0 % assigned by append_section/2
                 , sh_flags = ?SHF_MERGE bor ?SHF_STRINGS % FIXME: check
                 , sh_link = ?SHN_UNDEF
                 , sh_info = 0
@@ -229,7 +232,10 @@ create_symtab(Context) ->
         #section{ name = ".symtab"
                 , data = {image, Image}
                 , dot = Size
+                , shndx = 0 % assigned by append_section/2
+                , sh_name = 0 % assigned by append_section/2
                 , sh_type = ?SHT_SYMTAB
+                , sh_offset = 0 % assigned by append_section/2
                 , sh_flags = 0
                 , sh_link = StrTabShndx
                 , sh_info = 0
@@ -261,7 +267,7 @@ symbol_image(Symbol) ->
   ElfSym =
     #elf36_Sym{ st_name = StName
               , st_value = StValue
-              , st_size = StSize
+              , st_size = if StSize =:= false -> 0; true -> StSize end
               , st_info = StInfo
               , st_other = ?STV_DEFAULT % FIXME: should be set earlier
               , st_shndx = StShndx
@@ -280,7 +286,7 @@ elf36_Sym_image(ElfSym) ->
             } = ElfSym,
   [ elf36_Word_image(StName)
   , elf36_Addr_image(StValue)
-  , elf36_Word_image(if StSize =:= false -> 0; true -> StSize end)
+  , elf36_Word_image(StSize)
   , elf36_Uchar_image(StInfo)
   , elf36_Uchar_image(StOther)
   , elf36_Half_image(StShndx)
@@ -325,7 +331,10 @@ create_shstrtab(Context) ->
         #section{ name = ".shstrtab"
                 , data = {image, Image}
                 , dot = image_size(Image)
+                , shndx = 0 % assigned by append_section/2
+                , sh_name = 0 % assigned by append_section/2
                 , sh_type = ?SHT_STRTAB
+                , sh_offset = 0 %  assigned by append_section/2
                 , sh_flags = ?SHF_MERGE bor ?SHF_STRINGS % FIXME: check
                 , sh_link = ?SHN_UNDEF
                 , sh_info = 0
