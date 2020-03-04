@@ -810,6 +810,8 @@
                                                 %   note name must be "LINUX".
 -define(NT_ARM_SVE,             16#405).        % AArch SVE registers.
                                                 %   note name must be "LINUX".
+-define(NT_ARM_PAC_MASK,        16#406).        % AArch pointer authentication code masks
+                                                %   note name must be "LINUX".
 -define(NT_SIGINFO,             16#53494749).   % Fields of siginfo_t.
 -define(NT_FILE,                16#46494c45).   % Description of mapped files.
 
@@ -982,6 +984,7 @@
 -define(GNU_PROPERTY_X86_ISA_1_AVX512_VBMI,     (1 bsl 21)).
 -define(GNU_PROPERTY_X86_ISA_1_AVX512_VBMI2,    (1 bsl 22)).
 -define(GNU_PROPERTY_X86_ISA_1_AVX512_VNNI,     (1 bsl 23)).
+-define(GNU_PROPERTY_X86_ISA_1_AVX512_BF16,     (1 bsl 24)).
 
 -define(GNU_PROPERTY_X86_FEATURE_2_X86,         (1 bsl 0)).
 -define(GNU_PROPERTY_X86_FEATURE_2_X87,         (1 bsl 1)).
@@ -993,6 +996,12 @@
 -define(GNU_PROPERTY_X86_FEATURE_2_XSAVE,       (1 bsl 7)).
 -define(GNU_PROPERTY_X86_FEATURE_2_XSAVEOPT,    (1 bsl 8)).
 -define(GNU_PROPERTY_X86_FEATURE_2_XSAVEC,      (1 bsl 9)).
+
+%% AArch64 specific GNU PROPERTY.
+-define(GNU_PROPERTY_AARCH64_FEATURE_1_AND,     16#c0000000).
+
+-define(GNU_PROPERTY_AARCH64_FEATURE_1_BTI,     (1 bsl 0)).
+-define(GNU_PROPERTY_AARCH64_FEATURE_1_PAC,     (1 bsl 1)).
 
 %% Values used in GNU .note.ABI-tag notes (NT_GNU_ABI_TAG).
 -define(GNU_ABI_TAG_LINUX,      0).
