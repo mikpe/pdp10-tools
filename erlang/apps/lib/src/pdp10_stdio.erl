@@ -377,7 +377,7 @@ fread_loop(N, Acc, State0) ->
     {eof, State} when Acc =:= [] -> {reply, eof, State};
     {eof, State} -> {reply, mkerror(eof), State};
     {{error, _Reason} = Error, State} -> {reply, Error, State}
-  end.     
+  end.
 
 %% On an octet-based host, in-core data structures representing nonet-based
 %% target data will actually contain oversize octet-based host data with
@@ -452,7 +452,7 @@ fputc_octet(State) ->
     {error, _Reason} = Error -> Error
   end.
 
-%% fputs ----------------------------------------------------------------------
+%% fputs -----------------------------------------------------------------------
 
 handle_fputs(Nonets, State0) ->
   case prepare_to_write(State0) of
