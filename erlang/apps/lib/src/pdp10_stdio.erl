@@ -231,14 +231,26 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 handle_fopen(Path, Modes) ->
   case iodir(Modes) of
     {ok, {Read, Write}} ->
-      %% prevent crashing file:open/2 due to duplicate modes
-      HardModes = [raw, delayed_write, read_ahead],
-      case file_open(Path, HardModes ++ (Modes -- HardModes)) of
+      case file_open(Path, fopen_modes(Modes)) of
         {ok, IoDev} -> {ok, {IoDev, Read, Write}};
         {error, _Reason} = Error -> Error
       end;
     {error, _Reason} = Error -> Error
   end.
+
+%% add [raw, delayed_write, read_ahead] but only if they are absent
+fopen_modes(Modes0) ->
+  lists:foldl(fun({IsPresent, Mode}, Modes) ->
+                case IsPresent(Mode, Modes) of
+                  true  -> Modes;
+                  false -> [Mode | Modes]
+                end
+              end,
+              Modes0,
+              [ {fun lists:member/2, raw}
+              , {fun proplists:is_defined/2, delayed_write}
+              , {fun proplists:is_defined/2, read_ahead}
+              ]).
 
 iodir(Modes) -> iodir(Modes, false, false).
 
