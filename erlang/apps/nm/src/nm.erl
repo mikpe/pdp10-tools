@@ -76,8 +76,8 @@ main_(Argv) ->
                     ]) of
     {ok, {Options, Files}} ->
       nm(scan_options(Options), Files);
-    {error, ErrMsg} ->
-      escript_runtime:errmsg("~s\n", [ErrMsg]),
+    {error, Reason} ->
+      escript_runtime:errmsg("~s\n", [error:format(Reason)]),
       usage()
   end.
 
