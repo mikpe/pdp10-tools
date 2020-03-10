@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% getopt for Erlang programs
-%%% Copyright (C) 2018-2019  Mikael Pettersson
+%%% Copyright (C) 2018-2020  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -129,14 +129,12 @@ parse_long(Long, Argv, OptString, LongOpts, RevOpts, RevArgv) ->
         {?optional, [], _} ->
           parse_argv(Argv, OptString, LongOpts, [Val | RevOpts], RevArgv);
         {_, _, _} ->
-          mkerror(invalid_longopts, LongOpts)
+          erlang:error(badarg)
       end;
     ?invalid ->
       mkerror(invalid_option_long, Prefix);
     ?ambiguous ->
-      mkerror(ambiguous_option, Prefix);
-    ?error ->
-      mkerror(invalid_longopts, LongOpts)
+      mkerror(ambiguous_option, Prefix)
   end.
 
 find_longopt(Prefix, LongOpts) ->
@@ -150,7 +148,7 @@ find_longopt(Prefix, [Option = {Name, _HasArg, _Val} | LongOpts], Candidate) ->
     _ when Candidate =:= ?invalid -> find_longopt(Prefix, LongOpts, Option);
     _ -> ?ambiguous
   end;
-find_longopt(_Prefix, _LongOpts, _Candidate) -> ?error.
+find_longopt(_Prefix, _LongOpts, _Candidate) -> erlang:error(badarg).
 
 %% Error Formatting ------------------------------------------------------------
 
@@ -170,8 +168,6 @@ format_error(Reason) ->
       io_lib:format("invalid argument to --~s", [Prefix]);
     {missing_argument_long, Prefix} ->
       io_lib:format("missing argument to --~s", [Prefix]);
-    {invalid_longopts, LongOpts} ->
-      io_lib:format("invalid longopts ~p", [LongOpts]);
     {invalid_option_long, Prefix} ->
       io_lib:format("invalid option --~s", [Prefix]);
     {ambiguous_option, Prefix} ->
