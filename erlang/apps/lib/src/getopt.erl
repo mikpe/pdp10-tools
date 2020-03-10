@@ -45,16 +45,15 @@ parse_argv([], _OptString, _LongOpts, RevOpts, RevArgv) ->
 parse_argv(["--" | Argv], _OptString, _LongOpts, RevOpts, RevArgv) ->
   finish(RevOpts, RevArgv, Argv);
 parse_argv([Arg = "-" | Argv], OptString, LongOpts, RevOpts, RevArgv) ->
-  case OptString of
-    [$+ | _] -> finish(RevOpts, [Arg | RevArgv], Argv);
-    [$- | _] -> parse_argv(Argv, OptString, LongOpts, [{1, Arg} | RevOpts], RevArgv);
-    _ -> parse_argv(Argv, OptString, LongOpts, RevOpts, [Arg | RevArgv])
-  end;
+  nonoption(Arg, Argv, OptString, LongOpts, RevOpts, RevArgv);
 parse_argv([[$-, $- | Long] | Argv], OptString, LongOpts, RevOpts, RevArgv) ->
   parse_long(Long, Argv, OptString, LongOpts, RevOpts, RevArgv);
 parse_argv([[$- | Element] | Argv], OptString, LongOpts, RevOpts, RevArgv) ->
   parse_element(Element, Argv, OptString, LongOpts, RevOpts, RevArgv);
 parse_argv([Arg | Argv], OptString, LongOpts, RevOpts, RevArgv) ->
+  nonoption(Arg, Argv, OptString, LongOpts, RevOpts, RevArgv).
+
+nonoption(Arg, Argv, OptString, LongOpts, RevOpts, RevArgv) ->
   case OptString of
     [$+ | _] -> finish(RevOpts, [Arg | RevArgv], Argv);
     [$- | _] -> parse_argv(Argv, OptString, LongOpts, [{1, Arg} | RevOpts], RevArgv);
