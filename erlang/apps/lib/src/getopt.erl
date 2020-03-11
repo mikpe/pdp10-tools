@@ -47,9 +47,17 @@ parse_argv(["--" | Argv], _OptString, _LongOpts, RevOpts, RevArgv) ->
 parse_argv([Arg = "-" | Argv], OptString, LongOpts, RevOpts, RevArgv) ->
   nonoption(Arg, Argv, OptString, LongOpts, RevOpts, RevArgv);
 parse_argv([[$-, $- | Long] | Argv], OptString, LongOpts, RevOpts, RevArgv) ->
-  parse_long(Long, Argv, OptString, LongOpts, RevOpts, RevArgv);
+  case parse_long(Long, Argv, LongOpts, RevOpts) of
+    {ok, {Argv1, RevOpts1}} ->
+      parse_argv(Argv1, OptString, LongOpts, RevOpts1, RevArgv);
+    {error, _Reason} = Error -> Error
+  end;
 parse_argv([[$- | Element] | Argv], OptString, LongOpts, RevOpts, RevArgv) ->
-  parse_element(Element, Argv, OptString, LongOpts, RevOpts, RevArgv);
+  case parse_element(Element, Argv, OptString, RevOpts) of
+    {ok, {Argv1, RevOpts1}} ->
+      parse_argv(Argv1, OptString, LongOpts, RevOpts1, RevArgv);
+    {error, _Reason} = Error -> Error
+  end;
 parse_argv([Arg | Argv], OptString, LongOpts, RevOpts, RevArgv) ->
   nonoption(Arg, Argv, OptString, LongOpts, RevOpts, RevArgv).
 
@@ -65,27 +73,27 @@ finish(RevOpts, RevArgv, RestArgv) ->
 
 %% Short Options ---------------------------------------------------------------
 
-parse_element([], Argv, OptString, LongOpts, RevOpts, RevArgv) ->
-  parse_argv(Argv, OptString, LongOpts, RevOpts, RevArgv);
-parse_element([OptCh | Element], Argv, OptString, LongOpts, RevOpts, RevArgv) ->
+parse_element([], Argv, _OptString, RevOpts) ->
+  {ok, {Argv, RevOpts}};
+parse_element([OptCh | Element], Argv, OptString, RevOpts) ->
   case optch_argument(OptCh, OptString) of
     ?no ->
-      parse_element(Element, Argv, OptString, LongOpts, [OptCh | RevOpts], RevArgv);
+      parse_element(Element, Argv, OptString, [OptCh | RevOpts]);
     ?required ->
       case {Element, Argv} of
         {[_|_], _} ->
-          parse_argv(Argv, OptString, LongOpts, [{OptCh, Element} | RevOpts], RevArgv);
+          {ok, {Argv, [{OptCh, Element} | RevOpts]}};
         {[], [Arg = [Ch | _] | Argv2]} when Ch =/= $- ->
-          parse_argv(Argv2, OptString, LongOpts, [{OptCh, Arg} | RevOpts], RevArgv);
+          {ok, {Argv2, [{OptCh, Arg} | RevOpts]}};
         {_, _} ->
           mkerror(missing_argument, OptCh)
       end;
     ?optional ->
       case Element of
         [_|_] ->
-          parse_argv(Argv, OptString, LongOpts, [{OptCh, Element} | RevOpts], RevArgv);
+          {ok, {Argv, [{OptCh, Element} | RevOpts]}};
         [] ->
-          parse_argv(Argv, OptString, LongOpts, [OptCh | RevOpts], RevArgv)
+          {ok, {Argv, [OptCh | RevOpts]}}
       end;
     ?invalid ->
       mkerror(invalid_option, OptCh);
@@ -108,25 +116,25 @@ optch_argument2(OptCh, [_OptCh2 | OptString]) -> optch_argument2(OptCh, OptStrin
 
 %% Long Options ----------------------------------------------------------------
 
-parse_long(Long, Argv, OptString, LongOpts, RevOpts, RevArgv) ->
+parse_long(Long, Argv, LongOpts, RevOpts) ->
   [Prefix | MaybeArg] = string:split(Long, "="),
   case find_longopt(Prefix, LongOpts) of
     {_Name, HasArg, Val} ->
       case {HasArg, MaybeArg, Argv} of
         {?no, [], _} ->
-          parse_argv(Argv, OptString, LongOpts, [Val | RevOpts], RevArgv);
+          {ok, {Argv, [Val | RevOpts]}};
         {?no, _, _} ->
           mkerror(invalid_argument_long, Prefix);
         {?required, [Arg], _} ->
-          parse_argv(Argv, OptString, LongOpts, [{Val, Arg} | RevOpts], RevArgv);
+          {ok, {Argv, [{Val, Arg} | RevOpts]}};
         {?required, [], [Arg = [Ch | _] | Argv2]} when Ch =/= $- ->
-          parse_argv(Argv2, OptString, LongOpts, [{Val, Arg} | RevOpts], RevArgv);
+          {ok, {Argv2, [{Val, Arg} | RevOpts]}};
         {?required, [], _} ->
           mkerror(missing_argument_long, Prefix);
         {?optional, [Arg], _} ->
-          parse_argv(Argv, OptString, LongOpts, [{Val, Arg} | RevOpts], RevArgv);
+          {ok, {Argv, [{Val, Arg} | RevOpts]}};
         {?optional, [], _} ->
-          parse_argv(Argv, OptString, LongOpts, [Val | RevOpts], RevArgv);
+          {ok, {Argv, [Val | RevOpts]}};
         {_, _, _} ->
           erlang:error(badarg)
       end;
