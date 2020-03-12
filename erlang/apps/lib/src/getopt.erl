@@ -47,13 +47,13 @@ parse_argv(["--" | Argv], _OptString, _LongOpts, RevOpts, RevArgv) ->
 parse_argv([Arg = "-" | Argv], OptString, LongOpts, RevOpts, RevArgv) ->
   nonoption(Arg, Argv, OptString, LongOpts, RevOpts, RevArgv);
 parse_argv([[$-, $- | Long] | Argv], OptString, LongOpts, RevOpts, RevArgv) ->
-  case parse_long(Long, Argv, LongOpts, RevOpts) of
+  case parse_long(Long, Argv, LongOpts, RevOpts, _IsSingleDash = false) of
     {ok, {Argv1, RevOpts1}} ->
       parse_argv(Argv1, OptString, LongOpts, RevOpts1, RevArgv);
     {error, _Reason} = Error -> Error
   end;
 parse_argv([[$- | Element] | Argv], OptString, LongOpts, RevOpts, RevArgv) ->
-  case parse_element(Element, Argv, OptString, RevOpts) of
+  case parse_single_dash(Element, Argv, OptString, LongOpts, RevOpts) of
     {ok, {Argv1, RevOpts1}} ->
       parse_argv(Argv1, OptString, LongOpts, RevOpts1, RevArgv);
     {error, _Reason} = Error -> Error
@@ -114,11 +114,23 @@ optch_argument2(OptCh, [_OptCh2, $:, $: | OptString]) -> optch_argument2(OptCh, 
 optch_argument2(OptCh, [_OptCh2, $: | OptString]) -> optch_argument2(OptCh, OptString);
 optch_argument2(OptCh, [_OptCh2 | OptString]) -> optch_argument2(OptCh, OptString).
 
+%% Single-Dash Options ---------------------------------------------------------
+
+parse_single_dash(Element, Argv, OptString, LongOpts, RevOpts) ->
+  case parse_long(Element, Argv, LongOpts, RevOpts, _IsSingleDash = true) of
+    {ok, {_Argv1, _RevOpts1}} = Result ->
+      case parse_element(Element, Argv, OptString, RevOpts) of
+        {error, _Reason} -> Result;
+        {ok, {_Argv2, _RevOpts2}} -> mkerror(ambiguous_option, Element)
+      end;
+    {error, _Reason} -> parse_element(Element, Argv, OptString, RevOpts)
+  end.
+
 %% Long Options ----------------------------------------------------------------
 
-parse_long(Long, Argv, LongOpts, RevOpts) ->
+parse_long(Long, Argv, LongOpts, RevOpts, IsSingleDash) ->
   [Prefix | MaybeArg] = string:split(Long, "="),
-  case find_longopt(Prefix, LongOpts) of
+  case find_longopt(Prefix, LongOpts, IsSingleDash) of
     {_Name, HasArg, Val} ->
       case {HasArg, MaybeArg, Argv} of
         {?no, [], _} ->
@@ -144,18 +156,22 @@ parse_long(Long, Argv, LongOpts, RevOpts) ->
       mkerror(ambiguous_option, Prefix)
   end.
 
-find_longopt(Prefix, LongOpts) ->
-  find_longopt(Prefix, LongOpts, ?invalid).
+find_longopt(Prefix, LongOpts, IsSingleDash) ->
+  find_longopt(Prefix, LongOpts, IsSingleDash, ?invalid).
 
-find_longopt(_Prefix, [], Candidate) -> Candidate;
-find_longopt(Prefix, [Option = {Name, _HasArg, _Val} | LongOpts], Candidate) ->
-  case string:prefix(Name, Prefix) of
-    nomatch -> find_longopt(Prefix, LongOpts, Candidate);
+find_longopt(_Prefix, [], _IsSingleDash, Candidate) -> Candidate;
+find_longopt(Prefix, [Option = {Name, _HasArg, _Val} | LongOpts], IsSingleDash, Candidate) ->
+  case longopt_prefix(Name, Prefix, IsSingleDash) of
+    nomatch -> find_longopt(Prefix, LongOpts, IsSingleDash, Candidate);
     [] -> Option;
-    _ when Candidate =:= ?invalid -> find_longopt(Prefix, LongOpts, Option);
+    _ when Candidate =:= ?invalid -> find_longopt(Prefix, LongOpts, IsSingleDash, Option);
     _ -> ?ambiguous
   end;
-find_longopt(_Prefix, _LongOpts, _Candidate) -> erlang:error(badarg).
+find_longopt(_Prefix, _LongOpts, _IsSingleDash, _Candidate) -> erlang:error(badarg).
+
+longopt_prefix([$- | Name], Prefix, _IsSingleDash) -> string:prefix(Name, Prefix);
+longopt_prefix(_Name, _Prefix, _IsSingleDash = true) -> nomatch;
+longopt_prefix(Name, Prefix, _IsSingleDash) -> string:prefix(Name, Prefix).
 
 %% Error Formatting ------------------------------------------------------------
 
