@@ -1,6 +1,6 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
-%%% stdio() clone for I/O with 9-bit bytes
+%%% stdio clone for I/O with 9-bit bytes
 %%% Copyright (C) 2013-2020  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
