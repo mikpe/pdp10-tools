@@ -42,8 +42,16 @@ parse(Argv, OptString, LongOpts) ->
 
 parse_argv([], _OptString, _LongOpts, RevOpts, RevArgv) ->
   finish(RevOpts, RevArgv, []);
-parse_argv(["--" | Argv], _OptString, _LongOpts, RevOpts, RevArgv) ->
-  finish(RevOpts, RevArgv, Argv);
+parse_argv(["--" | Argv], OptString, _LongOpts, RevOpts, RevArgv) ->
+  case OptString of
+    [$- | _] ->
+      [] = RevArgv, % assert
+      RevOpts2 = lists:foldl(fun(Arg, RevOpts1) -> [{1, Arg} | RevOpts1] end,
+                             RevOpts, Argv),
+      finish(RevOpts2, _RevArgv = [], _RestArgv = []);
+    _ ->
+      finish(RevOpts, RevArgv, Argv)
+  end;
 parse_argv([Arg = "-" | Argv], OptString, LongOpts, RevOpts, RevArgv) ->
   nonoption(Arg, Argv, OptString, LongOpts, RevOpts, RevArgv);
 parse_argv([[$-, $- | Long] | Argv], OptString, LongOpts, RevOpts, RevArgv) ->
