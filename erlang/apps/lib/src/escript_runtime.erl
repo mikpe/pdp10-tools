@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% Runtime support for stand-alone programs started as escripts.
-%%% Copyright (C) 2018-2019  Mikael Pettersson
+%%% Copyright (C) 2018-2020  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -29,6 +29,7 @@
 
 %% escript logs unhandled exceptions to standard output, but we want them to
 %% end up on standard error
+-spec start(fun(([string()]) -> any()), [string()]) -> any().
 start(Main, Argv) ->
   try
     Main(Argv)
@@ -37,15 +38,19 @@ start(Main, Argv) ->
     halt(1)
   end.
 
+-spec fatal(io:format(), [term()]) -> no_return().
 fatal(Fmt, Args) ->
   errmsg(Fmt, Args),
   halt(1).
 
+-spec errmsg(io:format(), [term()]) -> ok.
 errmsg(Fmt, Args) ->
   fmterr("~s: Error: " ++ Fmt, [progname() | Args]).
 
+-spec fmterr(io:format(), [term()]) -> ok.
 fmterr(Fmt, Args) ->
   io:format(standard_error, Fmt, Args).
 
+-spec progname() -> file:filename().
 progname() ->
   filename:basename(escript:script_name()).
