@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% strtol() clone for Erlang
-%%% Copyright (C) 2018-2019  Mikael Pettersson
+%%% Copyright (C) 2018-2020  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -73,7 +73,7 @@ scan_base(String, Base, Minus) ->
     _ when Base >= 2, Base =< 36 ->
       scan_digits(String, Base, Minus);
     _ ->
-      invalid_base()
+      {error, {?MODULE, {invalid_base, Base}}}
   end.
 
 scan_digits(String, Base, Minus) ->
@@ -104,9 +104,6 @@ return(Rest, Value0, Minus) ->
 no_digits() ->
   mkerror(no_digits).
 
-invalid_base() ->
-  mkerror(invalid_base).
-
 isspace(C) ->
   case C of
     $\s -> true;
@@ -134,6 +131,6 @@ mkerror(Tag) ->
 format_error(Reason) ->
   case Reason of
     no_digits -> "no valid digits found";
-    invalid_base -> "invalid base";
+    {invalid_base, Base} -> io_lib:format("invalid base: ~p", [Base]);
     _ -> io_lib:format("~p", [Reason])
   end.
