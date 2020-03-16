@@ -172,10 +172,17 @@ find_longopt(Prefix, [Option = {Name, _HasArg, _Val} | LongOpts], IsSingleDash, 
   case longopt_prefix(Name, Prefix, IsSingleDash) of
     nomatch -> find_longopt(Prefix, LongOpts, IsSingleDash, Candidate);
     [] -> Option;
-    _ when Candidate =:= ?invalid -> find_longopt(Prefix, LongOpts, IsSingleDash, Option);
-    _ -> ?ambiguous
+    _ ->
+      case is_unambiguous(Candidate, Option) of
+        true -> find_longopt(Prefix, LongOpts, IsSingleDash, Option);
+        false -> ?ambiguous
+      end
   end;
 find_longopt(_Prefix, _LongOpts, _IsSingleDash, _Candidate) -> erlang:error(badarg).
+
+is_unambiguous(?invalid, _Option) -> true;
+is_unambiguous({_Name1, HasArg, Val}, {_Name2, HasArg, Val}) -> true;
+is_unambiguous(_, _) -> false.
 
 longopt_prefix([$- | Name], Prefix, _IsSingleDash) -> string:prefix(Name, Prefix);
 longopt_prefix(_Name, _Prefix, _IsSingleDash = true) -> nomatch;
