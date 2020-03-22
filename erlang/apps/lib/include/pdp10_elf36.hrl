@@ -681,7 +681,7 @@
 
 -define(STV_DEFAULT,    0).     % Visibility is specified by binding type
 -define(STV_INTERNAL,   1).     % OS specific version of STV_HIDDEN
--define(STV_HIDDEN,     2).     % Can only be seen inside currect component
+-define(STV_HIDDEN,     2).     % Can only be seen inside current component
 -define(STV_PROTECTED,  3).     % Treat as STB_LOCAL inside current component
 
 %% Relocation Entries
