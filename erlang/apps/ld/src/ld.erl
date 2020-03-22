@@ -210,9 +210,10 @@ ld(Argv) ->
     {ok, {Opts, _NonOpts = []}} ->
       case process_options(Opts) of
         {ok, Options} ->
-          %% FIXME: input(Options) -> {ok, _} | {error, _}
-          {ok, TUnit} = input(Options),
-          output(Options, TUnit);
+          case input(Options) of
+            ok -> output(Options);
+            {error, _Reason} = Error -> Error
+          end;
         {error, _Reason} = Error -> Error
       end;
     {error, _Reason} = Error -> Error
@@ -363,11 +364,17 @@ version() ->
 
 %% Input Processing ============================================================
 
-input(_Options) -> {ok, []}. % FIXME
+input(Options) ->
+  Entry = Options#options.entry,
+  UndefSyms =
+    if is_list(Entry) -> [Entry];
+       true -> []
+    end,
+  ld_input:input(Options#options.files, UndefSyms).
 
 %% Output Generation ===========================================================
 
-output(_Options, []) -> ok. % FIXME
+output(_Options) -> ok. % FIXME
 
 %% Error Formatting ============================================================
 
