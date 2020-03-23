@@ -21,16 +21,14 @@
 -module(ld).
 -export([ main/1
         , format_error/1
-         ]).
+        ]).
 
 -define(EMULATION, "elf36_pdp10").
 -define(OBJFORMAT, "elf36-pdp10").
 
 -record(options,
-        { entry               = "_start" :: string()
+        { entry               = "_start" :: string() | non_neg_integer()
         , files               = []       :: [{file, string()} | {library, string()}]
-        , fini                = "_fini"  :: string()
-        , init                = "_init"  :: string()
         , library_path        = []       :: [string()]
         , output              = "a.out"  :: string()
         , page_align_sections = false    :: boolean()
@@ -66,8 +64,10 @@ ld(Argv) ->
   %% -EL
   %% -f / --auxiliary
   %% -F / --filter
+  %% -fini
   %% -g
   %% -G / --gpsize
+  %% -init
   %% -h / -soname
   %% -M / --print-map
   %% --[no-]print-map-discarded
@@ -184,8 +184,6 @@ ld(Argv) ->
   case getopt:parse(Argv, "-b:e:l:L:m:nNo:tvV",
                     [ %% single-dash long options
                       { "-EB", no, 'EB' }
-                    , { "-fini", required, fini }
-                    , { "-init", required, init }
                     , { "-Tbss", required, 'Tbss' }
                     , { "-Tdata", required, 'Tdata' }
                     , { "-Trodata-segment", required, 'Trodata' }
@@ -238,10 +236,8 @@ process_option(Opt, Options) ->
     'EB'                -> handle_EB(Opt, Options);
     {$m, _}             -> handle_emulation(Opt, Options);
     {$e, _}             -> handle_entry(Opt, Options);
-    {fini, _}           -> handle_fini(Opt, Options);
     {$b, _}             -> handle_format(Opt, Options);
     help                -> handle_help(Opt, Options);
-    {init, _}           -> handle_init(Opt, Options);
     {$l, _}             -> handle_library(Opt, Options);
     {$L, _}             -> handle_library_path(Opt, Options);
     $n                  -> handle_nmagic(Opt, Options);
@@ -273,10 +269,12 @@ handle_emulation({$m, Emulation}, Options) ->
   end.
 
 handle_entry({$e, Entry}, Options) ->
-  {ok, Options#options{entry = Entry}}.
-
-handle_fini({fini, Fini}, Options) ->
-  {ok, Options#options{fini = Fini}}.
+  EntryVal =
+    case strtol:parse(Entry, _Base = 0) of
+      {ok, {Number, _Rest = []}} when Number >= 0 -> Number;
+      _ -> Entry % assume it's a symbol
+    end,
+  {ok, Options#options{entry = EntryVal}}.
 
 handle_format({$b, InputFormat}, Options) ->
   case InputFormat of
@@ -287,9 +285,6 @@ handle_format({$b, InputFormat}, Options) ->
 handle_help(help, _Options) ->
   io:format("--help: NYI\n"),
   exit(0).
-
-handle_init({init, Init}, Options) ->
-  {ok, Options#options{init = Init}}.
 
 handle_library({$l, Library}, Options) ->
   {ok, Options#options{files = [{library, Library} | Options#options.files]}}.
