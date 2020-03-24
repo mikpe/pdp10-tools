@@ -211,7 +211,7 @@ ld(Argv) ->
       case process_options(Opts) of
         {ok, Options} ->
           case input(Options) of
-            ok -> output(Options);
+            {ok, ShTabs} -> output(Options, ShTabs);
             {error, _Reason} = Error -> Error
           end;
         {error, _Reason} = Error -> Error
@@ -374,7 +374,7 @@ input(Options) ->
 
 %% Output Generation ===========================================================
 
-output(_Options) -> ok. % FIXME
+output(_Options, _ShTabs) -> ok. % FIXME
 
 %% Error Formatting ============================================================
 

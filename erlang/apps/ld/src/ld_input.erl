@@ -23,34 +23,40 @@
         , format_error/1
         ]).
 
--include_lib("lib/include/pdp10_elf36.hrl").
+-include("ld_internal.hrl").
+
+%% error reasons
+-define(badelf, badelf).
+-define(badfile, badfile).
+-define(muldef_symbol, muldef_symbol).
+-define(undefined_symbols, undefined_symbols).
 
 %% Input Processing ============================================================
 
--spec input([{file, string()}], [string()]) -> ok | {error, {?MODULE, term()}}.
+-spec input([{file, string()}], [string()])
+        -> {ok, [#input{}]} | {error, {module(), term()}}.
 input(Files, UndefSyms) ->
   UndefMap =
     lists:foldl(fun(UndefSym, UndefMap0) ->
                   maps:put(UndefSym, false, UndefMap0)
                 end, maps:new(), UndefSyms),
-  input(Files, maps:new(), UndefMap).
+  input(Files, maps:new(), UndefMap, []).
 
-input([File | Files], DefMap, UndefMap) ->
-  case update_symbol_maps(File, DefMap, UndefMap) of
-    {ok, {NewDefMap, NewUndefMap}} ->
-      input(Files, NewDefMap, NewUndefMap);
+input([File | Files], DefMap, UndefMap, Inputs) ->
+  case read_file(File) of
+    {ok, {ShTab, SymTab, StShNdx}} ->
+      case update_sym_maps(SymTab, File, DefMap, UndefMap) of
+        {ok, {NewDefMap, NewUndefMap}} ->
+          Input = #input{file = File, shtab = ShTab, symtab = SymTab, stshndx = StShNdx},
+          input(Files, NewDefMap, NewUndefMap, [Input | Inputs]);
+        {error, _Reason} = Error -> Error
+      end;
     {error, _Reason} = Error -> Error
   end;
-input([], _DefMap, UndefMap) ->
+input([], _DefMap, UndefMap, Inputs) ->
   case maps:keys(UndefMap) of
-    [] -> ok;
-    UndefSyms -> {error, {?MODULE, {undefined_symbols, UndefSyms}}}
-  end.
-
-update_symbol_maps(File, DefMap, UndefMap) ->
-  case read_symtab(File) of
-    {ok, SymTab} -> update_sym_maps(SymTab, File, DefMap, UndefMap);
-    {error, _Reason} = Error -> Error
+    [] -> {ok, lists:reverse(Inputs)};
+    UndefSyms -> {error, {?MODULE, {?undefined_symbols, UndefSyms}}}
   end.
 
 update_sym_maps([Sym | Syms], File, DefMap, UndefMap) ->
@@ -78,7 +84,7 @@ do_update_sym_maps(Sym, File, DefMap, UndefMap) ->
     defined ->
       case maps:get(Name, DefMap, false) of
         false -> {ok, {maps:put(Name, File, DefMap), maps:remove(Name, UndefMap)}};
-        File0 -> {error, {?MODULE, {multiply_defined, Name, File0, File}}}
+        File0 -> {error, {?MODULE, {?muldef_symbol, Name, File0, File}}}
       end
   end.
 
@@ -92,22 +98,22 @@ classify_sym(Sym) ->
     _ -> local
   end.
 
-read_symtab(File) ->
+read_file(File) ->
   case pdp10_stdio:fopen(File, [read]) of
     {ok, FP} ->
-      try read_symtab(File, FP)
+      try read_file(File, FP)
       after pdp10_stdio:fclose(FP)
       end;
-    {error, Reason} -> {error, {?MODULE, {badfile, File, Reason}}}
+    {error, Reason} -> {error, {?MODULE, {?badfile, File, Reason}}}
   end.
 
-read_symtab(File, FP) ->
+read_file(File, FP) ->
   case pdp10_elf36:read_Ehdr(FP) of
     {ok, Ehdr} ->
       case pdp10_elf36:read_ShTab(FP, Ehdr) of
         {ok, ShTab} ->
           case pdp10_elf36:read_SymTab(FP, ShTab) of
-            {ok, {SymTab, _ShNdx}} -> {ok, SymTab};
+            {ok, {SymTab, ShNdx}} -> {ok, {ShTab, SymTab, ShNdx}};
             {error, Reason} -> badelf(File, Reason)
           end;
         {error, Reason} -> badelf(File, Reason)
@@ -116,20 +122,20 @@ read_symtab(File, FP) ->
   end.
 
 badelf(File, Reason) ->
-  {error, {?MODULE, {badelf, File, Reason}}}.
+  {error, {?MODULE, {?badelf, File, Reason}}}.
 
 %% Error Formatting ============================================================
 
 -spec format_error(term()) -> io_lib:chars().
 format_error(Reason) ->
   case Reason of
-    {undefined_symbols, Symbols} ->
-      ["undefined symbols:" |
-       ["\n" ++ Symbol || Symbol <- Symbols]];
-    {multiply_defined, Symbol, File0, File} ->
-      io:format("~s: ~s already defined in ~s", [File, Symbol, File0]);
-    {badfile, File, Reason} ->
+    {?badelf, File, Reason} ->
+      io:format("invalid ELF file ~s: ~s", [File, error:format(Reason)]);
+    {?badfile, File, Reason} ->
       io:format("~s: ~s", [File, error:format(Reason)]);
-    {badelf, File, Reason} ->
-      io:format("invalid ELF file ~s: ~s", [File, error:format(Reason)])
+    {?muldef_symbol, Symbol, File0, File} ->
+      io:format("~s: ~s already defined in ~s", [File, Symbol, File0]);
+    {?undefined_symbols, Symbols} ->
+      ["undefined symbols:" |
+       ["\n" ++ Symbol || Symbol <- Symbols]]
   end.
