@@ -211,7 +211,10 @@ ld(Argv) ->
       case process_options(Opts) of
         {ok, Options} ->
           case input(Options) of
-            {ok, ShTabs} -> output(Options, ShTabs);
+            {ok, Inputs} ->
+              %% TODO: receive ok | error
+              {ok, {Sections, SectionsMap}} = phase1(Options, Inputs),
+              output(Options, {Sections, SectionsMap});
             {error, _Reason} = Error -> Error
           end;
         {error, _Reason} = Error -> Error
@@ -372,9 +375,13 @@ input(Options) ->
     end,
   ld_input:input(Options#options.files, UndefSyms).
 
+%% Linking Phase 1 =============================================================
+
+phase1(_Options, Inputs) -> {ok, ld_phase1:phase1(Inputs)}.
+
 %% Output Generation ===========================================================
 
-output(_Options, _ShTabs) -> ok. % FIXME
+output(_Options, _Segments) -> ok. % FIXME
 
 %% Error Formatting ============================================================
 
