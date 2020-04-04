@@ -213,8 +213,10 @@ ld(Argv) ->
           case input(Options) of
             {ok, Inputs} ->
               %% TODO: receive ok | error
-              {ok, {Sections, SectionsMap}} = phase1(Options, Inputs),
-              output(Options, {Sections, SectionsMap});
+              {ok, {Sections, _SectionsMap}} = phase1(Options, Inputs),
+              %% TODO: receive ok | error
+              {ok, Segments} = phase2(Options, Sections),
+              output(Options, Segments);
             {error, _Reason} = Error -> Error
           end;
         {error, _Reason} = Error -> Error
@@ -378,6 +380,10 @@ input(Options) ->
 %% Linking Phase 1 =============================================================
 
 phase1(_Options, Inputs) -> {ok, ld_phase1:phase1(Inputs)}.
+
+%% Linking Phase 2 =============================================================
+
+phase2(_Options, Sections) -> {ok, ld_phase2:phase2(Sections)}.
 
 %% Output Generation ===========================================================
 
