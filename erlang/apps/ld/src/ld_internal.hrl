@@ -44,4 +44,9 @@
 -type filemap() :: #{Section :: string() => Offset :: non_neg_integer()}.
 -type sectionsmap() :: #{File :: string() => FileMap :: filemap()}.
 
+-record(segment,
+        { phdr     :: #elf36_Phdr{}
+        , sections :: [#section{}]
+        }).
+
 -endif. % LD_INTERNAL_HRL
