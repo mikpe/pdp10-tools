@@ -19,6 +19,7 @@
 %%% along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
 
 -module(ld_input).
+
 -export([ input/2
         , format_error/1
         ]).

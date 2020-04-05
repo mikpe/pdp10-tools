@@ -19,6 +19,7 @@
 %%% along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
 
 -module(ld).
+
 -export([ main/1
         , format_error/1
         ]).

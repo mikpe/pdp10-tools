@@ -19,6 +19,7 @@
 %%% along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
 
 -module(ld_phase1).
+
 -export([ phase1/1
         ]).
 
