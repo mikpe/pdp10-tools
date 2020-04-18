@@ -214,7 +214,7 @@ ld(Argv) ->
           case input(Options) of
             {ok, Inputs} ->
               %% TODO: receive ok | error
-              {ok, {Sections, _SectionsMap}} = phase1(Options, Inputs),
+              {ok, Sections} = phase1(Options, Inputs),
               %% TODO: receive ok | error
               {ok, Segments} = phase2(Options, Sections),
               output(Options, Segments);

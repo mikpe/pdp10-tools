@@ -33,6 +33,7 @@
 -record(sectfrag,
         { file   :: string()
         , shdr   :: #elf36_Shdr{}
+        , shndx  :: non_neg_integer()
         , relocs :: #elf36_Shdr{} | false
         }).
 
@@ -40,9 +41,6 @@
         { shdr  :: #elf36_Shdr{}
         , frags :: [#sectfrag{}]
         }).
-
--type filemap() :: #{Section :: string() => Offset :: non_neg_integer()}.
--type sectionsmap() :: #{File :: string() => FileMap :: filemap()}.
 
 -record(segment,
         { phdr     :: #elf36_Phdr{}

@@ -26,6 +26,7 @@
 -include("ld_internal.hrl").
 
 %% Linking Phase 1 =============================================================
+%%
 %% Citing The System V Application Binary Interface, Ch. 4 Sections:
 %%  "In the first phase, input sections that match in name, type and attribute
 %% flags should be concatenated into single sections. The concatenation order
@@ -33,50 +34,45 @@
 %% SHF_MERGE and SHF_LINK_ORDER). When not otherwise constrained, sections
 %% should be emitted in input order. "
 
--spec phase1([#input{}]) -> {[#section{}], sectionsmap()}.
+-spec phase1([#input{}]) -> [#section{}].
 phase1(Inputs) ->
-  phase1(Inputs, _OutputMap = maps:new(), _SectionsMap = maps:new()).
+  phase1(Inputs, _OutputMap = maps:new()).
 
-phase1([Input | Inputs], OutputsMap, SectionsMap) ->
+phase1([Input | Inputs], OutputsMap) ->
   #input{file = File, shtab = ShTab, stshndx = StShNdx} = Input,
-  {NewOutputsMap, FileMap} = phase1(File, ShTab, StShNdx, OutputsMap),
-  NewSectionsMap = maps:put(File, FileMap, SectionsMap),
-  phase1(Inputs, NewOutputsMap, NewSectionsMap);
-phase1([], OutputsMap, SectionsMap) ->
+  NewOutputsMap = phase1(File, ShTab, StShNdx, OutputsMap),
+  phase1(Inputs, NewOutputsMap);
+phase1([], OutputsMap) ->
   Sections1 = maps:values(OutputsMap),
   Sections2 = lists:map(fun({Nr, Shdr, Frags}) ->
                           {Nr, #section{shdr = Shdr, frags = lists:reverse(Frags)}}
                         end, Sections1),
   Sections3 = lists:keysort(1, Sections2),
-  Sections = lists:map(fun({_Nr, Section}) -> Section end, Sections3),
-  {Sections, SectionsMap}.
+  lists:map(fun({_Nr, Section}) -> Section end, Sections3).
 
 phase1(File, ShTab, StShNdx, OutputsMap) ->
   RelocsMap = relocs_map(ShTab, StShNdx),
-  FileMap = maps:new(),
-  phase1(ShTab, _ShNdx = 0, File, RelocsMap, OutputsMap, FileMap).
+  phase1(ShTab, _ShNdx = 0, File, RelocsMap, OutputsMap).
 
-phase1([], _ShNdx, _File, _RelocsMap, OutputsMap, FileMap) ->
-  {OutputsMap, FileMap};
-phase1([SHdr | ShTab], ShNdx, File, RelocsMap, OutputsMap, FileMap) ->
-  {NewOutputsMap, NewFileMap} =
-    maybe_output_section(SHdr, ShNdx, File, RelocsMap, OutputsMap, FileMap),
-  phase1(ShTab, ShNdx + 1, File, RelocsMap, NewOutputsMap, NewFileMap).
+phase1([], _ShNdx, _File, _RelocsMap, OutputsMap) ->
+  OutputsMap;
+phase1([SHdr | ShTab], ShNdx, File, RelocsMap, OutputsMap) ->
+  NewOutputsMap =
+    maybe_output_section(SHdr, ShNdx, File, RelocsMap, OutputsMap),
+  phase1(ShTab, ShNdx + 1, File, RelocsMap, NewOutputsMap).
 
-maybe_output_section(Shdr, ShNdx, File, RelocsMap, OutputsMap, FileMap) ->
+maybe_output_section(Shdr, ShNdx, File, RelocsMap, OutputsMap) ->
   case should_output_section(Shdr) of
-    true -> output_section(Shdr, ShNdx, File, RelocsMap, OutputsMap, FileMap);
-    false -> {OutputsMap, FileMap}
+    true -> output_section(Shdr, ShNdx, File, RelocsMap, OutputsMap);
+    false -> OutputsMap
   end.
 
-output_section(Shdr, ShNdx, File, RelocsMap, OutputsMap, FileMap) ->
+output_section(Shdr, ShNdx, File, RelocsMap, OutputsMap) ->
   SectionKey = section_key(Shdr),
   Output = output_get(SectionKey, OutputsMap, Shdr),
   Relocs = maps:get(ShNdx, RelocsMap, false),
-  {NewOutput, FragOffset} = output_append(Output, File, Shdr, Relocs),
-  NewOutputsMap = maps:put(SectionKey, NewOutput, OutputsMap),
-  NewFileMap = maps:put(Shdr#elf36_Shdr.sh_name, FragOffset, FileMap),
-  {NewOutputsMap, NewFileMap}.
+  NewOutput = output_append(Output, File, Shdr, ShNdx, Relocs),
+  maps:put(SectionKey, NewOutput, OutputsMap).
 
 output_get(SectionKey, OutputsMap, Shdr) ->
   case maps:get(SectionKey, OutputsMap, false) of
@@ -92,7 +88,7 @@ output_get(SectionKey, OutputsMap, Shdr) ->
       {_Nr = maps:size(OutputsMap), OutputShdr, _Frags = []}
   end.
 
-output_append({Nr, OutputShdr, Frags}, File, Shdr, Relocs) ->
+output_append({Nr, OutputShdr, Frags}, File, Shdr, ShNdx, Relocs) ->
   OutputAlignment = section_alignment(OutputShdr),
   FragAlignment = section_alignment(Shdr),
   NewAlignment = max(OutputAlignment, FragAlignment),
@@ -104,8 +100,8 @@ output_append({Nr, OutputShdr, Frags}, File, Shdr, Relocs) ->
                                        , sh_addralign = NewAlignment
                                        },
   NewShdr = Shdr#elf36_Shdr{sh_offset = FragOffset},
-  Frag = #sectfrag{file = File, shdr = NewShdr, relocs = Relocs},
-  {{Nr, NewOutputShdr, [Frag | Frags]}, FragOffset}.
+  Frag = #sectfrag{file = File, shdr = NewShdr, shndx = ShNdx, relocs = Relocs},
+  {Nr, NewOutputShdr, [Frag | Frags]}.
 
 section_alignment(Shdr) ->
   case Shdr#elf36_Shdr.sh_addralign of
