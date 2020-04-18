@@ -218,7 +218,8 @@ ld(Argv) ->
               %% TODO: receive ok | error
               {ok, Segments0} = phase2(Options, Sections),
               Segments = assign(Options, Segments0),
-              output(Options, Segments);
+              {GlobalMap, FileMap} = symtab_build(Options, Inputs, Segments),
+              output(Options, Segments, GlobalMap, FileMap);
             {error, _Reason} = Error -> Error
           end;
         {error, _Reason} = Error -> Error
@@ -391,9 +392,13 @@ phase2(_Options, Sections) -> {ok, ld_phase2:phase2(Sections)}.
 
 assign(_Options, Segments) -> ld_assign:assign(Segments).
 
+%% Build symbol tables =========================================================
+
+symtab_build(_Options, Inputs, Segments) -> ld_symtab:build(Inputs, Segments).
+
 %% Output Generation ===========================================================
 
-output(_Options, _Segments) -> ok. % FIXME
+output(_Options, _Segments, _GlobalMap, _FileMap) -> ok. % FIXME
 
 %% Error Formatting ============================================================
 

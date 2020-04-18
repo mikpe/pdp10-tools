@@ -47,4 +47,13 @@
         , sections :: [#section{}]
         }).
 
+%% global symbol table
+-type global() :: #{Symbol :: string() => Value :: non_neg_integer()}.
+
+%% local symbol table within a given file (if Value is string(), consult global table)
+-type local() :: #{SymNdx :: non_neg_integer() => Value :: non_neg_integer() | string()}.
+
+%% map from file names to their local symbol tables
+-type filemap() :: #{File :: string() => Local :: local()}.
+
 -endif. % LD_INTERNAL_HRL
