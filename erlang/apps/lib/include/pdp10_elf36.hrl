@@ -1038,6 +1038,8 @@
         , p_align       :: elf36_Word() % Segment alignment, file & memory
         }).
 
+-define(ELF36_PHDR_SIZEOF, (8 * 4)).
+
 %% Values for program header, p_type field.
 
 -define(PT_NULL,        0).             % Program header table entry unused
