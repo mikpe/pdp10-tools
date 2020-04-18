@@ -216,7 +216,8 @@ ld(Argv) ->
               %% TODO: receive ok | error
               {ok, Sections} = phase1(Options, Inputs),
               %% TODO: receive ok | error
-              {ok, Segments} = phase2(Options, Sections),
+              {ok, Segments0} = phase2(Options, Sections),
+              Segments = assign(Options, Segments0),
               output(Options, Segments);
             {error, _Reason} = Error -> Error
           end;
@@ -385,6 +386,10 @@ phase1(_Options, Inputs) -> {ok, ld_phase1:phase1(Inputs)}.
 %% Linking Phase 2 =============================================================
 
 phase2(_Options, Sections) -> {ok, ld_phase2:phase2(Sections)}.
+
+%% Assigning Addresses =========================================================
+
+assign(_Options, Segments) -> ld_assign:assign(Segments).
 
 %% Output Generation ===========================================================
 
