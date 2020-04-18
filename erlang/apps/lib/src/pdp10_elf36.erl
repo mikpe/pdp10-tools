@@ -25,32 +25,24 @@
         , read_ShTab/2
         , read_SymTab/2
         , read_uint36/1
+        , make_Ehdr/0
+        , write_Ehdr/2
+        , write_Phdr/2
         , format_error/1
         ]).
 
 -include_lib("lib/include/pdp10_elf36.hrl").
 -include_lib("lib/include/pdp10_stdint.hrl").
 
-%% I/O of records ==============================================================
-
 -type read_field() :: fun((pdp10_stdio:file())
                       -> {ok, integer()} | {error, {module(), term()}}).
+-type write_field() :: fun((pdp10_stdio:file(), integer())
+                       -> ok | {error, term()}).
 
 -record(record_desc,
         { tag :: atom()
-        , fields :: [read_field()]
+        , fields :: [{read_field(), write_field()}]
         }).
-
-read_record(FP, #record_desc{tag = Tag, fields = Fields}) ->
-  read_record(FP, Fields, [Tag]).
-
-read_record(FP, [ReadField | Fields], Values) ->
-  case ReadField(FP) of
-    {ok, Value} -> read_record(FP, Fields, [Value | Values]);
-    {error, _Reason} = Error -> Error
-  end;
-read_record(_FP, [], Values) ->
-  {ok, list_to_tuple(lists:reverse(Values))}.
 
 %% I/O of #elf36_Ehdr{} ========================================================
 
@@ -66,28 +58,69 @@ read_Ehdr(FP) ->
     {error, _Reason} = Error -> Error
   end.
 
+-spec make_Ehdr() -> #elf36_Ehdr{}.
+make_Ehdr() ->
+  Ident =
+    tuple_to_list(
+      erlang:make_tuple(
+        ?EI_NIDENT, 0,
+        [ {1 + ?EI_MAG0, ?ELFMAG0}
+        , {1 + ?EI_MAG1, ?ELFMAG1}
+        , {1 + ?EI_MAG2, ?ELFMAG2}
+        , {1 + ?EI_MAG3, ?ELFMAG3}
+        , {1 + ?EI_CLASS, ?ELFCLASS36} % TODO: target-specific
+        , {1 + ?EI_DATA, ?ELFDATA2MSB} % TODO: target-specific
+        , {1 + ?EI_VERSION, ?EV_CURRENT}
+        , {1 + ?EI_OSABI, ?ELFOSABI_NONE} % TODO: ELFOSABI_LINUX instead?
+        , {1 + ?EI_ABIVERSION, 0}
+        ])),
+  #elf36_Ehdr{ e_ident = Ident
+             , e_type = ?ET_NONE
+             , e_machine = ?EM_PDP10 % TODO: target-specific
+             , e_version = ?EV_CURRENT
+             , e_entry = 0
+             , e_phoff = 0
+             , e_shoff = 0
+             , e_flags = 0
+             , e_ehsize = ?ELF36_EHDR_SIZEOF
+             , e_phentsize = ?ELF36_PHDR_SIZEOF
+             , e_phnum = 0
+             , e_shentsize = ?ELF36_SHDR_SIZEOF
+             , e_shnum = 0
+             , e_shstrndx = 0
+             }.
+
+-spec write_Ehdr(pdp10_stdio:file(), #elf36_Ehdr{})
+      -> ok | {error, {module(), term()}}.
+write_Ehdr(FP, Ehdr) ->
+  write_record(FP, Ehdr, elf36_Ehdr_desc()).
+
 elf36_Ehdr_desc() ->
   #record_desc{ tag = elf36_Ehdr
               , fields =
-                  [  fun read_e_ident/1         % e_ident
-                   , fun read_Half/1            % e_type
-                   , fun read_Half/1            % e_machine
-                   , fun read_Word/1            % e_version
-                   , fun read_Addr/1            % e_entry
-                   , fun read_Off/1             % e_phoff
-                   , fun read_Off/1             % e_shoff
-                   , fun read_Word/1            % e_flags
-                   , fun read_Half/1            % e_ehsize
-                   , fun read_Half/1            % e_phentsize
-                   , fun read_Half/1            % e_phnum
-                   , fun read_Half/1            % e_shentsize
-                   , fun read_Half/1            % e_shnum
-                   , fun read_Half/1            % e_shstrndx
+                  [ {fun read_e_ident/1, fun write_e_ident/2} % e_ident
+                  , {fun read_Half/1,    fun write_Half/2}    % e_type
+                  , {fun read_Half/1,    fun write_Half/2}    % e_machine
+                  , {fun read_Word/1,    fun write_Word/2}    % e_version
+                  , {fun read_Addr/1,    fun write_Addr/2}    % e_entry
+                  , {fun read_Off/1,     fun write_Off/2}     % e_phoff
+                  , {fun read_Off/1,     fun write_Off/2}     % e_shoff
+                  , {fun read_Word/1,    fun write_Word/2}    % e_flags
+                  , {fun read_Half/1,    fun write_Half/2}    % e_ehsize
+                  , {fun read_Half/1,    fun write_Half/2}    % e_phentsize
+                  , {fun read_Half/1,    fun write_Half/2}    % e_phnum
+                  , {fun read_Half/1,    fun write_Half/2}    % e_shentsize
+                  , {fun read_Half/1,    fun write_Half/2}    % e_shnum
+                  , {fun read_Half/1,    fun write_Half/2}    % e_shstrndx
                   ]
                }.
 
 read_e_ident(FP) ->
   read(FP, ?EI_NIDENT, fun(Bytes) -> Bytes end).
+
+write_e_ident(FP, Ident) ->
+  ?EI_NIDENT = length(Ident), % assert
+  fputs(Ident, FP).
 
 check_Ehdr(Ehdr) ->
   check(Ehdr,
@@ -459,6 +492,27 @@ read_Sym_name(Sym = #elf36_Sym{st_name = StName}, StrTab) ->
     {error, _Reason} = Error -> Error
   end.
 
+%% I/O of #elf36_Phdr{} ========================================================
+
+-spec write_Phdr(pdp10_stdio:file(), #elf36_Phdr{})
+      -> ok | {error, {module(), term()}}.
+write_Phdr(FP, Phdr) ->
+  write_record(FP, Phdr, elf36_Phdr_desc()).
+
+elf36_Phdr_desc() ->
+  #record_desc{ tag = elf36_Phdr
+              , fields =
+                  [ {fun read_Word/1, fun write_Word/2} % p_type
+                  , {fun read_Off/1,  fun write_Off/2}  % p_offset
+                  , {fun read_Addr/1, fun write_Addr/2} % p_vaddr
+                  , {fun read_Addr/1, fun write_Addr/2} % p_paddr
+                  , {fun read_Word/1, fun write_Word/2} % p_filesz
+                  , {fun read_Word/1, fun write_Word/2} % p_memsz
+                  , {fun read_Word/1, fun write_Word/2} % p_flags
+                  , {fun read_Word/1, fun write_Word/2} % p_align
+                  ]
+              }.
+
 %% I/O of #elf36_Rela{} ========================================================
 
 read_Rela(FP) -> read_record(FP, elf36_Rela_desc()).
@@ -466,9 +520,9 @@ read_Rela(FP) -> read_record(FP, elf36_Rela_desc()).
 elf36_Rela_desc() ->
   #record_desc{ tag = elf36_Rela
               , fields =
-                  [ fun read_Addr/1             % r_offset
-                  , fun read_Word/1             % r_info
-                  , fun read_Sword/1            % r_addend
+                  [ {fun read_Addr/1,  fun write_Addr/2}  % r_offset
+                  , {fun read_Word/1,  fun write_Word/2}  % r_info
+                  , {fun read_Sword/1, fun write_Sword/2} % r_addend
                   ]
               }.
 
@@ -479,16 +533,16 @@ read_Shdr(FP) -> read_record(FP, elf36_Shdr_desc()).
 elf36_Shdr_desc() ->
   #record_desc{ tag = elf36_Shdr
               , fields =
-                  [  fun read_Word/1            % sh_name
-                   , fun read_Word/1            % sh_type
-                   , fun read_Word/1            % sh_flags
-                   , fun read_Addr/1            % sh_addr
-                   , fun read_Off/1             % sh_offset
-                   , fun read_Word/1            % sh_size
-                   , fun read_Word/1            % sh_link
-                   , fun read_Word/1            % sh_info
-                   , fun read_Word/1            % sh_addralign
-                   , fun read_Word/1            % sh_entsize
+                  [ {fun read_Word/1, fun write_Word/2} % sh_name
+                  , {fun read_Word/1, fun write_Word/2} % sh_type
+                  , {fun read_Word/1, fun write_Word/2} % sh_flags
+                  , {fun read_Addr/1, fun write_Addr/2} % sh_addr
+                  , {fun read_Off/1,  fun write_Off/2}  % sh_offset
+                  , {fun read_Word/1, fun write_Word/2} % sh_size
+                  , {fun read_Word/1, fun write_Word/2} % sh_link
+                  , {fun read_Word/1, fun write_Word/2} % sh_info
+                  , {fun read_Word/1, fun write_Word/2} % sh_addralign
+                  , {fun read_Word/1, fun write_Word/2} % sh_entsize
                   ]
                }.
 
@@ -499,14 +553,39 @@ read_Sym(FP) -> read_record(FP, elf36_Sym_desc()).
 elf36_Sym_desc() ->
   #record_desc{ tag = elf36_Sym
               , fields =
-                  [  fun read_Word/1            % st_name
-                   , fun read_Addr/1            % st_value
-                   , fun read_Word/1            % st_size
-                   , fun read_Uchar/1           % st_info
-                   , fun read_Uchar/1           % st_other
-                   , fun read_Half/1            % st_shndx
+                  [ {fun read_Word/1,  fun write_Word/2}  % st_name
+                  , {fun read_Addr/1,  fun write_Addr/2}  % st_value
+                  , {fun read_Word/1,  fun write_Word/2}  % st_size
+                  , {fun read_Uchar/1, fun write_Uchar/2} % st_info
+                  , {fun read_Uchar/1, fun write_Uchar/2} % st_other
+                  , {fun read_Half/1,  fun write_Half/2}  % st_shndx
                   ]
                }.
+
+%% I/O of records ==============================================================
+
+read_record(FP, #record_desc{tag = Tag, fields = Fields}) ->
+  read_record(FP, Fields, [Tag]).
+
+read_record(FP, [{ReadField, _WriteField} | Fields], Values) ->
+  case ReadField(FP) of
+    {ok, Value} -> read_record(FP, Fields, [Value | Values]);
+    {error, _Reason} = Error -> Error
+  end;
+read_record(_FP, [], Values) ->
+  {ok, list_to_tuple(lists:reverse(Values))}.
+
+write_record(FP, Record, #record_desc{tag = Tag, fields = Fields}) ->
+  [Tag | Values] = tuple_to_list(Record),
+  do_write_record(FP, Fields, Values).
+
+do_write_record(FP, [{_ReadField, WriteField} | Fields], [Value | Values]) ->
+  case WriteField(FP, Value) of
+    ok -> do_write_record(FP, Fields, Values);
+    {error, _Reason} = Error -> Error
+  end;
+do_write_record(_FP, _Fields = [], _Values = []) ->
+  ok.
 
 %% I/O of scalar items =========================================================
 
@@ -541,6 +620,25 @@ read(FP, N, ConvFun, Acc) ->
     {ok, Nonet} -> read(FP, N - 1, ConvFun, [Nonet | Acc]);
     {error, _Reason} = Error -> Error
   end.
+
+write_Addr(FP, UInt36) -> write_uint36(FP, UInt36).
+write_Half(FP, UInt18) -> write_uint18(FP, UInt18).
+write_Off(FP,  UInt36) -> write_uint36(FP, UInt36).
+write_Sword(FP, SInt36) -> write_uint36(FP, SInt36 band ?PDP10_UINT36_MAX).
+write_Uchar(FP, UInt9) -> write_uint9(FP, UInt9).
+write_Word(FP, UInt36) -> write_uint36(FP, UInt36).
+
+write_uint9(FP, UInt9) ->
+  pdp10_stdio:fputc(UInt9, FP).
+
+write_uint18(FP, UInt18) ->
+  fputs(pdp10_extint:uint18_to_ext(UInt18), FP).
+
+write_uint36(FP, UInt36) ->
+  fputs(pdp10_extint:uint36_to_ext(UInt36), FP).
+
+fputs(Nonets, FP) ->
+  pdp10_stdio:fputs(Nonets, FP).
 
 %% Error Formatting ============================================================
 
