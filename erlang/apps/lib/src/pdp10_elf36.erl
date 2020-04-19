@@ -100,10 +100,12 @@ check_Ehdr(Ehdr) ->
         , fun check_Ehdr_ei_version/1
         , fun check_Ehdr_ei_osabi/1
         , fun check_Ehdr_ei_abiversion/1
+        , fun check_Ehdr_ei_pad/1
         , fun check_Ehdr_e_type/1
         , fun check_Ehdr_e_machine/1
         , fun check_Ehdr_e_version/1
         , fun check_Ehdr_e_ehsize/1
+        , fun check_Ehdr_e_phentsize/1
         , fun check_Ehdr_e_shentsize/1
         ]).
 
@@ -187,6 +189,15 @@ check_Ehdr_ei_abiversion(Ehdr) ->
     _ -> {error, {?MODULE, {wrong_ei_abiversion, ABIVersion}}}
   end.
 
+check_Ehdr_ei_pad(Ehdr) ->
+  #elf36_Ehdr{e_ident = Ident} = Ehdr,
+  Pad = lists:nthtail(?EI_PAD, Ident),
+  Zeroes = lists:duplicate(?EI_NIDENT - ?EI_PAD, 0),
+  case Pad of
+    Zeroes -> ok;
+    _ -> {error, {?MODULE, {wrong_ei_pad, Pad}}}
+  end.
+
 check_Ehdr_e_type(Ehdr) ->
   #elf36_Ehdr{e_type = Type} = Ehdr,
   case Type of
@@ -216,6 +227,14 @@ check_Ehdr_e_ehsize(Ehdr) ->
   case EhSize of
     ?ELF36_EHDR_SIZEOF -> ok;
     _ -> {error, {?MODULE, {wrong_e_ehsize, EhSize}}}
+  end.
+
+check_Ehdr_e_phentsize(Ehdr) ->
+  #elf36_Ehdr{e_phoff = PhOff, e_phentsize = PhEntSize} = Ehdr,
+  case {PhOff, PhEntSize} of
+    {0, _} -> ok;
+    {_, ?ELF36_PHDR_SIZEOF} -> ok;
+    _ -> {error, {?MODULE, {wrong_e_phentsize, PhEntSize}}}
   end.
 
 check_Ehdr_e_shentsize(Ehdr) ->
@@ -546,6 +565,8 @@ format_error(Reason) ->
       io_lib:format("wrong ei_osabi ~p", [OSABI]);
     {wrong_ei_abiversion, ABIVersion} ->
       io_lib:format("wrong ei_abiversion ~p", [ABIVersion]);
+    {wrong_ei_pad, Pad} ->
+      io_lib:format("wrong ei_pad ~p", [Pad]);
     {wrong_e_type, Type} ->
       io_lib:format("wrong e_type ~p", [Type]);
     {wrong_e_machine, Machine} ->
@@ -554,6 +575,8 @@ format_error(Reason) ->
       io_lib:format("wrong e_version ~p", [Version]);
     {wrong_e_ehsize, EhSize} ->
       io_lib:format("wrong e_ehsize ~p", [EhSize]);
+    {wrong_e_phentsize, PhEntSize} ->
+      io_lib:format("wrong e_phentsize ~p", [PhEntSize]);
     {wrong_e_shentsize, ShEntSize} ->
       io_lib:format("wrong e_shentsize ~p", [ShEntSize]);
     {eof_in_strtab, Index} ->
