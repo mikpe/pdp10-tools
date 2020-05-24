@@ -32,7 +32,7 @@
 %% flags should be concatenated into single sections. The concatenation order
 %% should satisfy the requirements of any known input section attributes (e.g,
 %% SHF_MERGE and SHF_LINK_ORDER). When not otherwise constrained, sections
-%% should be emitted in input order. "
+%% should be emitted in input order."
 
 -spec phase1([#input{}]) -> [#section{}].
 phase1(Inputs) ->
@@ -146,6 +146,7 @@ should_output_type(Type) ->
   end.
 
 should_output_flags(Flags) ->
+  (Flags band ?SHF_ALLOC) =/= 0 andalso
   (Flags band bnot (?SHF_WRITE bor
                     ?SHF_ALLOC bor
                     ?SHF_EXECINSTR bor
