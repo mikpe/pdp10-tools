@@ -45,7 +45,7 @@ input(Files, UndefSyms) ->
                 end, maps:new(), UndefSyms),
   input(Files, maps:new(), UndefMap, []).
 
-input([File | Files], DefMap, UndefMap, Inputs) ->
+input([{file, File} | Files], DefMap, UndefMap, Inputs) ->
   case read_file(File) of
     {ok, {ShTab, SymTab, StShNdx}} ->
       case update_sym_maps(SymTab, File, DefMap, UndefMap) of

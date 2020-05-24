@@ -245,6 +245,7 @@ process_option(Opt, Options) ->
     'EB'                -> handle_EB(Opt, Options);
     {$m, _}             -> handle_emulation(Opt, Options);
     {$e, _}             -> handle_entry(Opt, Options);
+    {1, _}              -> handle_file(Opt, Options);
     {$b, _}             -> handle_format(Opt, Options);
     help                -> handle_help(Opt, Options);
     {$l, _}             -> handle_library(Opt, Options);
@@ -284,6 +285,9 @@ handle_entry({$e, Entry}, Options) ->
       _ -> Entry % assume it's a symbol
     end,
   {ok, Options#options{entry = EntryVal}}.
+
+handle_file({1, File}, Options) ->
+  {ok, Options#options{files = [{file, File} | Options#options.files]}}.
 
 handle_format({$b, InputFormat}, Options) ->
   case InputFormat of
