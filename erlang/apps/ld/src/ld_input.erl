@@ -30,12 +30,14 @@
 -define(badelf, badelf).
 -define(badfile, badfile).
 -define(muldef_symbol, muldef_symbol).
+-define(noinputfiles, noinputfiles).
 -define(undefined_symbols, undefined_symbols).
 
 %% Input Processing ============================================================
 
 -spec input([{file, string()}], [string()])
         -> {ok, [#input{}]} | {error, {module(), term()}}.
+input(_Files = [], _UndefSyms) -> {error, {?MODULE, ?noinputfiles}};
 input(Files, UndefSyms) ->
   UndefMap =
     lists:foldl(fun(UndefSym, UndefMap0) ->
@@ -136,6 +138,8 @@ format_error(Reason) ->
       io:format("~s: ~s", [File, error:format(Reason)]);
     {?muldef_symbol, Symbol, File0, File} ->
       io:format("~s: ~s already defined in ~s", [File, Symbol, File0]);
+    ?noinputfiles ->
+      "no input files";
     {?undefined_symbols, Symbols} ->
       ["undefined symbols:" |
        ["\n" ++ Symbol || Symbol <- Symbols]]
