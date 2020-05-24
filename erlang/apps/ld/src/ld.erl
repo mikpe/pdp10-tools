@@ -398,7 +398,9 @@ symtab_build(_Options, Inputs, Segments) -> ld_symtab:build(Inputs, Segments).
 
 %% Output Generation ===========================================================
 
-output(_Options, _Segments, _GlobalMap, _FileMap) -> ok. % FIXME
+output(Options, Segments, GlobalMap, FileMap) ->
+  #options{output = File, entry = Entry} = Options,
+  ld_output:output(File, Entry, Segments, GlobalMap, FileMap).
 
 %% Error Formatting ============================================================
 
