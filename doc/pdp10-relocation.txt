@@ -82,27 +82,27 @@ R_PDP10_LOCAL_W         3       uint18          (S+A) >>u 2
         (S+A) must be word-aligned.
         The place, P, must be half-word aligned.
 
-R_PDP10_LOCAL_B         4       uint36          (S+A) >>u 2
+R_PDP10_LOCAL_B         4       uint36          S+A
         This produces a one-word local byte pointer to a 9-bit byte in the same section as the place, P.
-        Its P field is set to (3-((S+A)%4))*9, and its S field is set to 9.
+        Its P field is set to (3-((S+A)%4))*9, its S field to 9, and its Y field to (S+A) >>u 2.
         Its bit 12 and I and X fields are set to zero.
         The place, P, must be word-aligned.
 
-R_PDP10_LOCAL_H         5       uint36          (S+A) >>u 2
+R_PDP10_LOCAL_H         5       uint36          S+A
         This produces a one-word local byte pointer to an 18-bit halfword in the same section as the place, P.
-        Its P field is set to (2-((S+A)%4))*9, and its S field is set to 18.
+        Its P field is set to (2-((S+A)%4))*9, its S field to 18, and its Y field to (S+A) >>u 2.
         Its bit 12 and I and X fields are set to zero.
         (S+A) must be halfword-aligned.
         The place, P, must be word-aligned.
 
-R_PDP10_GLOBAL_B        6       uint36          (S+A) >>u 2
+R_PDP10_GLOBAL_B        6       uint36          S+A
         This produces a one-word global byte pointer to a 9-bit byte.
-        Its PS field is set to 070+((S+A)%4).
+        Its PS field is set to 070+((S+A)%4), and its Y field to (S+A) >>u 2.
         The place, P, must be word-aligned.
 
-R_PDP10_GLOBAL_H        7       uint36          (S+A) >>u 2
+R_PDP10_GLOBAL_H        7       uint36          S+A
         This produces a one-word global byte pointer to an 18-bit halfword.
-        Its PS field is set to 075+(((S+A)%4)>>1).
+        Its PS field is set to 075+(((S+A)%4)>>1), and its Y field to (S+A) >>u 2.
         (S+A) must be halfword-aligned.
         The place, P, must be word-aligned.
 
