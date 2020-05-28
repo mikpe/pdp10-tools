@@ -21,6 +21,7 @@
 -module(pdp10_elf36).
 
 -export([ read_Ehdr/1
+        , read_PhTab/2
         , read_RelaTab/2
         , read_ShTab/2
         , read_SymTab/2
@@ -278,6 +279,32 @@ check_Ehdr_e_shentsize(Ehdr) ->
     _ -> {error, {?MODULE, {wrong_e_shentsize, ShEntSize}}}
   end.
 
+%% I/O of PhTab ================================================================
+
+-spec read_PhTab(pdp10_stdio:file(), #elf36_Ehdr{})
+      -> {ok, [#elf36_Phdr{}]} | {error, {module(), term()}}.
+read_PhTab(FP, Ehdr) ->
+  #elf36_Ehdr{ e_phoff = PhOff
+             , e_phentsize = PhEntSize
+             , e_phnum = PhNum } = Ehdr,
+  if PhOff =:= 0; PhNum =:= 0 ->
+       {ok, []};
+     true ->
+       true = PhEntSize =:= ?ELF36_PHDR_SIZEOF, % assert
+       %% FIXME: if PhNum = ?PN_XNUM the real PhNum is stored in Shdr0.sh_info
+       case pdp10_stdio:fseek(FP, {bof, PhOff}) of
+         ok -> read_PhTab(FP, PhNum, []);
+         {error, _Reason} = Error -> Error
+       end
+  end.
+
+read_PhTab(_FP, 0, Phdrs) -> {ok, lists:reverse(Phdrs)};
+read_PhTab(FP, PhNum, Phdrs) ->
+  case read_Phdr(FP) of
+    {ok, Phdr} -> read_PhTab(FP, PhNum - 1, [Phdr | Phdrs]);
+    {error, _Reason} = Error -> Error
+  end.
+
 %% I/O of relocation tables ====================================================
 
 -spec read_RelaTab(pdp10_stdio:file(), #elf36_Shdr{})
@@ -493,6 +520,8 @@ read_Sym_name(Sym = #elf36_Sym{st_name = StName}, StrTab) ->
   end.
 
 %% I/O of #elf36_Phdr{} ========================================================
+
+read_Phdr(FP) -> read_record(FP, elf36_Phdr_desc()).
 
 -spec write_Phdr(pdp10_stdio:file(), #elf36_Phdr{})
       -> ok | {error, {module(), term()}}.
