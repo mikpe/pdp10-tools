@@ -201,6 +201,7 @@ readelf_shtab(Opts, FP, Ehdr) ->
   case pdp10_elf36:read_ShTab(FP, Ehdr) of
     {ok, ShTab} ->
       print_shtab(Opts, ShTab),
+      print_phtab(Opts, FP, Ehdr),
       readelf_symtab(Opts, FP, ShTab);
     {error, _Reason} = Error -> Error
   end.
@@ -431,6 +432,59 @@ sh_flags([], _I, ShFlags, Mask, Acc) ->
     0 -> "-";
     NewMask -> lists:reverse(NewAcc);
     _ -> io_lib:format("0x~.16b", [ShFlags])
+  end.
+
+%% print_phtab =================================================================
+
+print_phtab(#options{segments = false}, _FP, _Ehdr) -> ok;
+print_phtab(_Opts, FP, Ehdr) ->
+  case pdp10_elf36:read_PhTab(FP, Ehdr) of
+    {ok, []} ->
+      io:format("There are no program headers in this file.\n\n");
+    {ok, PhTab} ->
+      io:format("Program Headers:\n"),
+      io:format("  Type   Offset      VirtAddr    PhysAddr    FileSiz     MemSiz      Flg Align\n"),
+      lists:foreach(fun print_phdr/1, PhTab),
+      io:format("\n");
+    {error, Reason} ->
+      escript_runtime:errmsg("Error reading program headers: ~s\n",
+                             [error:format(Reason)])
+  end.
+
+print_phdr(Phdr) ->
+  io:format("  ~-6s 0x~9.16.0b 0x~9.16.0b 0x~9.16.0b 0x~9.16.0b 0x~9.16.0b ~-3s 0x~.16b\n",
+            [ p_type(Phdr)
+            , Phdr#elf36_Phdr.p_offset
+            , Phdr#elf36_Phdr.p_vaddr
+            , Phdr#elf36_Phdr.p_paddr
+            , Phdr#elf36_Phdr.p_filesz
+            , Phdr#elf36_Phdr.p_memsz
+            , p_flags(Phdr)
+            , Phdr#elf36_Phdr.p_align
+            ]).
+
+p_type(#elf36_Phdr{p_type = PType}) ->
+  case PType of
+    ?PT_NULL -> "NULL";
+    ?PT_LOAD -> "LOAD";
+    ?PT_DYNAMIC -> "DYNAMIC";
+    ?PT_INTERP -> "INTERP";
+    ?PT_NOTE -> "NOTE";
+    ?PT_SHLIB -> "SHLIB";
+    ?PT_PHDR -> "PHDR";
+    ?PT_TLS -> "TLS";
+    _ -> io_lib:format("~.10b", [PType])
+  end.
+
+p_flags(#elf36_Phdr{p_flags = PFlags0}) ->
+  case lists:foldl(fun({Bit, Ch}, {PFlags, Acc}) ->
+                     case PFlags band Bit of
+                       0 -> {PFlags, [$\s | Acc]};
+                       _ -> {PFlags band bnot Bit, [Ch | Acc]}
+                     end
+                   end, {PFlags0, []}, [{?PF_R, $R}, {?PF_W, $W}, {?PF_X, $E}]) of
+    {0, Acc} -> lists:reverse(Acc);
+    {_, _Acc} -> io_lib:format("0x~.16b", [PFlags0])
   end.
 
 %% print_relatab ===============================================================
