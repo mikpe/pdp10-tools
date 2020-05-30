@@ -34,8 +34,8 @@
 %% and within a unit, sections of the same unrecognized type should be placed
 %% together if possible."
 %%
-%% The output is the following segments, each containing the indicated sections
-%% in that order:
+%% The output consists of the following segments, each containing the indicated
+%% sections in that order:
 %%
 %% * Text Segment (PT_LOAD, PF_R+PF_X)
 %%   - .text*
