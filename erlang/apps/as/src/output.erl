@@ -266,7 +266,7 @@ symbol_image(Symbol) ->
          } = Symbol,
   ElfSym =
     #elf36_Sym{ st_name = StName
-              , st_value = StValue
+              , st_value = if StValue =:= false -> 0; true -> StValue end
               , st_size = if StSize =:= false -> 0; true -> StSize end
               , st_info = StInfo
               , st_other = ?STV_DEFAULT % FIXME: should be set earlier
