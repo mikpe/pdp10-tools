@@ -27,6 +27,7 @@ as:		a pdp10 assembler producing pdp10-elf object files
 		intended primarily as an assembler for GCC output;
 		the syntax is modelled after normal UNIX/ELF syntax
 		rather than classic TOPS-10, TOPS-20, or ITS syntax
+ld:		an 'ld' clone for pdp10-elf object files
 nm:		an 'nm' clone for pdp10-elf object files
 od:		an 'od' clone for binary files with 9-bit bytes (nonets)
 readelf:	a 'readelf' clone for pdp10-elf object files,
