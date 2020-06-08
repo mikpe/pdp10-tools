@@ -1,5 +1,5 @@
 # TODO notes for pdp10-tools
-# Copyright (C) 2013-2015  Mikael Pettersson <mikpelinux@gmail.com>
+# Copyright (C) 2013-2020  Mikael Pettersson <mikpelinux@gmail.com>
 #
 # This file is part of pdp10-tools.
 #
@@ -28,29 +28,14 @@ Elf36 Specification:
 
 - Summarize the differences between Elf32 and Elf36 in a document somewhere.
 
-pdp10-stdio:
-
-- Handle non-seekable output files better (i.e., allow 8to9 to write to stdout)
-
-pdp10-opcodes:
-- change insn->fmt to separate flag bits
-
 Tools:
 
 - top-level Makefile: subdirs should error out on error in subdir
 - size: implement it
 - strip: implement it
-- ld: implement it
-- readelf: add support for relocs
-- readelf: add support for program headers
 - as:
   * tunit_{strtab_,}section_enter() should be generalized and merged
   * what happens if user defines .comment as say text, and later enters .ident?
   * output: move section_symtab into the context
   * tunit: add symtab sections analagous to strtab sections?
-  * add support for named sections
-  * add support for sub-sections
-  * add support for data directives (.word, .asciz, etc)
-  * add support for relocs
   * add support for extended opcodes (emit second opcode after current .text section)
-  * add support for symbolic references to 30 or 36-bit addresses via something like %hi/%lo functions
