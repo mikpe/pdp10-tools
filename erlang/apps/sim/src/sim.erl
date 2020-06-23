@@ -144,7 +144,11 @@ version() ->
 
 %% Simulation ==================================================================
 
-do_sim(_Options) -> ok. % FIXME
+do_sim(#options{exe = Exe, argv = Argv}) ->
+  case sim_loader:load(Exe, Argv) of
+    {ok, {_Mem, _PC, _SP, _Argc, _ArgvPtr}} -> ok; % FIXME
+    {error, _Reason} = Error -> Error
+  end.
 
 %% Error Formatting ============================================================
 
