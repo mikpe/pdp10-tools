@@ -46,7 +46,7 @@
 load(Exe, ArgvStrings) ->
   case pdp10_stdio:fopen(Exe, [raw, read]) of
     {ok, FP} ->
-      try load_fp(FP, ArgvStrings)
+      try load_fp(FP, [Exe | ArgvStrings])
       after pdp10_stdio:fclose(FP) end;
     {error, _Reason} = Error -> Error
   end.
