@@ -24,7 +24,7 @@
 
 -module(sim_loader).
 
--export([ load/2
+-export([ load/3
         , format_error/1
         ]).
 
@@ -36,49 +36,51 @@
 
 %% ELF loader ==================================================================
 
--spec load(file:name_all(), [string()])
+-spec load(file:name_all(), [string()], [string()])
       -> {ok, { sim_mem:mem()
               , PC :: address()
               , SP :: address()
               , Argc :: non_neg_integer()
-              , Argv :: address()}}
+              , Argv :: address()
+              , Envp :: address()
+              }}
        | {error, {module(), term()}}.
-load(Exe, ArgvStrings) ->
+load(Exe, ArgvStrings, EnvStrings) ->
   case pdp10_stdio:fopen(Exe, [raw, read]) of
     {ok, FP} ->
-      try load_fp(FP, [Exe | ArgvStrings])
+      try load_fp(FP, [Exe | ArgvStrings], EnvStrings)
       after pdp10_stdio:fclose(FP) end;
     {error, _Reason} = Error -> Error
   end.
 
-load_fp(FP, ArgvStrings) ->
+load_fp(FP, ArgvStrings, EnvStrings) ->
   case pdp10_elf36:read_Ehdr(FP) of
-    {ok, Ehdr} -> load(FP, Ehdr, ArgvStrings);
+    {ok, Ehdr} -> load(FP, Ehdr, ArgvStrings, EnvStrings);
     {error, _Reason} = Error -> Error
   end.
 
-load(FP, Ehdr, ArgvStrings) ->
+load(FP, Ehdr, ArgvStrings, EnvStrings) ->
   case Ehdr#elf36_Ehdr.e_type of
     ?ET_EXEC ->
       case pdp10_elf36:read_PhTab(FP, Ehdr) of
-        {ok, PhTab} -> load(FP, Ehdr, PhTab, ArgvStrings);
+        {ok, PhTab} -> load(FP, Ehdr, PhTab, ArgvStrings, EnvStrings);
         {error, _Reason} = Error -> Error
       end;
     EType -> {error, {?MODULE, {invalid_ehdr_type, EType}}}
   end.
 
-load(FP, Ehdr, PhTab, ArgvStrings) ->
+load(FP, Ehdr, PhTab, ArgvStrings, EnvStrings) ->
   Mem = sim_mem:new(),
   case load_phtab(FP, Ehdr, PhTab, 0, Mem) of
     {ok, PC} ->
-      {SP, Argv} = init_stack(Mem, ArgvStrings),
-      {ok, {Mem, PC, SP, _Argc = length(ArgvStrings), Argv}};
+      {SP, Argv, Envp} = init_stack(Mem, ArgvStrings, EnvStrings),
+      {ok, {Mem, PC, SP, _Argc = length(ArgvStrings), Argv, Envp}};
     {error, _Reason} = Error ->
       sim_mem:delete(Mem),
       Error
   end.
 
-init_stack(Mem, ArgvStrings) ->
+init_stack(Mem, ArgvStrings, EnvStrings) ->
   %% TODO: assumes large or small code model output, not tiny
   Stack0 = 8#00000001000 bsl 2, % section 0, page 1, word 0
   Size = ((512 - 2) * 512) bsl 2, % 510 pages (pages 0 and 511 left unmapped)
@@ -86,9 +88,16 @@ init_stack(Mem, ArgvStrings) ->
   {ArgvPointers, Stack1} = store_strings(ArgvStrings, Mem, Stack0),
   %% Stack1 is the start of argv[].
   Stack2 = store_pointers(ArgvPointers, Mem, Stack1),
-  %% Stack2 now points after argv[] to a word containing a zero return address.
-  { _SP = byte_address_to_global_word_address(Stack2)
+  %% Stack2 points after argv[] to a word containing a NULL pointer.
+  Stack3 = Stack2 + 4,
+  {EnvPointers, Stack4} = store_strings(EnvStrings, Mem, Stack3),
+  %% Stack4 is the start of envp[].
+  Stack5 = store_pointers(EnvPointers, Mem, Stack4),
+  %% Stack5 points after envp[] to a word containing a NULL pointer.
+  %% This word terminates envp[] and signals a NULL return address to _start().
+  { _SP = byte_address_to_global_word_address(Stack5)
   , _Argv = byte_address_to_global_word_address(Stack1)
+  , _Envp = byte_address_to_global_word_address(Stack4)
   }.
 
 store_strings(ArgvStrings, Mem, Stack) ->

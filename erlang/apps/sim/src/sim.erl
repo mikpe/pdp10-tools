@@ -145,9 +145,20 @@ version() ->
 %% Simulation ==================================================================
 
 do_sim(#options{exe = Exe, argv = Argv}) ->
-  case sim_loader:load(Exe, Argv) of
-    {ok, {_Mem, _PC, _SP, _Argc, _ArgvPtr}} -> ok; % FIXME
+  case sim_loader:load(Exe, Argv, simenv()) of
+    {ok, {_Mem, _PC, _SP, _Argc, _ArgvPtr, _Envp}} -> ok; % FIXME
     {error, _Reason} = Error -> Error
+  end.
+
+simenv() ->
+  lists:map(fun fixenv/1, os:getenv()).
+
+fixenv(Entry) ->
+  case Entry of
+    "HOSTTYPE=" ++ _ -> "HOSTTYPE=pdp10-linux";
+    "MACHTYPE=" ++ _ -> "MACHTYPE=pdp10";
+    "OSTYPE=" ++ _ -> "OSTYPE=linux";
+    _ -> Entry
   end.
 
 %% Error Formatting ============================================================
