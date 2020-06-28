@@ -99,7 +99,7 @@
         { %% user-mode visible context
           pc_segment :: uint12_t()        % PC register, high 12 bits
         , pc_offset  :: uint18_t()        % PC register, low 18 bits
-        , ac         :: tuple(uint36_t()) % array of 16 36-bit words
+        , ac         :: tuple()           % array of 16 36-bit words
         , flags      :: uint13_t()        % status and condition bits
         %% TODO: add supervisor-mode handling:
         %% - correctly handle being in not-USER mode
