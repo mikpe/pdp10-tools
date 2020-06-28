@@ -146,7 +146,8 @@ version() ->
 
 do_sim(#options{exe = Exe, argv = Argv}) ->
   case sim_loader:load(Exe, Argv, simenv()) of
-    {ok, {_Mem, _PC, _SP, _Argc, _ArgvPtr, _Envp}} -> ok; % FIXME
+    {ok, {Mem, PC, SP, Argc, ArgvPtr, Envp}} ->
+      sim_core:run(Mem, PC, SP, Argc, ArgvPtr, Envp);
     {error, _Reason} = Error -> Error
   end.
 
