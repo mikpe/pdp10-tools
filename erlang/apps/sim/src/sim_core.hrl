@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% simulator for pdp10-elf
-%%% Copyright (C) 2020  Mikael Pettersson
+%%% Copyright (C) 2018-2020  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -95,19 +95,25 @@
 -define(PDP10_PF_OVERFLOW,                (12-0)).  % user mode
 -define(PDP10_PF_PREVIOUS_CONTEXT_PUBLIC, (12-0)).  % exec mode on KL10, KI10
 
--record(cpu,
+%% Effective Address: section and offset for a 30-bit address, and a local/global flag.
+-record(ea, {section :: uint12_t(), offset :: uint18_t(), islocal :: boolean()}).
+
+%% Execution Core
+-record(core,
         { %% user-mode visible context
-          pc_segment :: uint12_t()        % PC register, high 12 bits
+          pc_section :: uint12_t()        % PC register, high 12 bits
         , pc_offset  :: uint18_t()        % PC register, low 18 bits
-        , ac         :: tuple()           % array of 16 36-bit words
+        , acs        :: tuple()           % array of 16 36-bit words
         , flags      :: uint13_t()        % status and condition bits
         %% TODO: add supervisor-mode handling:
-        %% - correctly handle being in not-USER mode
-        %% - ACS: array of 8 AC blocks, user AC is ACS[CAB]
+        %% - correctly handle being in supervisor mode
+        %% - ACBS: array of 8 AC blocks, user ACS is ACBS[CAB]
         %% - CAB: Current AC Block index, 3 bits
         %% - PCS: Previous Context Section, 12 bits
         %% - PCU: Previous Context User, 1 bit
         %% - PAB: Previous AC Block, 3 bit
         }).
+
+-define(AC_SP, 8#17).
 
 -endif. % _SIM_CORE_HRL_
