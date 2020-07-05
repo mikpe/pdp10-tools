@@ -437,7 +437,7 @@ sh_flags([], _I, ShFlags, Mask, Acc) ->
 %% print_phtab =================================================================
 
 print_phtab(#options{segments = false}, _FP, _Ehdr) -> ok;
-print_phtab(_Opts, FP, Ehdr) ->
+print_phtab(Opts, FP, Ehdr) ->
   case pdp10_elf36:read_PhTab(FP, Ehdr) of
     {ok, []} ->
       io:format("There are no program headers in this file.\n\n");
@@ -445,10 +445,34 @@ print_phtab(_Opts, FP, Ehdr) ->
       io:format("Program Headers:\n"),
       io:format("  Type   Offset      VirtAddr    PhysAddr    FileSiz     MemSiz      Flg Align\n"),
       lists:foreach(fun print_phdr/1, PhTab),
+      disassemble_phtab(Opts, FP, PhTab),
       io:format("\n");
     {error, Reason} ->
       escript_runtime:errmsg("Error reading program headers: ~s\n",
                              [error:format(Reason)])
+  end.
+
+disassemble_phtab(#options{disassemble = false}, _FP, _PhTab) -> ok;
+disassemble_phtab(_Opts, FP, PhTab) -> do_disassemble_phtab(PhTab, 0, FP).
+
+do_disassemble_phtab([], _PhNdx, _FP) -> ok;
+do_disassemble_phtab([Phdr | PhTab], PhNdx, FP) ->
+  case disassemble_phdr(Phdr, PhNdx, FP) of
+    ok -> do_disassemble_phtab(PhTab, PhNdx + 1, FP);
+    {error, _Reason} = Error -> Error
+  end.
+
+disassemble_phdr(Phdr, PhNdx, FP) ->
+  case Phdr of
+    #elf36_Phdr{ p_type = ?PT_LOAD
+               , p_offset = Offset
+               , p_filesz = Size
+               , p_flags = Flags
+               } when (Flags band ?PF_X) =/= 0 ->
+      io:format("\nDisassembly of segment nr ~.10b:\n", [PhNdx]),
+      disassemble_unit(Offset, Size, FP, _Labels = []);
+    #elf36_Phdr{} ->
+      ok
   end.
 
 print_phdr(Phdr) ->
@@ -656,12 +680,15 @@ disassemble_section(Shdr, ShNdx, FP, SymTab) ->
                } ->
       io:format("Disassembly of section nr ~.10b ~s:\n\n",
                 [ShNdx, sh_name(Shdr)]),
-      case pdp10_stdio:fseek(FP, {bof, ShOffset}) of
-        ok -> disassemble_insns(0, ShSize, FP, labels(SymTab, ShNdx));
-        {error, _Reason} = Error -> Error
-      end;
+      disassemble_unit(ShOffset, ShSize, FP, labels(SymTab, ShNdx));
     #elf36_Shdr{} ->
       ok
+  end.
+
+disassemble_unit(Offset, Size, FP, Labels) ->
+  case pdp10_stdio:fseek(FP, {bof, Offset}) of
+    ok -> disassemble_insns(0, Size, FP, Labels);
+    {error, _Reason} = Error -> Error
   end.
 
 disassemble_insns(Offset, Size, FP, Labels) when Offset < Size ->
@@ -673,7 +700,7 @@ disassemble_insns(Offset, Size, FP, Labels) when Offset < Size ->
       disassemble_insns(Offset + 4, Size, FP, RestLabels);
     {error, _Reason} = Error -> Error
   end;
-disassemble_insns(_ShOffset, _ShSize, _FP, _Labels) -> ok.
+disassemble_insns(_Offset, _Size, _FP, _Labels) -> ok.
 
 disassemble_insn(InsnWord) ->
   Models = ?PDP10_KL10_271up,
