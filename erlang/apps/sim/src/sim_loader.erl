@@ -132,7 +132,8 @@ byte_address_to_global_byte_pointer(ByteAddress) ->
   PS = 8#70 + (ByteAddress band 3),
   (PS bsl 30) bor Y.
 
-load_phtab(_FP, Ehdr, _PhTab = [], _PhdrIx, _Mem) -> {ok, Ehdr#elf36_Ehdr.e_entry};
+load_phtab(_FP, Ehdr, _PhTab = [], _PhdrIx, _Mem) ->
+  {ok, byte_address_to_global_word_address(Ehdr#elf36_Ehdr.e_entry)};
 load_phtab(FP, Ehdr, [Phdr | PhTab], PhdrIx, Mem) ->
   case load_phdr(FP, Phdr, PhdrIx, Mem) of
     ok -> load_phtab(FP, Ehdr, PhTab, PhdrIx + 1, Mem);
