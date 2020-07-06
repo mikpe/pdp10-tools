@@ -56,9 +56,9 @@ phase1(File, ShTab, StShNdx, OutputsMap) ->
 
 phase1([], _ShNdx, _File, _RelocsMap, OutputsMap) ->
   OutputsMap;
-phase1([SHdr | ShTab], ShNdx, File, RelocsMap, OutputsMap) ->
+phase1([Shdr | ShTab], ShNdx, File, RelocsMap, OutputsMap) ->
   NewOutputsMap =
-    maybe_output_section(SHdr, ShNdx, File, RelocsMap, OutputsMap),
+    maybe_output_section(Shdr, ShNdx, File, RelocsMap, OutputsMap),
   phase1(ShTab, ShNdx + 1, File, RelocsMap, NewOutputsMap).
 
 maybe_output_section(Shdr, ShNdx, File, RelocsMap, OutputsMap) ->
@@ -99,8 +99,7 @@ output_append({Nr, OutputShdr, Frags}, File, Shdr, ShNdx, Relocs) ->
   NewOutputShdr = OutputShdr#elf36_Shdr{ sh_size = NewSize
                                        , sh_addralign = NewAlignment
                                        },
-  NewShdr = Shdr#elf36_Shdr{sh_offset = FragOffset},
-  Frag = #sectfrag{file = File, shdr = NewShdr, shndx = ShNdx, relocs = Relocs},
+  Frag = #sectfrag{file = File, shdr = Shdr, shndx = ShNdx, relocs = Relocs, offset = FragOffset},
   {Nr, NewOutputShdr, [Frag | Frags]}.
 
 section_alignment(Shdr) ->

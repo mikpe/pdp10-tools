@@ -35,6 +35,7 @@
         , shdr   :: #elf36_Shdr{}
         , shndx  :: non_neg_integer()
         , relocs :: #elf36_Shdr{} | false
+        , offset :: non_neg_integer() % within enclosing #section{}
         }).
 
 -record(section,

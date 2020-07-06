@@ -50,8 +50,7 @@ scan_section(#section{shdr = Shdr, frags = Frags}, FragMap0, SegmentBase) ->
                 scan_frag(Frag, FragMap, SectionBase)
               end, FragMap0, Frags).
 
-scan_frag(#sectfrag{file = File, shdr = Shdr, shndx = ShNdx}, FragMap, SectionBase) ->
-  #elf36_Shdr{sh_offset = SectionOffset} = Shdr,
+scan_frag(#sectfrag{file = File, shndx = ShNdx, offset = SectionOffset}, FragMap, SectionBase) ->
   maps:put({File, ShNdx}, SectionBase + SectionOffset, FragMap).
 
 %% Scan all input files, whose segments now have load addresses in FragMap,
