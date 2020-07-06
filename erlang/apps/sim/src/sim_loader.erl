@@ -114,7 +114,7 @@ store_string([B0, B1, B2, B3 | Rest], Mem, Stack) ->
   write_word(Mem, Stack, Word),
   store_string(Rest, Mem, Stack + 4);
 store_string(Tail, Mem, Stack) ->
-  Pad = lists:duplicate(0, 4 - length(Tail)),
+  Pad = lists:duplicate(4 - length(Tail), 0),
   Word = pdp10_extint:uint36_from_ext(Tail ++ Pad),
   write_word(Mem, Stack, Word),
   Stack + 4.
@@ -125,6 +125,7 @@ store_pointers([Pointer | Pointers], Mem, Stack) ->
   store_pointers(Pointers, Mem, Stack + 4).
 
 byte_address_to_global_word_address(ByteAddress) ->
+  0 = ByteAddress band 3, % assert
   ByteAddress bsr 2. % EFIW: bits 0 to 5 zero, address in bits 6 to 35.
 
 byte_address_to_global_byte_pointer(ByteAddress) ->
@@ -225,6 +226,7 @@ is_page_aligned(Offset) -> (Offset band (512*4 - 1)) =:= 0.
 no_excess_flags(Flags) -> (Flags band 8#7) =:= Flags.
 
 write_word(Mem, ByteAddress, Word) ->
+  0 = ByteAddress band 3, % assert
   ok = sim_mem:write_word(Mem, ByteAddress bsr 2, Word).
 
 %% Error Formatting ============================================================
