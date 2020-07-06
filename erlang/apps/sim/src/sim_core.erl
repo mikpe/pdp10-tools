@@ -271,8 +271,14 @@ do_set_ac(ACS, Nr, Val) -> setelement(Nr + 1, ACS, Val).
 format_error(Reason) ->
   case Reason of
     {dispatch, PC, IR, EA} ->
-      io_lib:format("DISPATCH: PC=~.8b IR=~.8b EA=~p NYI", [PC, IR, EA]);
+      io_lib:format("DISPATCH: PC=~10.8.0b IR=~5.8.0b EA=~s NYI",
+                    [PC, IR, format_ea(EA)]);
     {page_fault, Address, PC, Op, Reason, Cont} ->
-      io_lib:format("PAGE FAULT: ADDR=~.8b PC=~.8b OP=~p RSN=~p CONT=~p",
+      io_lib:format("PAGE FAULT: ADDR=~10.8.0b PC=~10.8.0b OP=~p RSN=~p CONT=~p",
                     [Address, PC, Op, Reason, Cont])
   end.
+
+format_ea(#ea{section = Section, offset = Offset, islocal = IsLocal}) ->
+  Address = (Section bsl 18) bor Offset,
+  Indicator = case IsLocal of true -> "local"; false -> "global" end,
+  io_lib:format("~10.8.0b/~s", [Address, Indicator]).
