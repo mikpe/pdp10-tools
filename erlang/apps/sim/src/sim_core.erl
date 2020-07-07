@@ -64,6 +64,11 @@ run(Mem, PC, SP, Argc, Argv, Envp) ->
 run(Core, Mem) ->
   insn_fetch(Core, Mem).
 
+%% Sequential control flow: increment PC but stay in current section.
+next_pc(#core{pc_offset = PCOffset} = Core, Mem) ->
+  PCOffset1 = (PCOffset + 1) band ((1 bsl 18) - 1),
+  insn_fetch(Core#core{pc_offset = PCOffset1}, Mem).
+
 %% Instruction Fetch and Effective Address Calculation =========================
 %% c.f. Toad-1 Architecture Manual, page 41, Figure 1.11
 
@@ -205,8 +210,17 @@ global_indirect_word(Core, Mem, IR, MB, I) ->
 -spec dispatch(#core{}, sim_mem:mem(), IR :: word(), #ea{})
       -> {#core{}, sim_mem:mem(), ok | {error, {module(), term()}}}.
 dispatch(Core, Mem, IR, EA) ->
-  PC = (Core#core.pc_section bsl 18) bor Core#core.pc_offset,
-  {Core, Mem, {error, {?MODULE, {dispatch, PC, IR, EA}}}}. % FIXME
+  %% Dispatch on the opcode (top 9 bits).
+  case IR bsr 4 of
+    8#201 -> handle_MOVEI(Core, Mem, IR, EA);
+    _ ->
+      PC = (Core#core.pc_section bsl 18) bor Core#core.pc_offset,
+      {Core, Mem, {error, {?MODULE, {dispatch, PC, IR, EA}}}}
+  end.
+
+handle_MOVEI(Core, Mem, IR, #ea{offset = E}) ->
+  AC = IR band 8#17,
+  next_pc(set_ac(Core, AC, E), Mem).
 
 %% Page Fault Handling =========================================================
 
@@ -262,6 +276,10 @@ c(Core, Mem, Section, Offset, IsLocal) ->
 
 -spec get_ac(#core{}, 0..8#17) -> word().
 get_ac(Core, Nr) -> element(Nr + 1, Core#core.acs).
+
+-spec set_ac(#core{}, 0..8#17, word()) -> #core{}.
+set_ac(#core{acs = ACS} = Core, Nr, Val) ->
+  Core#core{acs = do_set_ac(ACS, Nr, Val)}.
 
 do_set_ac(ACS, Nr, Val) -> setelement(Nr + 1, ACS, Val).
 
