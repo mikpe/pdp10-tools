@@ -105,8 +105,8 @@
         , pc_offset  :: uint18_t()        % PC register, low 18 bits
         , acs        :: tuple()           % array of 16 36-bit words
         , flags      :: uint13_t()        % status and condition bits
-        %% TODO: add supervisor-mode handling:
-        %% - correctly handle being in supervisor mode
+        %% TODO: add kernel-mode handling:
+        %% - correctly handle being in kernel mode
         %% - ACBS: array of 8 AC blocks, user ACS is ACBS[CAB]
         %% - CAB: Current AC Block index, 3 bits
         %% - PCS: Previous Context Section, 12 bits

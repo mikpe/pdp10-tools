@@ -213,7 +213,7 @@ dispatch(Core, Mem, IR, EA) ->
 -spec page_fault(#core{}, sim_mem:mem(), word(), atom(), term(), fun())
       -> {#core{}, sim_mem:mem(), ok | {error, {module(), term()}}}.
 page_fault(Core, Mem, Address, Op, Reason, Cont) ->
-  %% This should trap to supervisor mode, but for now we treat all faults as fatal.
+  %% This should trap to kernel mode, but for now we treat all faults as fatal.
   PC = (Core#core.pc_section bsl 18) bor Core#core.pc_offset,
   {Core, Mem, {error, {?MODULE, {page_fault, Address, PC, Op, Reason, Cont}}}}.
 
