@@ -25,6 +25,9 @@
 -module(sim_core).
 
 -export([ run/6
+        , next_pc/2
+        , set_ac/3
+        , set_flag/2
         , format_error/1
         ]).
 
@@ -65,6 +68,7 @@ run(Core, Mem) ->
   insn_fetch(Core, Mem).
 
 %% Sequential control flow: increment PC but stay in current section.
+-spec next_pc(#core{}, sim_mem:mem()) -> {#core{}, sim_mem:mem(), ok | {error, {module(), term()}}}.
 next_pc(#core{pc_offset = PCOffset} = Core, Mem) ->
   PCOffset1 = (PCOffset + 1) band ((1 bsl 18) - 1),
   insn_fetch(Core#core{pc_offset = PCOffset1}, Mem).
@@ -212,6 +216,7 @@ global_indirect_word(Core, Mem, IR, MB, I) ->
 dispatch(Core, Mem, IR, EA) ->
   %% Dispatch on the opcode (top 9 bits).
   case IR bsr 4 of
+    8#104 -> sim_kernel:handle_JSYS(Core, Mem, IR, EA);
     8#201 -> handle_MOVEI(Core, Mem, IR, EA);
     _ ->
       PC = (Core#core.pc_section bsl 18) bor Core#core.pc_offset,
@@ -282,6 +287,10 @@ set_ac(#core{acs = ACS} = Core, Nr, Val) ->
   Core#core{acs = do_set_ac(ACS, Nr, Val)}.
 
 do_set_ac(ACS, Nr, Val) -> setelement(Nr + 1, ACS, Val).
+
+-spec set_flag(#core{}, 0..12) -> #core{}.
+set_flag(#core{flags = Flags} = Core, Flag) ->
+  Core#core{flags = Flags bor (1 bsl Flag)}.
 
 %% Error Formatting ============================================================
 
