@@ -41,11 +41,15 @@
 %% are from Linux' <asm-generic/errno.h>.
 
 -spec handle_JSYS(#core{}, sim_mem:mem(), IR :: word(), #ea{})
-      -> {#core{}, sim_mem:mem(), ok | {error, {module(), term()}}}.
-handle_JSYS(Core, Mem, _IR, #ea{offset = Nr} = _EA) ->
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_JSYS(Core, Mem, _IR, #ea{offset = Nr}) ->
   case Nr of
+    94 -> handle_exit_group(Core, Mem);
     _ -> return_errno(Core, Mem, ?ENOSYS)
   end.
+
+handle_exit_group(Core, Mem) ->
+  {Core, Mem, {ok, sim_core:get_ac(Core, 1)}}.
 
 return_errno(Core0, Mem, Errno) ->
   Core1 = sim_core:set_ac(Core0, 1, Errno),

@@ -26,6 +26,7 @@
 
 -export([ run/6
         , next_pc/2
+        , get_ac/2
         , set_ac/3
         , set_flag/2
         , format_error/1
@@ -40,7 +41,7 @@
           SP :: word(),
           Argc :: word(),
           Argv :: word(),
-          Envp :: word()) -> ok | {error, {module(), term()}}.
+          Envp :: word()) -> {ok, integer()} | {error, {module(), term()}}.
 run(Mem, PC, SP, Argc, Argv, Envp) ->
   PCSection = (PC bsr 18) band ((1 bsl 12) - 1),
   PCOffset = PC band ((1 bsl 18) - 1),
@@ -63,12 +64,14 @@ run(Mem, PC, SP, Argc, Argv, Envp) ->
 %% faults (especially page faults) that may occur at various points, without
 %% creating recursion in the simulator.
 
--spec run(#core{}, sim_mem:mem()) -> {#core{}, sim_mem:mem(), ok | {error, {module(), term()}}}.
+-spec run(#core{}, sim_mem:mem())
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
 run(Core, Mem) ->
   insn_fetch(Core, Mem).
 
 %% Sequential control flow: increment PC but stay in current section.
--spec next_pc(#core{}, sim_mem:mem()) -> {#core{}, sim_mem:mem(), ok | {error, {module(), term()}}}.
+-spec next_pc(#core{}, sim_mem:mem())
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
 next_pc(#core{pc_offset = PCOffset} = Core, Mem) ->
   PCOffset1 = (PCOffset + 1) band ((1 bsl 18) - 1),
   insn_fetch(Core#core{pc_offset = PCOffset1}, Mem).
@@ -212,7 +215,7 @@ global_indirect_word(Core, Mem, IR, MB, I) ->
 %% Instruction Dispatch ========================================================
 
 -spec dispatch(#core{}, sim_mem:mem(), IR :: word(), #ea{})
-      -> {#core{}, sim_mem:mem(), ok | {error, {module(), term()}}}.
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
 dispatch(Core, Mem, IR, EA) ->
   %% Dispatch on the opcode (top 9 bits).
   case IR bsr 4 of
@@ -230,7 +233,7 @@ handle_MOVEI(Core, Mem, IR, #ea{offset = E}) ->
 %% Page Fault Handling =========================================================
 
 -spec page_fault(#core{}, sim_mem:mem(), word(), atom(), term(), fun())
-      -> {#core{}, sim_mem:mem(), ok | {error, {module(), term()}}}.
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
 page_fault(Core, Mem, Address, Op, Reason, Cont) ->
   %% This should trap to kernel mode, but for now we treat all faults as fatal.
   PC = (Core#core.pc_section bsl 18) bor Core#core.pc_offset,

@@ -147,7 +147,10 @@ version() ->
 do_sim(#options{exe = Exe, argv = Argv}) ->
   case sim_loader:load(Exe, Argv, simenv()) of
     {ok, {Mem, PC, SP, Argc, ArgvPtr, Envp}} ->
-      sim_core:run(Mem, PC, SP, Argc, ArgvPtr, Envp);
+      case sim_core:run(Mem, PC, SP, Argc, ArgvPtr, Envp) of
+        {ok, Status} -> halt(Status band 8#377);
+        {error, _Reason} = Error -> Error
+      end;
     {error, _Reason} = Error -> Error
   end.
 
