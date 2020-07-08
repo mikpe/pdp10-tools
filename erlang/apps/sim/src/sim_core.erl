@@ -25,6 +25,7 @@
 -module(sim_core).
 
 -export([ run/6
+        , run/2
         , next_pc/2
         , get_ac/2
         , set_ac/3

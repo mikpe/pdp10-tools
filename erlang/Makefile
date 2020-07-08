@@ -35,6 +35,9 @@ link:	$(REBAR3)
 		$(REBAR3) as $$PROG escriptize; \
 	done
 
+test:
+	$(REBAR3) eunit
+
 distclean realclean:	clean
 	rm -f ./rebar3
 
