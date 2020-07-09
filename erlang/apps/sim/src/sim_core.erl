@@ -220,10 +220,22 @@ dispatch(Core, Mem, IR, EA) ->
   %% Dispatch on the opcode (top 9 bits).
   case IR bsr 4 of
     8#104 -> sim_kernel:handle_JSYS(Core, Mem, IR, EA);
+    8#200 -> handle_MOVE(Core, Mem, IR, EA);
     8#201 -> handle_MOVEI(Core, Mem, IR, EA);
     _ ->
       PC = (Core#core.pc_section bsl 18) bor Core#core.pc_offset,
       {Core, Mem, {error, {?MODULE, {dispatch, PC, IR, EA}}}}
+  end.
+
+handle_MOVE(Core, Mem, IR, #ea{section = Section, offset = Offset, islocal = IsLocal} = EA) ->
+  case c(Core, Mem, Section, Offset, IsLocal) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      next_pc(set_ac(Core, AC, CE), Mem);
+    {error, Reason} ->
+      E = (Section bsl 18) bor Offset,
+      page_fault(Core, Mem, E, read, Reason,
+                 fun(Core1, Mem1) -> handle_MOVE(Core1, Mem1, IR, EA) end)
   end.
 
 handle_MOVEI(Core, Mem, IR, #ea{offset = E}) ->
