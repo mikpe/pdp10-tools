@@ -37,6 +37,10 @@
 %% bits of EA, and the parameters in AC1 to AC7.
 %% A successful call clears the Overflow flag and returns a value in AC1.
 %% A failed call sets the Overflow flag and returns an error code in AC1.
+%% [FIXME: Change to return success as 0 in AC0 and a value in AC1, and failure
+%% as a non-zero errno in AC0 and -1 in AC1.  A more common approach on Linux
+%% is to signal failure by returning -errno, detectable by being >= -4095U, but
+%% implementing that comparison on the PDP10 is fairly expensive.]
 %% System call numbers are from Linux' <asm-generic/unistd.h>, and error codes
 %% are from Linux' <asm-generic/errno.h>.
 
