@@ -72,6 +72,8 @@
 -type word() :: uint36_t().
 
 %%% Program Flags
+%%% The Overflow, Carry 1/2, Floating Overflow, Floating Underflow, and No Divide
+%%% flags are sticky: hardware sets them, but software must explicitly clear them.
 %%% Note: architecturally these occupy bits 0-12 (PDP10 bit numbering) of a
 %%% 36-bit word, but here we express them as occupying bits 12-0 (normal bit
 %%% numbering) of a 13-bit word.  The bit numbers in the definitions are from
