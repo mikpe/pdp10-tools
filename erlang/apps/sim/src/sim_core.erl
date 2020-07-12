@@ -226,6 +226,7 @@ dispatch(Core, Mem, IR, EA) ->
     8#104 -> sim_kernel:handle_JSYS(Core, Mem, IR, EA);
     8#200 -> handle_MOVE(Core, Mem, IR, EA);
     8#201 -> handle_MOVEI(Core, Mem, IR, EA);
+    8#250 -> sim_moves:handle_EXCH(Core, Mem, IR, EA);
     _ ->
       PC = (Core#core.pc_section bsl 18) bor Core#core.pc_offset,
       {Core, Mem, {error, {?MODULE, {dispatch, PC, IR, EA}}}}
