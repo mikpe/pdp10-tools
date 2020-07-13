@@ -85,6 +85,17 @@ move_test() ->
          [ {#ea{section = 1, offset = 1, islocal = false}, 8#42} % AC1 = 42
          ]).
 
+movei_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 8#200)}  % 1,,100/ MOVEI 1,200
+    , {1, 8#101, ?INSN_INVALID}                     % 1,,101/ <invalid>
+    ],
+  %% Note that the EA in 1,,100 evaluates to 1,,200 local, but only the
+  %% in-section offset is loaded into AC1.
+  expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, 8#200} % AC1 = 200
+         ]).
+
 %% Common code to run short sequences ==========================================
 
 expect(Prog, ACs, ExpectedPC, ExpectedFlags, ExpectedEs) ->
