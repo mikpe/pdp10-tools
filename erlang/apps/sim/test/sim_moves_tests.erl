@@ -45,6 +45,7 @@
 -define(OP_INVALID, 0).
 -define(OP_MOVE, 8#200).
 -define(OP_MOVEI, 8#201).
+-define(OP_MOVEM, 8#202).
 -define(OP_EXCH, 8#250).
 
 %% 2.1.1 Exchange Instruction ==================================================
@@ -94,6 +95,17 @@ movei_test() ->
   %% in-section offset is loaded into AC1.
   expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 1, islocal = false}, 8#200} % AC1 = 200
+         ]).
+
+movem_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 8#42)}   % 1,,100/ MOVEI 1,42
+    , {1, 8#101, ?INSN(?OP_MOVEM, 1, 0, 0, 8#150)}  % 1,,101/ MOVEM 1,150
+    , {1, 8#102, ?INSN_INVALID}                     % 1,,102/ <invalid>
+    , {1, 8#150, 8#27}                              % 1,,150/ 0,,27
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 8#150, islocal = false}, 8#42} % C(1,,150) = 42
          ]).
 
 %% Common code to run short sequences ==========================================

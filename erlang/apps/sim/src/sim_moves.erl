@@ -27,6 +27,7 @@
 -export([ handle_EXCH/4
         , handle_MOVE/4
         , handle_MOVEI/4
+        , handle_MOVEM/4
         ]).
 
 -include("sim_core.hrl").
@@ -77,6 +78,21 @@ handle_MOVE(Core, Mem, IR, EA) ->
 handle_MOVEI(Core, Mem, IR, #ea{offset = E}) ->
   AC = IR band 8#17,
   sim_core:next_pc(sim_core:set_ac(Core, AC, E), Mem).
+
+-spec handle_MOVEM(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_MOVEM(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  handle_MOVEM_1(Core, Mem, CA, EA).
+
+handle_MOVEM_1(Core, Mem, Word, EA) ->
+  case sim_core:cset(Core, Mem, EA, Word) of
+    {ok, Core1} -> sim_core:next_pc(Core1, Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+                          fun(Core1, Mem1) -> handle_MOVEM_1(Core1, Mem1, Word, EA) end)
+  end.
 
 %% Miscellaneous ===============================================================
 
