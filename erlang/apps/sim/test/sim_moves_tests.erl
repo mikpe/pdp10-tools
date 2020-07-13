@@ -73,6 +73,18 @@ exch_ac_ac_test() ->
          , {#ea{section = 1, offset = 2, islocal = false}, 8#27} % AC2 = 27
          ]).
 
+%% 2.1.2 Move Instruction Class ================================================
+
+move_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVE, 1, 0, 0, 8#150)}   % 1,,100/ MOVE 1,150
+    , {1, 8#101, ?INSN_INVALID}                     % 1,,101/ <invalid>
+    , {1, 8#150, 8#42}                              % 1,,150/ 0,,42
+    ],
+  expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, 8#42} % AC1 = 42
+         ]).
+
 %% Common code to run short sequences ==========================================
 
 expect(Prog, ACs, ExpectedPC, ExpectedFlags, ExpectedEs) ->

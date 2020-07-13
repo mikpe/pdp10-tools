@@ -25,6 +25,7 @@
 -module(sim_moves).
 
 -export([ handle_EXCH/4
+        , handle_MOVE/4
         ]).
 
 -include("sim_core.hrl").
@@ -52,6 +53,22 @@ handle_EXCH(Core, Mem, AC, EA, CE, CA) ->
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
                           fun(Core1, Mem1) -> handle_EXCH(Core1, Mem1, AC, EA, CE, CA) end)
+  end.
+
+%% 2.1.2 Move Instruction Class ================================================
+
+%% MOVE - Move
+
+-spec handle_MOVE(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_MOVE(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      sim_core:next_pc(sim_core:set_ac(Core, AC, CE), Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> handle_MOVE(Core1, Mem1, IR, EA) end)
   end.
 
 %% Miscellaneous ===============================================================
