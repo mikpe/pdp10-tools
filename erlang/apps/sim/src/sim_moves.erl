@@ -28,6 +28,7 @@
         , handle_MOVE/4
         , handle_MOVEI/4
         , handle_MOVEM/4
+        , handle_MOVES/4
         ]).
 
 -include("sim_core.hrl").
@@ -94,7 +95,30 @@ handle_MOVEM_1(Core, Mem, Word, EA) ->
                           fun(Core1, Mem1) -> handle_MOVEM_1(Core1, Mem1, Word, EA) end)
   end.
 
+-spec handle_MOVES(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_MOVES(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      handle_MOVES(Core, Mem, AC, EA, CE);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> handle_MOVES(Core1, Mem1, IR, EA) end)
+  end.
+
+handle_MOVES(Core, Mem, AC, EA, Word) ->
+  case sim_core:cset(Core, Mem, EA, Word) of
+    {ok, Core1} -> sim_core:next_pc(set_non_zero_ac(Core1, AC, Word), Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+                          fun(Core1, Mem1) -> handle_MOVES(Core1, Mem1, AC, EA, Word) end)
+  end.
+
 %% Miscellaneous ===============================================================
 
 ea_address(#ea{section = Section, offset = Offset}) ->
   (Section bsl 18) bor Offset.
+
+set_non_zero_ac(Core, _AC = 0, _Word) -> Core;
+set_non_zero_ac(Core, AC, Word) -> sim_core:set_ac(Core, AC, Word).

@@ -227,6 +227,7 @@ dispatch(Core, Mem, IR, EA) ->
     8#200 -> sim_moves:handle_MOVE(Core, Mem, IR, EA);
     8#201 -> sim_moves:handle_MOVEI(Core, Mem, IR, EA);
     8#202 -> sim_moves:handle_MOVEM(Core, Mem, IR, EA);
+    8#203 -> sim_moves:handle_MOVES(Core, Mem, IR, EA);
     8#250 -> sim_moves:handle_EXCH(Core, Mem, IR, EA);
     _ ->
       PC = (Core#core.pc_section bsl 18) bor Core#core.pc_offset,

@@ -46,6 +46,7 @@
 -define(OP_MOVE, 8#200).
 -define(OP_MOVEI, 8#201).
 -define(OP_MOVEM, 8#202).
+-define(OP_MOVES, 8#203).
 -define(OP_EXCH, 8#250).
 
 %% 2.1.1 Exchange Instruction ==================================================
@@ -106,6 +107,30 @@ movem_test() ->
     ],
   expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 8#150, islocal = false}, 8#42} % C(1,,150) = 42
+         ]).
+
+moves_ac_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 8#27)}   % 1,,100/ MOVEI 1,27
+    , {1, 8#101, ?INSN(?OP_MOVES, 1, 0, 0, 8#150)}  % 1,,101/ MOVES 1,150
+    , {1, 8#102, ?INSN_INVALID}                     % 1,,102/ <invalid>
+    , {1, 8#150, 8#42}                              % 1,,150/ 0,,42
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 8#150, islocal = false}, 8#42} % C(1,,150) = 42
+         , {#ea{section = 1, offset = 1, islocal = false}, 8#42} % AC1 = 42
+         ]).
+
+moves_noac_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 0, 0, 0, 8#27)}   % 1,,100/ MOVEI 0,27
+    , {1, 8#101, ?INSN(?OP_MOVES, 0, 0, 0, 8#150)}  % 1,,101/ MOVES 0,150
+    , {1, 8#102, ?INSN_INVALID}                     % 1,,102/ <invalid>
+    , {1, 8#150, 8#42}                              % 1,,150/ 0,,42
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 8#150, islocal = false}, 8#42} % C(1,,150) = 42
+         , {#ea{section = 1, offset = 0, islocal = false}, 8#27} % AC0 = 27
          ]).
 
 %% Common code to run short sequences ==========================================
