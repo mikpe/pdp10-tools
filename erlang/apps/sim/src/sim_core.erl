@@ -27,6 +27,9 @@
 -export([ run/6
         , run/2
         , next_pc/2
+        , page_fault/6
+        , c/3
+        , cset/4
         , get_ac/2
         , set_ac/3
         , set_flag/2
@@ -285,6 +288,12 @@ sext18(X) ->
   UInt18Max = (1 bsl 18) - 1,
   ((X band UInt18Max) bxor UInt18Sbit) - UInt18Sbit.
 
+%% This implements Word := C(E).
+-spec c(#core{}, sim_mem:mem(), #ea{})
+      -> {ok, word()} | {error, {sim_mem:prot(), sim_mem:what()} | false}.
+c(Core, Mem, #ea{section = Section, offset = Offset, islocal = IsLocal}) ->
+  c(Core, Mem, Section, Offset, IsLocal).
+
 -spec c(#core{}, sim_mem:mem(), Section :: uint12_t(), Offset :: uint18_t(), IsLocal :: boolean())
       -> {ok, word()} | {error, {sim_mem:prot(), sim_mem:what()} | false}.
 c(Core, Mem, Section, Offset, IsLocal) ->
@@ -293,6 +302,20 @@ c(Core, Mem, Section, Offset, IsLocal) ->
     false ->
       Address = (Section bsl 18) bor Offset,
       sim_mem:read_word(Mem, Address)
+  end.
+
+%% This implements C(E) := Word.
+-spec cset(#core{}, sim_mem:mem(), #ea{}, word())
+      -> {ok, #core{}} | {error, {sim_mem:prot(), sim_mem:what()} | false}.
+cset(Core, Mem, #ea{section = Section, offset = Offset, islocal = IsLocal}, Word) ->
+  case Offset =< 8#17 andalso (IsLocal orelse Section =< 1) of
+    true -> {ok, set_ac(Core, Offset, Word)};
+    false ->
+      Address = (Section bsl 18) bor Offset,
+      case sim_mem:write_word(Mem, Address, Word) of
+        ok -> {ok, Core};
+        {error, _Reason} = Error -> Error
+      end
   end.
 
 -spec get_ac(#core{}, 0..8#17) -> word().
