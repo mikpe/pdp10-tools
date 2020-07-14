@@ -29,6 +29,7 @@
         , handle_MOVEI/4
         , handle_MOVEM/4
         , handle_MOVES/4
+        , handle_MOVS/4
         ]).
 
 -include("sim_core.hrl").
@@ -115,6 +116,21 @@ handle_MOVES(Core, Mem, AC, EA, Word) ->
                           fun(Core1, Mem1) -> handle_MOVES(Core1, Mem1, AC, EA, Word) end)
   end.
 
+%% MOVS - Move Swapped
+
+-spec handle_MOVS(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_MOVS(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      Swapped = swap_halves(CE),
+      AC = IR band 8#17,
+      sim_core:next_pc(sim_core:set_ac(Core, AC, Swapped), Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> handle_MOVS(Core1, Mem1, IR, EA) end)
+  end.
+
 %% Miscellaneous ===============================================================
 
 ea_address(#ea{section = Section, offset = Offset}) ->
@@ -122,3 +138,7 @@ ea_address(#ea{section = Section, offset = Offset}) ->
 
 set_non_zero_ac(Core, _AC = 0, _Word) -> Core;
 set_non_zero_ac(Core, AC, Word) -> sim_core:set_ac(Core, AC, Word).
+
+swap_halves(Word) ->
+  Low18Mask = ((1 bsl 18) - 1),
+  ((Word band Low18Mask) bsl 18) bor ((Word bsr 18) band Low18Mask).

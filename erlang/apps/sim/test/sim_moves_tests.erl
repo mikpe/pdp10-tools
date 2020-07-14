@@ -47,6 +47,7 @@
 -define(OP_MOVEI, 8#201).
 -define(OP_MOVEM, 8#202).
 -define(OP_MOVES, 8#203).
+-define(OP_MOVS, 8#204).
 -define(OP_EXCH, 8#250).
 
 %% 2.1.1 Exchange Instruction ==================================================
@@ -131,6 +132,16 @@ moves_noac_test() ->
   expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 8#150, islocal = false}, 8#42} % C(1,,150) = 42
          , {#ea{section = 1, offset = 0, islocal = false}, 8#27} % AC0 = 27
+         ]).
+
+movs_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVS, 1, 0, 0, 8#150)}   % 1,,100/ MOVS 1,150
+    , {1, 8#101, ?INSN_INVALID}                     % 1,,101/ <invalid>
+    , {1, 8#150, ?COMMA2(8#27, 8#42)}               % 1,,150/ 27,,42
+    ],
+  expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(8#42, 8#27)} % AC1 = 42,,27
          ]).
 
 %% Common code to run short sequences ==========================================
