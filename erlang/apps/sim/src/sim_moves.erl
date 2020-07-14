@@ -30,6 +30,7 @@
         , handle_MOVEM/4
         , handle_MOVES/4
         , handle_MOVS/4
+        , handle_MOVSI/4
         ]).
 
 -include("sim_core.hrl").
@@ -130,6 +131,12 @@ handle_MOVS(Core, Mem, IR, EA) ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_MOVS(Core1, Mem1, IR, EA) end)
   end.
+
+-spec handle_MOVSI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_MOVSI(Core, Mem, IR, #ea{offset = E}) ->
+  AC = IR band 8#17,
+  sim_core:next_pc(sim_core:set_ac(Core, AC, E bsl 18), Mem).
 
 %% Miscellaneous ===============================================================
 
