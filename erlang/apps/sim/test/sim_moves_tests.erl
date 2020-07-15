@@ -52,6 +52,7 @@
 -define(OP_MOVSM, 8#206).
 -define(OP_MOVSS, 8#207).
 -define(OP_MOVN, 8#210).
+-define(OP_MOVNI, 8#211).
 -define(OP_EXCH, 8#250).
 
 %% 2.1.1 Exchange Instruction ==================================================
@@ -222,6 +223,15 @@ movn_minint_test() ->
   Flags = ?DEFAULT_FLAGS bor (1 bsl ?PDP10_PF_OVERFLOW) bor (1 bsl ?PDP10_PF_CARRY_1),
   expect(Prog, [], {1, 8#101}, Flags,
          [ {#ea{section = 1, offset = 1, islocal = false}, 1 bsl 35} % AC1 = 400000,,0
+         ]).
+
+movni_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 8#42)}   % 1,,100/ MOVNI 1,42
+    , {1, 8#101, ?INSN_INVALID}                     % 1,,101/ <invalid>
+    ],
+  expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, (-8#42) band ((1 bsl 36) - 1)} % AC1 = -42
          ]).
 
 %% Common code to run short sequences ==========================================

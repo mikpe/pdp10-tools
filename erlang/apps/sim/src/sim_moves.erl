@@ -30,6 +30,7 @@
         , handle_MOVEM/4
         , handle_MOVES/4
         , handle_MOVN/4
+        , handle_MOVNI/4
         , handle_MOVS/4
         , handle_MOVSI/4
         , handle_MOVSM/4
@@ -174,6 +175,12 @@ handle_MOVN(Core, Mem, IR, EA) ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_MOVN(Core1, Mem1, IR, EA) end)
   end.
+
+-spec handle_MOVNI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_MOVNI(Core, Mem, IR, #ea{offset = E}) ->
+  AC = IR band 8#17,
+  sim_core:next_pc(sim_core:set_ac(Core, AC, (-E) band ((1 bsl 36) - 1)), Mem).
 
 %% Miscellaneous ===============================================================
 
