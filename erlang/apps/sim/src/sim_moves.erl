@@ -32,6 +32,7 @@
         , handle_MOVN/4
         , handle_MOVNI/4
         , handle_MOVNM/4
+        , handle_MOVNS/4
         , handle_MOVS/4
         , handle_MOVSI/4
         , handle_MOVSM/4
@@ -203,6 +204,31 @@ handle_MOVNM(Core, Mem, Word, Flags, EA) ->
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
                           fun(Core1, Mem1) -> handle_MOVNM(Core1, Mem1, Word, Flags, EA) end)
+  end.
+
+-spec handle_MOVNS(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_MOVNS(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      {Negated, Flags} = negate(CE),
+      handle_MOVNS(Core, Mem, AC, EA, Negated, Flags);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> handle_MOVNS(Core1, Mem1, IR, EA) end)
+  end.
+
+handle_MOVNS(Core, Mem, AC, EA, Word, Flags) ->
+  %% See handle_MOVNM/5 for ordering requirements.
+  case sim_core:cset(Core, Mem, EA, Word) of
+    {ok, Core1} ->
+      Core2 = set_non_zero_ac(Core1, AC, Word),
+      Core3 = sim_core:set_flags(Core2, Flags),
+      sim_core:next_pc(Core3, Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+                          fun(Core1, Mem1) -> handle_MOVNS(Core1, Mem1, AC, EA, Word, Flags) end)
   end.
 
 %% Miscellaneous ===============================================================
