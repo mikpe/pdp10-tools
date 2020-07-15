@@ -33,6 +33,7 @@
         , get_ac/2
         , set_ac/3
         , set_flag/2
+        , set_flags/2
         , format_error/1
         ]).
 
@@ -84,7 +85,13 @@ next_pc(#core{pc_offset = PCOffset} = Core, Mem) ->
 %% c.f. Toad-1 Architecture Manual, page 41, Figure 1.11
 
 %% Instruction Fetch.  This always uses local addressing.
-insn_fetch(Core, Mem) ->
+insn_fetch(Core0, Mem) ->
+  %% TODO: Handle 2.9.6 Overflow Trapping
+  %% For now, arithmetic overflows are ignored, as if the user had installed a
+  %% no-op handler, so that C's unsigned arithmetic can work, and stack overflows
+  %% are treated as fatal errors.
+  #core{flags = Flags0} = Core0,
+  Core = Core0#core{flags = Flags0 band bnot (1 bsl ?PDP10_PF_TRAP_1)},
   PCOffset = Core#core.pc_offset,
   case PCOffset =< 8#17 of
     true ->
@@ -232,6 +239,7 @@ dispatch(Core, Mem, IR, EA) ->
     8#205 -> sim_moves:handle_MOVSI(Core, Mem, IR, EA);
     8#206 -> sim_moves:handle_MOVSM(Core, Mem, IR, EA);
     8#207 -> sim_moves:handle_MOVSS(Core, Mem, IR, EA);
+    8#210 -> sim_moves:handle_MOVN(Core, Mem, IR, EA);
     8#250 -> sim_moves:handle_EXCH(Core, Mem, IR, EA);
     _ ->
       PC = (Core#core.pc_section bsl 18) bor Core#core.pc_offset,
@@ -322,6 +330,10 @@ do_set_ac(ACS, Nr, Val) -> setelement(Nr + 1, ACS, Val).
 -spec set_flag(#core{}, 0..12) -> #core{}.
 set_flag(#core{flags = Flags} = Core, Flag) ->
   Core#core{flags = Flags bor (1 bsl Flag)}.
+
+-spec set_flags(#core{}, uint13_t()) -> #core{}.
+set_flags(#core{flags = Flags0} = Core, Flags1) ->
+  Core#core{flags = Flags0 bor Flags1}.
 
 %% Error Formatting ============================================================
 

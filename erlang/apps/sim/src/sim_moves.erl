@@ -29,6 +29,7 @@
         , handle_MOVEI/4
         , handle_MOVEM/4
         , handle_MOVES/4
+        , handle_MOVN/4
         , handle_MOVS/4
         , handle_MOVSI/4
         , handle_MOVSM/4
@@ -159,10 +160,39 @@ handle_MOVSS(Core, Mem, IR, EA) ->
                           fun(Core1, Mem1) -> handle_MOVSS(Core1, Mem1, IR, EA) end)
   end.
 
+%% MOVN - Move Negative
+
+-spec handle_MOVN(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_MOVN(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      {Negative, Flags} = negate(CE),
+      AC = IR band 8#17,
+      sim_core:next_pc(sim_core:set_ac(sim_core:set_flags(Core, Flags), AC, Negative), Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> handle_MOVN(Core1, Mem1, IR, EA) end)
+  end.
+
 %% Miscellaneous ===============================================================
 
 ea_address(#ea{section = Section, offset = Offset}) ->
   (Section bsl 18) bor Offset.
+
+negate(Word) ->
+  case (-Word) band ((1 bsl 36) - 1) of
+    0 -> % negating 0
+      Flags = (1 bsl ?PDP10_PF_CARRY_1) bor (1 bsl ?PDP10_PF_CARRY_0),
+      {0, Flags};
+    Word -> % negating -2^35
+      Flags = (1 bsl ?PDP10_PF_TRAP_1) bor
+              (1 bsl ?PDP10_PF_OVERFLOW) bor
+              (1 bsl ?PDP10_PF_CARRY_1),
+      {Word, Flags};
+    Negated ->
+      {Negated, _Flags = 0}
+  end.
 
 set_non_zero_ac(Core, _AC = 0, _Word) -> Core;
 set_non_zero_ac(Core, AC, Word) -> sim_core:set_ac(Core, AC, Word).

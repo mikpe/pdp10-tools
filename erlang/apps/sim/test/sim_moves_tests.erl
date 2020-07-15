@@ -51,6 +51,7 @@
 -define(OP_MOVSI, 8#205).
 -define(OP_MOVSM, 8#206).
 -define(OP_MOVSS, 8#207).
+-define(OP_MOVN, 8#210).
 -define(OP_EXCH, 8#250).
 
 %% 2.1.1 Exchange Instruction ==================================================
@@ -189,6 +190,38 @@ movss_noac_test() ->
   expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 8#150, islocal = false}, ?COMMA2(8#42, 8#27)} % C(1,,150) = 42,,27
          , {#ea{section = 1, offset = 0, islocal = false}, 0} % AC0 = 0
+         ]).
+
+movn_no_flags_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVN, 1, 0, 0, 8#150)}   % 1,,100/ MOVN 1,150
+    , {1, 8#101, ?INSN_INVALID}                     % 1,,101/ <invalid>
+    , {1, 8#150, 8#42}                              % 1,,150/ 0,,42
+    ],
+  expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, -8#42 band ((1 bsl 36) - 1)} % AC1 = -42
+         ]).
+
+movn_zero_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVN, 1, 0, 0, 8#150)}   % 1,,100/ MOVN 1,150
+    , {1, 8#101, ?INSN_INVALID}                     % 1,,101/ <invalid>
+    , {1, 8#150, 0}                                 % 1,,150/ 0
+    ],
+  Flags = ?DEFAULT_FLAGS bor (1 bsl ?PDP10_PF_CARRY_1) bor (1 bsl ?PDP10_PF_CARRY_0),
+  expect(Prog, [], {1, 8#101}, Flags,
+         [ {#ea{section = 1, offset = 1, islocal = false}, 0} % AC1 = 0
+         ]).
+
+movn_minint_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVN, 1, 0, 0, 8#150)}   % 1,,100/ MOVN 1,150
+    , {1, 8#101, ?INSN_INVALID}                     % 1,,101/ <invalid>
+    , {1, 8#150, 1 bsl 35}                          % 1,,150/ 400000,,0
+    ],
+  Flags = ?DEFAULT_FLAGS bor (1 bsl ?PDP10_PF_OVERFLOW) bor (1 bsl ?PDP10_PF_CARRY_1),
+  expect(Prog, [], {1, 8#101}, Flags,
+         [ {#ea{section = 1, offset = 1, islocal = false}, 1 bsl 35} % AC1 = 400000,,0
          ]).
 
 %% Common code to run short sequences ==========================================
