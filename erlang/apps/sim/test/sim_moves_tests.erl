@@ -53,6 +53,7 @@
 -define(OP_MOVSS, 8#207).
 -define(OP_MOVN, 8#210).
 -define(OP_MOVNI, 8#211).
+-define(OP_MOVNM, 8#212).
 -define(OP_EXCH, 8#250).
 
 %% 2.1.1 Exchange Instruction ==================================================
@@ -232,6 +233,17 @@ movni_test() ->
     ],
   expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 1, islocal = false}, (-8#42) band ((1 bsl 36) - 1)} % AC1 = -42
+         ]).
+
+movnm_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 8#42)}   % 1,,100/ MOVEI 1,42
+    , {1, 8#101, ?INSN(?OP_MOVNM, 1, 0, 0, 8#150)}  % 1,,101/ MOVNM 1,150
+    , {1, 8#102, ?INSN_INVALID}                     % 1,,102/ <invalid>
+    , {1, 8#150, 8#27}                              % 1,,150/ 0,,27
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 8#150, islocal = false}, (-8#42) band ((1 bsl 36) - 1)} % C(1,,150) = -42
          ]).
 
 %% Common code to run short sequences ==========================================

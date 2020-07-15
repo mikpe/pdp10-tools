@@ -31,6 +31,7 @@
         , handle_MOVES/4
         , handle_MOVN/4
         , handle_MOVNI/4
+        , handle_MOVNM/4
         , handle_MOVS/4
         , handle_MOVSI/4
         , handle_MOVSM/4
@@ -181,6 +182,28 @@ handle_MOVN(Core, Mem, IR, EA) ->
 handle_MOVNI(Core, Mem, IR, #ea{offset = E}) ->
   AC = IR band 8#17,
   sim_core:next_pc(sim_core:set_ac(Core, AC, (-E) band ((1 bsl 36) - 1)), Mem).
+
+-spec handle_MOVNM(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_MOVNM(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  {Negated, Flags} = negate(CA),
+  handle_MOVNM(Core, Mem, Negated, Flags, EA).
+
+handle_MOVNM(Core, Mem, Word, Flags, EA) ->
+  %% "2.9.6.1 Overflow Trapping in the KL10, KS10, and KI10 Processors" and
+  %% "2.9.6.2 Overflow Trapping in the XKL-1 Processor" both state that if
+  %% an instruction causes both overflow and a page failure, the page failure
+  %% is handled first, and the overflow trap is handled after the instruction
+  %% has restarted and completed.
+  %% Therefore complete the store before updating flags and proceeding.
+  case sim_core:cset(Core, Mem, EA, Word) of
+    {ok, Core1} -> sim_core:next_pc(sim_core:set_flags(Core1, Flags), Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+                          fun(Core1, Mem1) -> handle_MOVNM(Core1, Mem1, Word, Flags, EA) end)
+  end.
 
 %% Miscellaneous ===============================================================
 
