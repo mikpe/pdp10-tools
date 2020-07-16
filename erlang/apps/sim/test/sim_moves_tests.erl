@@ -56,6 +56,7 @@
 -define(OP_MOVNM, 8#212).
 -define(OP_MOVNS, 8#213).
 -define(OP_MOVM, 8#214).
+-define(OP_MOVMI, 8#215).
 -define(OP_EXCH, 8#250).
 
 %% 2.1.1 Exchange Instruction ==================================================
@@ -311,6 +312,17 @@ movm_minint_test() ->
   Flags = ?DEFAULT_FLAGS bor (1 bsl ?PDP10_PF_OVERFLOW) bor (1 bsl ?PDP10_PF_CARRY_1),
   expect(Prog, [], {1, 8#101}, Flags,
          [ {#ea{section = 1, offset = 1, islocal = false}, 1 bsl 35} % AC1 = 400000,,0
+         ]).
+
+movmi_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVMI, 1, 0, 0, 8#200)}  % 1,,100/ MOVMI 1,200
+    , {1, 8#101, ?INSN_INVALID}                     % 1,,101/ <invalid>
+    ],
+  %% Note that the EA in 1,,100 evaluates to 1,,200 local, but only the
+  %% in-section offset is loaded into AC1.
+  expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, 8#200} % AC1 = 200
          ]).
 
 %% Common code to run short sequences ==========================================
