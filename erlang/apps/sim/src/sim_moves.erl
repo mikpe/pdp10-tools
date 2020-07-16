@@ -25,6 +25,7 @@
 -module(sim_moves).
 
 -export([ handle_EXCH/4
+        , handle_DMOVE/4
         , handle_MOVE/4
         , handle_MOVEI/4
         , handle_MOVEM/4
@@ -270,10 +271,47 @@ handle_MOVMS(Core, Mem, IR, EA) ->
                           fun(Core1, Mem1) -> handle_MOVMS(Core1, Mem1, IR, EA) end)
   end.
 
+%% 2.1.4 Double Move Instructions ==============================================
+
+%% DMOVE - Double Move
+
+-spec handle_DMOVE(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_DMOVE(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, Word0} ->
+      handle_DMOVE(Core, Mem, IR, ea_plus_1(EA), Word0);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> handle_DMOVE(Core1, Mem1, IR, EA) end)
+  end.
+
+handle_DMOVE(Core, Mem, IR, EA, Word0) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, Word1} ->
+      AC = IR band 8#17,
+      Core1 = sim_core:set_ac(Core, AC, Word0),
+      Core2 = sim_core:set_ac(Core1, ac_plus_1(AC), Word1),
+      sim_core:next_pc(Core2, Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> handle_DMOVE(Core1, Mem1, IR, EA, Word0) end)
+  end.
+
 %% Miscellaneous ===============================================================
+
+ac_plus_1(AC) ->
+  (AC + 1) band 8#17.
 
 ea_address(#ea{section = Section, offset = Offset}) ->
   (Section bsl 18) bor Offset.
+
+ea_plus_1(#ea{offset = Offset, islocal = true} = EA) ->
+  EA#ea{offset = (Offset + 1) band ((1 bsl 18) - 1)};
+ea_plus_1(#ea{section = Section, offset = ((1 bsl 18) - 1)} = EA) ->
+  EA#ea{section = (Section + 1) band ((1 bsl 12) - 1), offset = 0};
+ea_plus_1(#ea{offset = Offset} = EA) ->
+  EA#ea{offset = Offset + 1}.
 
 magnitude(Word) ->
   case Word band (1 bsl 35) of

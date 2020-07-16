@@ -43,6 +43,7 @@
 -define(INSN_INVALID, ?INSN(0, 0, 0, 0, 0)).
 
 -define(OP_INVALID, 0).
+-define(OP_DMOVE, 8#120).
 -define(OP_MOVE, 8#200).
 -define(OP_MOVEI, 8#201).
 -define(OP_MOVEM, 8#202).
@@ -360,6 +361,20 @@ movms_noac_test() ->
   expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 8#150, islocal = false}, 8#42} % C(1,,150) = 42
          , {#ea{section = 1, offset = 0, islocal = false}, 0} % AC0 = 0
+         ]).
+
+%% 2.1.4 Double Move Instructions ==============================================
+
+dmove_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_DMOVE, 8#17, 0, 0, 8#150)} % 1,,100/ DMOVE 17,150
+    , {1, 8#101, ?INSN_INVALID}                       % 1,,101/ <invalid>
+    , {1, 8#150, 8#42}                                % 1,,150/ 0,,42
+    , {1, 8#151, 8#27}                                % 1,,151/ 0,,27
+    ],
+  expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 8#17, islocal = false}, 8#42} % AC17 = 42
+         , {#ea{section = 1, offset = 0, islocal = false}, 8#27} % AC0 = 27
          ]).
 
 %% Common code to run short sequences ==========================================
