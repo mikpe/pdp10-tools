@@ -29,6 +29,7 @@
         , handle_MOVEI/4
         , handle_MOVEM/4
         , handle_MOVES/4
+        , handle_MOVM/4
         , handle_MOVN/4
         , handle_MOVNI/4
         , handle_MOVNM/4
@@ -231,10 +232,41 @@ handle_MOVNS(Core, Mem, AC, EA, Word, Flags) ->
                           fun(Core1, Mem1) -> handle_MOVNS(Core1, Mem1, AC, EA, Word, Flags) end)
   end.
 
+%% MOVM - Move Magnitude
+
+-spec handle_MOVM(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_MOVM(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      {Magnitude, Flags} = magnitude(CE),
+      AC = IR band 8#17,
+      sim_core:next_pc(sim_core:set_ac(sim_core:set_flags(Core, Flags), AC, Magnitude), Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> handle_MOVM(Core1, Mem1, IR, EA) end)
+  end.
+
 %% Miscellaneous ===============================================================
 
 ea_address(#ea{section = Section, offset = Offset}) ->
   (Section bsl 18) bor Offset.
+
+magnitude(Word) ->
+  case Word band (1 bsl 35) of
+    0 -> % non-negative
+      {_Magnitude = Word, _Flags = 0};
+    _ -> % negative
+      case (-Word) band ((1 bsl 36) - 1) of
+        Word -> % magnitude of -2^35
+          Flags = (1 bsl ?PDP10_PF_TRAP_1) bor
+                  (1 bsl ?PDP10_PF_OVERFLOW) bor
+                  (1 bsl ?PDP10_PF_CARRY_1),
+          {_Magnitude = Word, Flags};
+        Negated ->
+          {_Magnitude = Negated, _Flags = 0}
+      end
+  end.
 
 negate(Word) ->
   case (-Word) band ((1 bsl 36) - 1) of
