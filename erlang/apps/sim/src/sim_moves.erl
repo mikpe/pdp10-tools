@@ -30,6 +30,7 @@
         , handle_MOVEM/4
         , handle_MOVES/4
         , handle_MOVM/4
+        , handle_MOVMM/4
         , handle_MOVN/4
         , handle_MOVNI/4
         , handle_MOVNM/4
@@ -246,6 +247,14 @@ handle_MOVM(Core, Mem, IR, EA) ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_MOVM(Core1, Mem1, IR, EA) end)
   end.
+
+-spec handle_MOVMM(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_MOVMM(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  {Magnitude, Flags} = magnitude(CA),
+  handle_MOVNM(Core, Mem, Magnitude, Flags, EA).
 
 %% Miscellaneous ===============================================================
 

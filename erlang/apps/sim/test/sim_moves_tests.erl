@@ -57,6 +57,7 @@
 -define(OP_MOVNS, 8#213).
 -define(OP_MOVM, 8#214).
 -define(OP_MOVMI, 8#215).
+-define(OP_MOVMM, 8#216).
 -define(OP_EXCH, 8#250).
 
 %% 2.1.1 Exchange Instruction ==================================================
@@ -323,6 +324,17 @@ movmi_test() ->
   %% in-section offset is loaded into AC1.
   expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 1, islocal = false}, 8#200} % AC1 = 200
+         ]).
+
+movmm_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 8#42)}   % 1,,100/ MOVNI 1,42
+    , {1, 8#101, ?INSN(?OP_MOVMM, 1, 0, 0, 8#150)}  % 1,,101/ MOVMM 1,150
+    , {1, 8#102, ?INSN_INVALID}                     % 1,,102/ <invalid>
+    , {1, 8#150, 8#27}                              % 1,,150/ 0,,27
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 8#150, islocal = false}, 8#42} % C(1,,150) = 42
          ]).
 
 %% Common code to run short sequences ==========================================
