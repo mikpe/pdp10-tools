@@ -58,6 +58,7 @@
 -define(OP_MOVM, 8#214).
 -define(OP_MOVMI, 8#215).
 -define(OP_MOVMM, 8#216).
+-define(OP_MOVMS, 8#217).
 -define(OP_EXCH, 8#250).
 
 %% 2.1.1 Exchange Instruction ==================================================
@@ -335,6 +336,30 @@ movmm_test() ->
     ],
   expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 8#150, islocal = false}, 8#42} % C(1,,150) = 42
+         ]).
+
+movms_ac_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 0)}      % 1,,100/ MOVEI 1,0
+    , {1, 8#101, ?INSN(?OP_MOVMS, 1, 0, 0, 8#150)}  % 1,,101/ MOVMS 1,150
+    , {1, 8#102, ?INSN_INVALID}                     % 1,,102/ <invalid>
+    , {1, 8#150, (-8#42) band ((1 bsl 36) - 1)}     % 1,,150/ -42
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 8#150, islocal = false}, 8#42} % C(1,,150) = 42
+         , {#ea{section = 1, offset = 1, islocal = false}, 8#42} % AC1 = 42
+         ]).
+
+movms_noac_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 0, 0, 0, 0)}      % 1,,100/ MOVEI 0,0
+    , {1, 8#101, ?INSN(?OP_MOVMS, 0, 0, 0, 8#150)}  % 1,,101/ MOVMS 0,150
+    , {1, 8#102, ?INSN_INVALID}                     % 1,,102/ <invalid>
+    , {1, 8#150, (-8#42) band ((1 bsl 36) - 1)}     % 1,,150/ -42
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 8#150, islocal = false}, 8#42} % C(1,,150) = 42
+         , {#ea{section = 1, offset = 0, islocal = false}, 0} % AC0 = 0
          ]).
 
 %% Common code to run short sequences ==========================================

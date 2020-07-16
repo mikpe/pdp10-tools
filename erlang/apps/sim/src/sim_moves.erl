@@ -31,6 +31,7 @@
         , handle_MOVES/4
         , handle_MOVM/4
         , handle_MOVMM/4
+        , handle_MOVMS/4
         , handle_MOVN/4
         , handle_MOVNI/4
         , handle_MOVNM/4
@@ -255,6 +256,19 @@ handle_MOVMM(Core, Mem, IR, EA) ->
   CA = sim_core:get_ac(Core, AC),
   {Magnitude, Flags} = magnitude(CA),
   handle_MOVNM(Core, Mem, Magnitude, Flags, EA).
+
+-spec handle_MOVMS(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_MOVMS(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      {Magnitude, Flags} = magnitude(CE),
+      handle_MOVNS(Core, Mem, AC, EA, Magnitude, Flags);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> handle_MOVMS(Core1, Mem1, IR, EA) end)
+  end.
 
 %% Miscellaneous ===============================================================
 
