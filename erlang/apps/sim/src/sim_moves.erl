@@ -28,6 +28,7 @@
         , handle_DMOVE/4
         , handle_DMOVEM/4
         , handle_DMOVN/4
+        , handle_DMOVNM/4
         , handle_MOVE/4
         , handle_MOVEI/4
         , handle_MOVEM/4
@@ -343,6 +344,25 @@ handle_DMOVN(Core, Mem, IR, EA, Word0) ->
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_DMOVN(Core1, Mem1, IR, EA, Word0) end)
+  end.
+
+%% DMOVNM - Double Move Negative to Memory
+
+-spec handle_DMOVNM(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_DMOVNM(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  Word0 = sim_core:get_ac(Core, AC),
+  Word1 = sim_core:get_ac(Core, ac_plus_1(AC)),
+  {Negative0, Negative1, Flags} = dnegate(Word0, Word1),
+  handle_DMOVNM(Core, Mem, Negative0, Negative1, Flags, EA).
+
+handle_DMOVNM(Core, Mem, Word0, Word1, Flags, EA) ->
+  case sim_core:cset(Core, Mem, EA, Word0) of
+    {ok, Core1} -> handle_MOVNM(Core1, Mem, Word1, Flags, ea_plus_1(EA));
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+                          fun(Core1, Mem1) -> handle_DMOVNM(Core1, Mem1, Word0, Word1, Flags, EA) end)
   end.
 
 %% Miscellaneous ===============================================================

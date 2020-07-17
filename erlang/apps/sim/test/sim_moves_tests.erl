@@ -46,6 +46,7 @@
 -define(OP_DMOVE, 8#120).
 -define(OP_DMOVN, 8#121).
 -define(OP_DMOVEM, 8#124).
+-define(OP_DMOVNM, 8#125).
 -define(OP_MOVE, 8#200).
 -define(OP_MOVEI, 8#201).
 -define(OP_MOVEM, 8#202).
@@ -431,6 +432,20 @@ dmovn_minint_test() ->
   expect(Prog, [], {1, 8#101}, Flags,
          [ {#ea{section = 1, offset = 1, islocal = false}, 1 bsl 35} % AC1 = 400000,,0
          , {#ea{section = 1, offset = 2, islocal = false}, 0} % AC2 = 0
+         ]).
+
+dmovnm_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 1)}      % 1,,100/ MOVNI 1,1
+    , {1, 8#101, ?INSN(?OP_MOVNI, 2, 0, 0, 1)}      % 1,,101/ MOVNI 2,1
+    , {1, 8#102, ?INSN(?OP_DMOVNM, 1, 0, 0, 8#150)} % 1,,102/ DMOVNM 1,150
+    , {1, 8#103, ?INSN_INVALID}                     % 1,,103/ <invalid>
+    , {1, 8#150, 8#27}                              % 1,,150/ 0,,27
+    , {1, 8#151, 8#27}                              % 1,,150/ 0,,27
+    ],
+  expect(Prog, [], {1, 8#103}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 8#150, islocal = false}, 0} % C(1,,150) = 0
+         , {#ea{section = 1, offset = 8#151, islocal = false}, 1} % C(1,,151) = 1
          ]).
 
 %% Common code to run short sequences ==========================================

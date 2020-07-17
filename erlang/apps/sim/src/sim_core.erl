@@ -234,6 +234,7 @@ dispatch(Core, Mem, IR, EA) ->
     8#120 -> sim_moves:handle_DMOVE(Core, Mem, IR, EA);
     8#121 -> sim_moves:handle_DMOVN(Core, Mem, IR, EA);
     8#124 -> sim_moves:handle_DMOVEM(Core, Mem, IR, EA);
+    8#125 -> sim_moves:handle_DMOVNM(Core, Mem, IR, EA);
     8#200 -> sim_moves:handle_MOVE(Core, Mem, IR, EA);
     8#201 -> sim_moves:handle_MOVEI(Core, Mem, IR, EA);
     8#202 -> sim_moves:handle_MOVEM(Core, Mem, IR, EA);
