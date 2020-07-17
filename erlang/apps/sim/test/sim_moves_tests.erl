@@ -44,6 +44,7 @@
 
 -define(OP_INVALID, 0).
 -define(OP_DMOVE, 8#120).
+-define(OP_DMOVN, 8#121).
 -define(OP_DMOVEM, 8#124).
 -define(OP_MOVE, 8#200).
 -define(OP_MOVEI, 8#201).
@@ -390,6 +391,46 @@ dmovem_test() ->
   expect(Prog, [], {1, 8#103}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 8#150, islocal = false}, 8#42} % C(1,,150) = 42
          , {#ea{section = 1, offset = 8#151, islocal = false}, 8#27} % C(1,,151) = 27
+         ]).
+
+dmovn_no_flags_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_DMOVN, 1, 0, 0, 8#150)}  % 1,,100/ DMOVN 1,150
+    , {1, 8#101, ?INSN_INVALID}                     % 1,,101/ <invalid>
+    , {1, 8#150, ?COMMA2(-1, -1)}                   % 1,,150/ -1
+    , {1, 8#151, ?COMMA2(-1, -1)}                   % 1,,151/ -1
+    ],
+  expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, 0} % AC1 = 0
+         , {#ea{section = 1, offset = 2, islocal = false}, 1} % AC2 = 1
+         ]).
+
+dmovn_zero_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, -1)}     % 1,,100/ MOVEI 1,-1
+    , {1, 8#101, ?INSN(?OP_MOVEI, 2, 0, 0, -1)}     % 1,,101/ MOVEI 2,-1
+    , {1, 8#102, ?INSN(?OP_DMOVN, 1, 0, 0, 8#150)}  % 1,,102/ DMOVN 1,150
+    , {1, 8#103, ?INSN_INVALID}                     % 1,,103/ <invalid>
+    , {1, 8#150, 0}                                 % 1,,150/ 0
+    , {1, 8#151, 0}                                 % 1,,151/ 0
+    ],
+  Flags = ?DEFAULT_FLAGS bor (1 bsl ?PDP10_PF_CARRY_1) bor (1 bsl ?PDP10_PF_CARRY_0),
+  expect(Prog, [], {1, 8#103}, Flags,
+         [ {#ea{section = 1, offset = 1, islocal = false}, 0} % AC1 = 0
+         , {#ea{section = 1, offset = 2, islocal = false}, 0} % AC2 = 0
+         ]).
+
+dmovn_minint_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_DMOVN, 1, 0, 0, 8#150)}  % 1,,100/ DMOVN 1,150
+    , {1, 8#101, ?INSN_INVALID}                     % 1,,101/ <invalid>
+    , {1, 8#150, 1 bsl 35}                          % 1,,150/ 400000,,0
+    , {1, 8#151, 0}                                 % 1,,151/ 0
+    ],
+  Flags = ?DEFAULT_FLAGS bor (1 bsl ?PDP10_PF_OVERFLOW) bor (1 bsl ?PDP10_PF_CARRY_1),
+  expect(Prog, [], {1, 8#101}, Flags,
+         [ {#ea{section = 1, offset = 1, islocal = false}, 1 bsl 35} % AC1 = 400000,,0
+         , {#ea{section = 1, offset = 2, islocal = false}, 0} % AC2 = 0
          ]).
 
 %% Common code to run short sequences ==========================================

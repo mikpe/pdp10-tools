@@ -27,6 +27,7 @@
 -export([ handle_EXCH/4
         , handle_DMOVE/4
         , handle_DMOVEM/4
+        , handle_DMOVN/4
         , handle_MOVE/4
         , handle_MOVEI/4
         , handle_MOVEM/4
@@ -317,6 +318,33 @@ handle_DMOVEM(Core, Mem, Word0, Word1, EA) ->
                           fun(Core1, Mem1) -> handle_DMOVEM(Core1, Mem1, Word0, Word1, EA) end)
   end.
 
+%% DMOVN - Double Move Negative
+
+-spec handle_DMOVN(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_DMOVN(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, Word0} ->
+      handle_DMOVN(Core, Mem, IR, ea_plus_1(EA), Word0);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> handle_DMOVN(Core1, Mem1, IR, EA) end)
+  end.
+
+handle_DMOVN(Core, Mem, IR, EA, Word0) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, Word1} ->
+      {Negative0, Negative1, Flags} = dnegate(Word0, Word1),
+      AC = IR band 8#17,
+      Core1 = sim_core:set_ac(Core, AC, Negative0),
+      Core2 = sim_core:set_ac(Core1, ac_plus_1(AC), Negative1),
+      Core3 = sim_core:set_flags(Core2, Flags),
+      sim_core:next_pc(Core3, Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> handle_DMOVN(Core1, Mem1, IR, EA, Word0) end)
+  end.
+
 %% Miscellaneous ===============================================================
 
 ac_plus_1(AC) ->
@@ -361,6 +389,24 @@ negate(Word) ->
     Negated ->
       {Negated, _Flags = 0}
   end.
+
+dnegate(Word0, Word1) ->
+  DWord = (Word0 bsl 35) bor (Word1 band ((1 bsl 35) - 1)),
+  Negated = (-DWord) band ((1 bsl 71) - 1),
+  Flags =
+    case Negated of
+      0 -> % negating 0
+        (1 bsl ?PDP10_PF_CARRY_1) bor (1 bsl ?PDP10_PF_CARRY_0);
+      DWord -> % negating -2^70
+        (1 bsl ?PDP10_PF_TRAP_1) bor
+        (1 bsl ?PDP10_PF_OVERFLOW) bor
+        (1 bsl ?PDP10_PF_CARRY_1);
+      _ ->
+        0
+    end,
+  Negated1 = Negated band ((1 bsl 35) - 1),
+  Negated0 = Negated bsr 35,
+  {Negated0, Negated1, Flags}.
 
 set_non_zero_ac(Core, _AC = 0, _Word) -> Core;
 set_non_zero_ac(Core, AC, Word) -> sim_core:set_ac(Core, AC, Word).
