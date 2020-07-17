@@ -26,6 +26,7 @@
 
 -export([ handle_EXCH/4
         , handle_DMOVE/4
+        , handle_DMOVEM/4
         , handle_MOVE/4
         , handle_MOVEI/4
         , handle_MOVEM/4
@@ -296,6 +297,24 @@ handle_DMOVE(Core, Mem, IR, EA, Word0) ->
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_DMOVE(Core1, Mem1, IR, EA, Word0) end)
+  end.
+
+%% DMOVEM - Double Move to Memory
+
+-spec handle_DMOVEM(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_DMOVEM(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  Word0 = sim_core:get_ac(Core, AC),
+  Word1 = sim_core:get_ac(Core, ac_plus_1(AC)),
+  handle_DMOVEM(Core, Mem, Word0, Word1, EA).
+
+handle_DMOVEM(Core, Mem, Word0, Word1, EA) ->
+  case sim_core:cset(Core, Mem, EA, Word0) of
+    {ok, Core1} -> handle_MOVEM_1(Core1, Mem, Word1, ea_plus_1(EA));
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+                          fun(Core1, Mem1) -> handle_DMOVEM(Core1, Mem1, Word0, Word1, EA) end)
   end.
 
 %% Miscellaneous ===============================================================
