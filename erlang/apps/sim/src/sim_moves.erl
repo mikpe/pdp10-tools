@@ -24,7 +24,8 @@
 
 -module(sim_moves).
 
--export([ handle_EXCH/4
+-export([ handle_BLT/4
+        , handle_EXCH/4
         , handle_DMOVE/4
         , handle_DMOVEM/4
         , handle_DMOVN/4
@@ -365,6 +366,57 @@ handle_DMOVNM(Core, Mem, Word0, Word1, Flags, EA) ->
                           fun(Core1, Mem1) -> handle_DMOVNM(Core1, Mem1, Word0, Word1, Flags, EA) end)
   end.
 
+%% 2.1.5 Block Transfers =======================================================
+
+%% BLT - Block Transfer
+
+-spec handle_BLT(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_BLT(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  SrcOffset = CA bsr 18,
+  DstOffset = CA band ((1 bsl 18) - 1),
+  handle_BLT(Core, Mem, AC, EA, SrcOffset, DstOffset).
+
+handle_BLT(Core, Mem, AC, EA, SrcOffset, DstOffset) ->
+  SrcEA = EA#ea{offset = SrcOffset},
+  case sim_core:c(Core, Mem, SrcEA) of
+    {ok, Word} ->
+      DstEA = EA#ea{offset = DstOffset},
+      case sim_core:cset(Core, Mem, DstEA, Word) of
+        {ok, Core1} ->
+          SrcOffset1 = (SrcOffset + 1) band ((1 bsl 18) - 1),
+          DstOffset1 = (DstOffset + 1) band ((1 bsl 18) - 1),
+          case DstOffset >= EA#ea.offset of
+            true ->
+              Core2 =
+                case ea_is_ac(DstEA, AC) of
+                  true -> Core1;
+                  false -> handle_BLT_flush(Core, AC, SrcOffset1, DstOffset1)
+                end,
+              sim_core:next_pc(Core2, Mem);
+            false -> handle_BLT(Core1, Mem, AC, EA, SrcOffset1, DstOffset1)
+          end;
+        {error, Reason} ->
+          handle_BLT_fault(Core, Mem, DstEA, write, Reason, AC, SrcOffset, DstOffset)
+      end;
+    {error, Reason} ->
+      handle_BLT_fault(Core, Mem, SrcEA, read, Reason, AC, SrcOffset, DstOffset)
+  end.
+
+handle_BLT_fault(Core, Mem, EA, Op, Reason, AC, SrcOffset, DstOffset) ->
+  %% Following the "Caution" section in the documentation for BLT, this
+  %% flushes the internal source and destination offsets to AC, and then
+  %% arranges to resume the BLT at the instruction fetch stage instead of
+  %% from an internal stage.
+  Core1 = handle_BLT_flush(Core, AC, SrcOffset, DstOffset),
+  sim_core:page_fault(Core1, Mem, ea_address(EA), Op, Reason,
+                      fun sim_core:run/2).
+
+handle_BLT_flush(Core, AC, SrcOffset, DstOffset) ->
+  sim_core:set_ac(Core, AC, (SrcOffset bsl 18) bor DstOffset).
+
 %% Miscellaneous ===============================================================
 
 ac_plus_1(AC) ->
@@ -372,6 +424,9 @@ ac_plus_1(AC) ->
 
 ea_address(#ea{section = Section, offset = Offset}) ->
   (Section bsl 18) bor Offset.
+
+ea_is_ac(#ea{section = Section, offset = Offset, islocal = IsLocal}, AC) ->
+  (Offset =:= AC) andalso (IsLocal orelse Section =< 1).
 
 ea_plus_1(#ea{offset = Offset, islocal = true} = EA) ->
   EA#ea{offset = (Offset + 1) band ((1 bsl 18) - 1)};

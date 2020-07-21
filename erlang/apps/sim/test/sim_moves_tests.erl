@@ -64,6 +64,7 @@
 -define(OP_MOVMM, 8#216).
 -define(OP_MOVMS, 8#217).
 -define(OP_EXCH, 8#250).
+-define(OP_BLT, 8#251).
 
 %% 2.1.1 Exchange Instruction ==================================================
 
@@ -446,6 +447,82 @@ dmovnm_test() ->
   expect(Prog, [], {1, 8#103}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 8#150, islocal = false}, 0} % C(1,,150) = 0
          , {#ea{section = 1, offset = 8#151, islocal = false}, 1} % C(1,,151) = 1
+         ]).
+
+%% 2.1.5 Block Transfers =======================================================
+
+blt_bzero_test() ->
+  %% First example in 2.1.5: using BLT to clear a block of words.
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 0)}     % 1,,100/ MOVEI 1,0
+    , {1, 8#101, ?INSN(?OP_MOVEM, 1, 0, 0, 8#200)} % 1,,101/ MOVEM 1,200 ; clear 200
+    , {1, 8#102, ?INSN(?OP_MOVE, 1, 0, 0, 8#150)}  % 1,,102/ MOVE 1,150 ; AC1 = 200,,201
+    , {1, 8#103, ?INSN(?OP_BLT, 1, 0, 0, 8#203)}   % 1,,103/ BLT 1,203 ; clear 201-203
+    , {1, 8#104, ?INSN_INVALID}                    % 1,,104/ <invalid>
+    , {1, 8#150, ?COMMA2(8#200, 8#201)}            % 1,,150/ 200,,201
+    , {1, 8#200, 1}                                % 1,,200/ 1 ; first to be cleared
+    , {1, 8#201, 1}                                % 1,,201/ 1
+    , {1, 8#202, 1}                                % 1,,202/ 1
+    , {1, 8#203, 1}                                % 1,,203/ 1 ; last to be cleared
+    , {1, 8#204, 1}                                % 1,,204/ 1
+    ],
+  expect(Prog, [], {1, 8#104}, ?DEFAULT_FLAGS,
+         [ %% check that the four words at 200-203 were cleared
+           {#ea{section = 1, offset = 8#200, islocal = false}, 0} % C(1,,200) = 0
+         , {#ea{section = 1, offset = 8#201, islocal = false}, 0} % C(1,,201) = 0
+         , {#ea{section = 1, offset = 8#202, islocal = false}, 0} % C(1,,202) = 0
+         , {#ea{section = 1, offset = 8#203, islocal = false}, 0} % C(1,,203) = 0
+           %% check that the next word was not overwritten
+         , {#ea{section = 1, offset = 8#204, islocal = false}, 1} % C(1,,204) = 1
+           %% check that AC1 contains the last transferred word's offsets + 1
+         , {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(8#203, 8#204)} % AC1 = 203,,204
+         ]).
+
+blt_load_acs_test() ->
+  %% Second example in 2.1.5: using BLT to load ACs from memory.
+  Prog =
+    [ {2, 8#100, ?INSN(?OP_MOVSI, 3, 0, 0, 8#200)} % 2,,100/ MOVSI 3,200 ; AC3 = 200,,0
+    , {2, 8#101, ?INSN(?OP_BLT, 3, 0, 0, 3)}       % 2,,101/ BLT 3,3 ; load ACs 0-3 from 200-203
+    , {2, 8#102, ?INSN_INVALID}                    % 2,,102/ <invalid>
+    , {2, 8#200, 1}                                % 2,,200/ 1
+    , {2, 8#201, 2}                                % 2,,201/ 2
+    , {2, 8#202, 3}                                % 2,,202/ 3
+    , {2, 8#203, 4}                                % 2,,203/ 4
+    ],
+  expect(Prog, [], {2, 8#102}, ?DEFAULT_FLAGS,
+         [ %% check that ACs 0-3 were loaded from 200-203
+           {#ea{section = 1, offset = 1, islocal = false}, 2} % AC1 = 2
+         , {#ea{section = 1, offset = 2, islocal = false}, 3} % AC2 = 3
+           %% this also checks that if the AC parameter to BLT is the last
+           %% location to be copied, it still has that value and not the
+           %% last transferred word's offsets + 1 (204,,4 here)
+         , {#ea{section = 1, offset = 3, islocal = false}, 4} % AC3 = 4
+           %% check that the next AC was not overwritten
+         , {#ea{section = 1, offset = 4, islocal = false}, 0} % AC4 = 0
+         ]).
+
+blt_store_acs_test() ->
+  %% Third example in 2.1.5: using BLT to store ACs in memory.
+  Prog =
+    [ {2, 8#100, ?INSN(?OP_MOVEI, 4, 0, 0, 8#200)} % 2,,100/ MOVEI 4,200 ; AC4 = 0,,200
+    , {2, 8#101, ?INSN(?OP_BLT, 4, 0, 0, 8#203)}   % 2,,101/ BLT 4,203 ; store ACs 0-3 in 200-203
+    , {2, 8#102, ?INSN_INVALID}                    % 2,,102/ <invalid>
+    , {2, 8#200, 1}                                % 2,,200/ 1
+    , {2, 8#201, 1}                                % 2,,201/ 1
+    , {2, 8#202, 1}                                % 2,,202/ 1
+    , {2, 8#203, 1}                                % 2,,203/ 1
+    , {2, 8#204, 8#42}                             % 2,,204/ 42
+    ],
+  expect(Prog, [], {2, 8#102}, ?DEFAULT_FLAGS,
+         [ %% check that ACs 0-3 were stored to 200-203
+           {#ea{section = 2, offset = 8#200, islocal = false}, 0} % C(2,,200) = 0
+         , {#ea{section = 2, offset = 8#201, islocal = false}, 0} % C(2,,201) = 0
+         , {#ea{section = 2, offset = 8#202, islocal = false}, 0} % C(2,,202) = 0
+         , {#ea{section = 2, offset = 8#203, islocal = false}, 0} % C(2,,203) = 0
+           %% check that the next word was not overwritten
+         , {#ea{section = 2, offset = 8#204, islocal = false}, 8#42} % C(2,,204) = 42
+           %% check that AC4 contains the last transferred word's offsets + 1
+         , {#ea{section = 1, offset = 4, islocal = false}, ?COMMA2(4, 8#204)} % AC4 = 4,,204
          ]).
 
 %% Common code to run short sequences ==========================================
