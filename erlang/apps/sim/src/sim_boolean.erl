@@ -24,7 +24,8 @@
 
 -module(sim_boolean).
 
--export([ handle_SETZ/4
+-export([ handle_AND/4
+        , handle_SETZ/4
         , handle_SETZB/4
         , handle_SETZM/4
         ]).
@@ -61,6 +62,22 @@ handle_SETZB(Core, Mem, IR, EA) ->
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
                           fun(Core1, Mem1) -> handle_SETZB(Core1, Mem1, IR, EA) end)
+  end.
+
+%% AND - And with AC
+
+-spec handle_AND(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_AND(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      CA = sim_core:get_ac(Core, AC),
+      Word = CE band CA,
+      sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> handle_AND(Core1, Mem1, IR, EA) end)
   end.
 
 %% Miscellaneous ===============================================================
