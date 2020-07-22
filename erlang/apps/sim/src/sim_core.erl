@@ -259,6 +259,7 @@ dispatch(Core, Mem, IR, EA) ->
     8#403 -> sim_boolean:handle_SETZB(Core, Mem, IR, EA);
     8#404 -> sim_boolean:handle_AND(Core, Mem, IR, EA);
     8#405 -> sim_boolean:handle_ANDI(Core, Mem, IR, EA);
+    8#406 -> sim_boolean:handle_ANDM(Core, Mem, IR, EA);
     _ ->
       PC = (Core#core.pc_section bsl 18) bor Core#core.pc_offset,
       {Core, Mem, {error, {?MODULE, {dispatch, PC, IR, EA}}}}
