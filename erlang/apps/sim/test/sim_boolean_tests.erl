@@ -48,6 +48,7 @@
 -define(OP_SETZM, 8#402).
 -define(OP_SETZB, 8#403).
 -define(OP_AND, 8#404).
+-define(OP_ANDI, 8#405).
 
 %% 2.4 Boolean Functions =======================================================
 
@@ -103,6 +104,16 @@ and_test() ->
     , {1, 8#101, ?INSN(?OP_AND, 1, 0, 0, 8#200)}      % 1,,101/ AND 1,200
     , {1, 8#102, ?INSN_INVALID}                       % 1,,102/ <invalid>
     , {1, 8#200, ?COMMA2(-1, 8#333333)}               % 1,,200/ -1,333333
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, 8#303030} % AC1 = 0,,303030
+         ]).
+
+andi_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 8#707070)} % 1,,100/ MOVEI 1,707070
+    , {1, 8#101, ?INSN(?OP_ANDI, 1, 0, 0, 8#333333)}  % 1,,101/ ANDI 1,333333
+    , {1, 8#102, ?INSN_INVALID}                       % 1,,102/ <invalid>
     ],
   expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 1, islocal = false}, 8#303030} % AC1 = 0,,303030
