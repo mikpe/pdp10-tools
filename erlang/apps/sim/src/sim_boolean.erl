@@ -25,6 +25,7 @@
 -module(sim_boolean).
 
 -export([ handle_SETZ/4
+        , handle_SETZM/4
         ]).
 
 -include("sim_core.hrl").
@@ -38,3 +39,18 @@
 handle_SETZ(Core, Mem, IR, _EA) ->
   AC = IR band 8#17,
   sim_core:next_pc(sim_core:set_ac(Core, AC, 0), Mem).
+
+-spec handle_SETZM(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_SETZM(Core, Mem, IR, EA) ->
+  case sim_core:cset(Core, Mem, EA, 0) of
+    {ok, Core1} -> sim_core:next_pc(Core1, Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+                          fun(Core1, Mem1) -> handle_SETZM(Core1, Mem1, IR, EA) end)
+  end.
+
+%% Miscellaneous ===============================================================
+
+ea_address(#ea{section = Section, offset = Offset}) ->
+  (Section bsl 18) bor Offset.
