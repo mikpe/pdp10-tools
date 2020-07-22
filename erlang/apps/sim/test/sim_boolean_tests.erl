@@ -44,6 +44,7 @@
 
 -define(OP_MOVEI, 8#201).
 -define(OP_SETZ, 8#400).
+-define(OP_SETZI, 8#401).
 
 %% 2.4 Boolean Functions =======================================================
 
@@ -53,6 +54,16 @@ setz_test() ->
   Prog =
     [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 1)} % 1,,100/ MOVEI 1,1
     , {1, 8#101, ?INSN(?OP_SETZ, 1, 0, 0, 0)}  % 1,,101/ SETZ 1,
+    , {1, 8#102, ?INSN_INVALID}                % 1,,102/ <invalid>
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, 0} % AC1 = 0
+         ]).
+
+setzi_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 1)} % 1,,100/ MOVEI 1,1
+    , {1, 8#101, ?INSN(?OP_SETZI, 1, 0, 0, 0)} % 1,,101/ SETZI 1,
     , {1, 8#102, ?INSN_INVALID}                % 1,,102/ <invalid>
     ],
   expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,

@@ -254,6 +254,7 @@ dispatch(Core, Mem, IR, EA) ->
     8#250 -> sim_moves:handle_EXCH(Core, Mem, IR, EA);
     8#251 -> sim_moves:handle_BLT(Core, Mem, IR, EA);
     8#400 -> sim_boolean:handle_SETZ(Core, Mem, IR, EA);
+    8#401 -> sim_boolean:handle_SETZ(Core, Mem, IR, EA); % SETZI = SETZ
     _ ->
       PC = (Core#core.pc_section bsl 18) bor Core#core.pc_offset,
       {Core, Mem, {error, {?MODULE, {dispatch, PC, IR, EA}}}}
