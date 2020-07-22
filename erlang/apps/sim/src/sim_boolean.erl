@@ -25,6 +25,7 @@
 -module(sim_boolean).
 
 -export([ handle_SETZ/4
+        , handle_SETZB/4
         , handle_SETZM/4
         ]).
 
@@ -48,6 +49,18 @@ handle_SETZM(Core, Mem, IR, EA) ->
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
                           fun(Core1, Mem1) -> handle_SETZM(Core1, Mem1, IR, EA) end)
+  end.
+
+-spec handle_SETZB(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_SETZB(Core, Mem, IR, EA) ->
+  case sim_core:cset(Core, Mem, EA, 0) of
+    {ok, Core1} ->
+      AC = IR band 8#17,
+      sim_core:next_pc(sim_core:set_ac(Core1, AC, 0), Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+                          fun(Core1, Mem1) -> handle_SETZB(Core1, Mem1, IR, EA) end)
   end.
 
 %% Miscellaneous ===============================================================
