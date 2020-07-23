@@ -151,6 +151,22 @@ multi_section_ea_calcs_7_0_test() ->
     ],
   expect(Prog3, [], {3, 8#100}, #ea{section = 0, offset = 8#201, islocal = true}).
 
+xmovei_and_xhlli_8_10_test() ->
+ Prog1 =
+    [ {2, 8#100, ?INSN(?OP_INVALID, 1, 0, 0, 6)}     % 2,,100/ XMOVEI 1,6
+    ],
+  expect(Prog1, [], {2, 8#100}, #ea{section = 2, offset = 6, islocal = true}),
+  %% The second example in 8.10 is broken, in that the EA-calculcation follows
+  %% an indirect EFIW into section zero expecting to find an IFIW at 0,,6.
+  %% Compare this with the third example in 7.0 which also defines the IFIW
+  %% that the indirect EFIW points to.
+  Prog2 =
+    [ {2, 8#100, ?INSN(?OP_INVALID, 1, 1, 0, 8#150)} % 2,,100/ XMOVEI 1,@150
+    , {2, 8#150, ?COMMA2(8#200000, 8#100)}           % 2,,150/ 200000,,100 ; indirect EFIW
+    , {0, 8#100, ?COMMA2(0, 6)}                      % 0,,100/ 0,,6 ; IFIW
+    ],
+  expect(Prog2, [], {2, 8#100}, #ea{section = 0, offset = 6, islocal = true}).
+
 %% Remaining examples from the "Extended Addressing" document relate to
 %% instructions using the EA not the initial EA calculation itself, and
 %% they will be added as those instructions are implemented.

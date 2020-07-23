@@ -56,6 +56,8 @@
 -define(OP_ANDCAM, 8#412).
 -define(OP_ANDCAB, 8#413).
 -define(OP_SETM, 8#414).
+-define(OP_SETMI, 8#415).
+-define(OP_XMOVEI, ?OP_SETMI).
 
 %% 2.4 Boolean Functions =======================================================
 
@@ -205,6 +207,55 @@ setm_test() ->
     ],
   expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 1, islocal = false}, 8#42} % AC1 = 42
+         ]).
+
+setmi_test() ->
+  %% In section 0, SETMI = MOVEI.
+  Prog =
+    [ {0, 8#100, ?INSN(?OP_SETMI, 1, 0, 0, 8#200)}  % 0,,100/ SETMI 1,200
+    , {0, 8#101, ?INSN_INVALID}                     % 0,,101/ <invalid>
+    ],
+  expect(Prog, [], {0, 8#101}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, 8#200} % AC1 = 200
+         ]).
+
+xmovei_ac_test() ->
+  %% In sections > 0, SETMI = XMOVEI.
+  %% Check that a local AC address is converted to a global one.
+  Prog =
+    [ {2, 8#100, ?INSN(?OP_XMOVEI, 1, 0, 0, 6)}     % 2,,100/ XMOVEI 1,6
+    , {2, 8#101, ?INSN_INVALID}                     % 2,,101/ <invalid>
+    ],
+  expect(Prog, [], {2, 8#101}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(1, 6)} % AC1 = 1,,6
+         ]).
+
+xmovei_section_zero_ac_test() ->
+  %% In sections > 0, SETMI = XMOVEI.
+  %% Check that a local AC address in section zero is not converted to a global one.
+  %% See "Extended Addressing", Rev. 5, Jul. 1983, KC10 / Project Jupiter docs,
+  %% section 8.10, second example.  The example is incorrect, in that its
+  %% EA-calculation dereferences an uninitialized word.  The third example in
+  %% section 7.0 shows the correct setup.
+  Prog =
+    [ {2, 8#100, ?INSN(?OP_XMOVEI, 1, 1, 0, 8#150)} % 2,,100/ XMOVEI 1,@150
+    , {2, 8#101, ?INSN_INVALID}                     % 2,,101/ <invalid>
+    , {2, 8#150, ?COMMA2(8#200000, 8#100)}          % 2,,150/ 200000,,100 ; indirect EFIW
+    , {0, 8#100, ?COMMA2(0, 6)}                     % 0,,100/ 0,,6 ; IFIW
+    ],
+  expect(Prog, [], {2, 8#101}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 0, offset = 1, islocal = false}, 6} % AC1 = 0,,6
+         ]).
+
+xmovei_non_ac_test() ->
+  %% In sections > 0, SETMI = XMOVEI.
+  %% Check that an EA not denoting a local AC address is loaded as-is.
+  Prog =
+    [ {2, 8#100, ?INSN(?OP_XMOVEI, 1, 0, 0, 8#42)}  % 2,,100/ XMOVEI 1,42
+    , {2, 8#101, ?INSN_INVALID}                     % 2,,101/ <invalid>
+    ],
+  expect(Prog, [], {2, 8#101}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(2, 8#42)} % AC1 = 2,,42
          ]).
 
 %% Common code to run short sequences ==========================================

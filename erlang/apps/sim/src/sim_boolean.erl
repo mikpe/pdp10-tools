@@ -32,6 +32,7 @@
         , handle_ANDCAM/4
         , handle_ANDI/4
         , handle_ANDM/4
+        , handle_SETMI/4
         , handle_SETZ/4
         , handle_SETZB/4
         , handle_SETZM/4
@@ -190,6 +191,20 @@ handle_ANDCAB(Core, Mem, IR, EA) ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_ANDCAB(Core1, Mem1, IR, EA) end)
   end.
+
+%% SETM - Set to Memory
+
+-spec handle_SETMI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_SETMI(Core, Mem, IR, #ea{section = Section0, offset = Offset, islocal = IsLocal}) ->
+  AC = IR band 8#17,
+  %% Behave as MOVEI in section 0, and as XMOVEI (2.1.3) in non-zero sections.
+  Section1 =
+    if IsLocal, Offset =< 8#17, Section0 > 1 -> 1; % change local AC address to global one
+       true -> Section0
+    end,
+  Word = (Section1 bsl 18) bor Offset,
+  sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem).
 
 %% Miscellaneous ===============================================================
 
