@@ -63,6 +63,7 @@
 -define(OP_ANDCM, 8#420).
 -define(OP_ANDCMI, 8#421).
 -define(OP_ANDCMM, 8#422).
+-define(OP_ANDCMB, 8#423).
 
 %% 2.4 Boolean Functions =======================================================
 
@@ -319,6 +320,18 @@ andcmm_test() ->
     ],
   expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 8#200, islocal = false}, ?COMMA2(0, 8#030303)} % C(1,,200) = 0,,030303
+         ]).
+
+andcmb_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 8#333333)} % 1,,100/ MOVEI 1,333333
+    , {1, 8#101, ?INSN(?OP_ANDCMB, 1, 0, 0, 8#200)}   % 1,,101/ ANDCMB 1,200
+    , {1, 8#102, ?INSN_INVALID}                       % 1,,102/ <invalid>
+    , {1, 8#200, ?COMMA2(-1, 8#707070)}               % 1,,200/ -1,,707070
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 8#200, islocal = false}, ?COMMA2(0, 8#030303)} % C(1,,200) = 0,,030303
+         , {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(0, 8#030303)} % AC1 = 0,,030303
          ]).
 
 %% Common code to run short sequences ==========================================
