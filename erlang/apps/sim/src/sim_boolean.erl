@@ -26,6 +26,7 @@
 
 -export([ handle_AND/4
         , handle_ANDB/4
+        , handle_ANDCA/4
         , handle_ANDI/4
         , handle_ANDM/4
         , handle_SETZ/4
@@ -133,6 +134,22 @@ handle_ANDB(Core, Mem, AC, EA, Word) ->
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
                           fun(Core1, Mem1) -> handle_ANDB(Core1, Mem1, AC, EA, Word) end)
+  end.
+
+%% ANDCA - And with Complement of AC
+
+-spec handle_ANDCA(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_ANDCA(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      CA = sim_core:get_ac(Core, AC),
+      Word = CE band bnot CA,
+      sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> handle_ANDCA(Core1, Mem1, IR, EA) end)
   end.
 
 %% Miscellaneous ===============================================================
