@@ -27,6 +27,7 @@
 -export([ handle_AND/4
         , handle_ANDB/4
         , handle_ANDCA/4
+        , handle_ANDCAI/4
         , handle_ANDI/4
         , handle_ANDM/4
         , handle_SETZ/4
@@ -151,6 +152,14 @@ handle_ANDCA(Core, Mem, IR, EA) ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_ANDCA(Core1, Mem1, IR, EA) end)
   end.
+
+-spec handle_ANDCAI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_ANDCAI(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  Word = EA#ea.offset band bnot CA,
+  sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem).
 
 %% Miscellaneous ===============================================================
 

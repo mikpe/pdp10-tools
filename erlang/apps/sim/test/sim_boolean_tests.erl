@@ -52,6 +52,7 @@
 -define(OP_ANDM, 8#406).
 -define(OP_ANDB, 8#407).
 -define(OP_ANDCA, 8#410).
+-define(OP_ANDCAI, 8#411).
 
 %% 2.4 Boolean Functions =======================================================
 
@@ -156,6 +157,16 @@ andca_test() ->
     ],
   expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(-1, 8#030303)} % AC1 = -1,,030303
+         ]).
+
+andcai_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 8#707070)}  % 1,,100/ MOVEI 1,707070
+    , {1, 8#101, ?INSN(?OP_ANDCAI, 1, 0, 0, 8#333333)} % 1,,101/ ANDCAI 1,333333
+    , {1, 8#102, ?INSN_INVALID}                        % 1,,102/ <invalid>
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, 8#030303} % AC1 = 0,,030303
          ]).
 
 %% Common code to run short sequences ==========================================
