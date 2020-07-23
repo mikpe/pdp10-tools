@@ -33,6 +33,7 @@
         , handle_ANDI/4
         , handle_ANDM/4
         , handle_SETMI/4
+        , handle_SETMM/4
         , handle_SETZ/4
         , handle_SETZB/4
         , handle_SETZM/4
@@ -205,6 +206,18 @@ handle_SETMI(Core, Mem, IR, #ea{section = Section0, offset = Offset, islocal = I
     end,
   Word = (Section1 bsl 18) bor Offset,
   sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem).
+
+-spec handle_SETMM(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_SETMM(Core, Mem, IR, EA) ->
+  %% SETMM only checks that E is readable and writable.
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      handle_ANDM_1(Core, Mem, EA, CE);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> handle_SETMM(Core1, Mem1, IR, EA) end)
+  end.
 
 %% Miscellaneous ===============================================================
 
