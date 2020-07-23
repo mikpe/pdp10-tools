@@ -265,6 +265,7 @@ dispatch(Core, Mem, IR, EA) ->
     8#411 -> sim_boolean:handle_ANDCAI(Core, Mem, IR, EA);
     8#412 -> sim_boolean:handle_ANDCAM(Core, Mem, IR, EA);
     8#413 -> sim_boolean:handle_ANDCAB(Core, Mem, IR, EA);
+    8#414 -> sim_moves:handle_MOVE(Core, Mem, IR, EA); % SETM = MOVE
     _ ->
       PC = (Core#core.pc_section bsl 18) bor Core#core.pc_offset,
       {Core, Mem, {error, {?MODULE, {dispatch, PC, IR, EA}}}}
