@@ -30,6 +30,7 @@
         , handle_ANDCAB/4
         , handle_ANDCAI/4
         , handle_ANDCAM/4
+        , handle_ANDCM/4
         , handle_ANDI/4
         , handle_ANDM/4
         , handle_SETMB/4
@@ -231,6 +232,22 @@ handle_SETMB(Core, Mem, IR, EA) ->
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_SETMB(Core1, Mem1, IR, EA) end)
+  end.
+
+%% ANDCM - And Complement of Memory with AC
+
+-spec handle_ANDCM(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_ANDCM(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      CA = sim_core:get_ac(Core, AC),
+      Word = CA band bnot CE,
+      sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> handle_ANDCM(Core1, Mem1, IR, EA) end)
   end.
 
 %% Miscellaneous ===============================================================

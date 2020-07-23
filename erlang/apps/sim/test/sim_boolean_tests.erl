@@ -60,6 +60,7 @@
 -define(OP_XMOVEI, ?OP_SETMI).
 -define(OP_SETMM, 8#416).
 -define(OP_SETMB, 8#417).
+-define(OP_ANDCM, 8#420).
 
 %% 2.4 Boolean Functions =======================================================
 
@@ -282,6 +283,19 @@ setmb_test() ->
   expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 8#150, islocal = false}, 8#42} % C(1,,150) = 42
          , {#ea{section = 1, offset = 0, islocal = false}, 8#42} % AC0 = 42
+         ]).
+
+%% ANDCM - And Complement of Memory with AC
+
+andcm_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 8#333333)} % 1,,100/ MOVEI 1,333333
+    , {1, 8#101, ?INSN(?OP_ANDCM, 1, 0, 0, 8#200)}    % 1,,101/ ANDCM 1,200
+    , {1, 8#102, ?INSN_INVALID}                       % 1,,102/ <invalid>
+    , {1, 8#200, ?COMMA2(0, 8#707070)}                % 1,,200/ 0,,707070
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(0, 8#030303)} % AC1 = 0,,030303
          ]).
 
 %% Common code to run short sequences ==========================================
