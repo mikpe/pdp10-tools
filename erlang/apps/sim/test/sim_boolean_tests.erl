@@ -59,6 +59,7 @@
 -define(OP_SETMI, 8#415).
 -define(OP_XMOVEI, ?OP_SETMI).
 -define(OP_SETMM, 8#416).
+-define(OP_SETMB, 8#417).
 
 %% 2.4 Boolean Functions =======================================================
 
@@ -269,6 +270,18 @@ setmm_test() ->
   expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 8#200, islocal = false}, ?COMMA2(1, 2)} % C(1,,200) = 1,,2
          , {#ea{section = 1, offset = 1, islocal = false}, 3}
+         ]).
+
+setmb_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 0, 0, 0, 8#27)}   % 1,,100/ MOVEI 0,27
+    , {1, 8#101, ?INSN(?OP_SETMB, 0, 0, 0, 8#150)}  % 1,,101/ SETMB 0,150
+    , {1, 8#102, ?INSN_INVALID}                     % 1,,102/ <invalid>
+    , {1, 8#150, 8#42}                              % 1,,150/ 0,,42
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 8#150, islocal = false}, 8#42} % C(1,,150) = 42
+         , {#ea{section = 1, offset = 0, islocal = false}, 8#42} % AC0 = 42
          ]).
 
 %% Common code to run short sequences ==========================================
