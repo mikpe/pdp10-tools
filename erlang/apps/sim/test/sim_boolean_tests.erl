@@ -69,6 +69,7 @@
 -define(OP_SETAM, 8#426).
 -define(OP_SETAB, 8#426).
 -define(OP_XOR, 8#430).
+-define(OP_XORI, 8#431).
 
 %% 2.4 Boolean Functions =======================================================
 
@@ -383,6 +384,16 @@ xor_test() ->
     , {1, 8#101, ?INSN(?OP_XOR, 1, 0, 0, 8#200)}      % 1,,101/ XOR 1,200
     , {1, 8#102, ?INSN_INVALID}                       % 1,,102/ <invalid>
     , {1, 8#200, ?COMMA2(0, 8#333333)}                % 1,,200/ 0,,333333
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, 8#434343} % AC1 = 0,,434343
+         ]).
+
+xori_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 8#707070)} % 1,,100/ MOVEI 1,707070
+    , {1, 8#101, ?INSN(?OP_XORI, 1, 0, 0, 8#333333)}  % 1,,101/ XORI 1,333333
+    , {1, 8#102, ?INSN_INVALID}                       % 1,,102/ <invalid>
     ],
   expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 1, islocal = false}, 8#434343} % AC1 = 0,,434343

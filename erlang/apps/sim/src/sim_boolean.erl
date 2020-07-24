@@ -43,6 +43,7 @@
         , handle_SETZB/4
         , handle_SETZM/4
         , handle_XOR/4
+        , handle_XORI/4
         ]).
 
 -include("sim_core.hrl").
@@ -305,6 +306,14 @@ handle_XOR(Core, Mem, IR, EA) ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_XOR(Core1, Mem1, IR, EA) end)
   end.
+
+-spec handle_XORI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_XORI(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  Word = CA bxor EA#ea.offset,
+  sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem).
 
 %% Miscellaneous ===============================================================
 
