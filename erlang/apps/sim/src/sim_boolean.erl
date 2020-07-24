@@ -42,6 +42,7 @@
         , handle_SETZ/4
         , handle_SETZB/4
         , handle_SETZM/4
+        , handle_XOR/4
         ]).
 
 -include("sim_core.hrl").
@@ -287,6 +288,22 @@ handle_ANDCMB(Core, Mem, IR, EA) ->
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_ANDCMB(Core1, Mem1, IR, EA) end)
+  end.
+
+%% XOR - Exclusive Or with AC
+
+-spec handle_XOR(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_XOR(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      CA = sim_core:get_ac(Core, AC),
+      Word = CE bxor CA,
+      sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> handle_XOR(Core1, Mem1, IR, EA) end)
   end.
 
 %% Miscellaneous ===============================================================

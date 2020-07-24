@@ -277,6 +277,7 @@ dispatch(Core, Mem, IR, EA) ->
     8#425 -> next_pc(Core, Mem); % SETAI = no-op
     8#426 -> sim_moves:handle_MOVEM(Core, Mem, IR, EA); % SETAM = MOVEM
     8#427 -> sim_moves:handle_MOVEM(Core, Mem, IR, EA); % SETAB = MOVEM
+    8#430 -> sim_boolean:handle_XOR(Core, Mem, IR, EA);
     _ ->
       PC = (Core#core.pc_section bsl 18) bor Core#core.pc_offset,
       {Core, Mem, {error, {?MODULE, {dispatch, PC, IR, EA}}}}
