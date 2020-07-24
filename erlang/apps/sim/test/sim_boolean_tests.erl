@@ -64,6 +64,8 @@
 -define(OP_ANDCMI, 8#421).
 -define(OP_ANDCMM, 8#422).
 -define(OP_ANDCMB, 8#423).
+-define(OP_SETA, 8#424).
+-define(OP_SETAI, 8#425).
 
 %% 2.4 Boolean Functions =======================================================
 
@@ -333,6 +335,20 @@ andcmb_test() ->
          [ {#ea{section = 1, offset = 8#200, islocal = false}, ?COMMA2(0, 8#030303)} % C(1,,200) = 0,,030303
          , {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(0, 8#030303)} % AC1 = 0,,030303
          ]).
+
+seta_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_SETA, 0, 0, 0, 0)}         % 1,,100/ SETA 0,0
+    , {1, 8#101, ?INSN_INVALID}                       % 1,,101/ <invalid>
+    ],
+  expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS, []).
+
+setai_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_SETAI, 0, 0, 0, 0)}        % 1,,100/ SETAI 0,0
+    , {1, 8#101, ?INSN_INVALID}                       % 1,,101/ <invalid>
+    ],
+  expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS, []).
 
 %% Common code to run short sequences ==========================================
 

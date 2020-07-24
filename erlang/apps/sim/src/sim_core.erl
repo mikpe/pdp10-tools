@@ -273,6 +273,8 @@ dispatch(Core, Mem, IR, EA) ->
     8#421 -> sim_boolean:handle_ANDCMI(Core, Mem, IR, EA);
     8#422 -> sim_boolean:handle_ANDCMM(Core, Mem, IR, EA);
     8#423 -> sim_boolean:handle_ANDCMB(Core, Mem, IR, EA);
+    8#424 -> next_pc(Core, Mem); % SETA = no-op
+    8#425 -> next_pc(Core, Mem); % SETAI = no-op
     _ ->
       PC = (Core#core.pc_section bsl 18) bor Core#core.pc_offset,
       {Core, Mem, {error, {?MODULE, {dispatch, PC, IR, EA}}}}
