@@ -41,6 +41,7 @@
         , handle_ANDI/4
         , handle_ANDM/4
         , handle_EQV/4
+        , handle_EQVI/4
         , handle_IOR/4
         , handle_IORB/4
         , handle_IORI/4
@@ -473,6 +474,14 @@ handle_EQV(Core, Mem, IR, EA) ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_EQV(Core1, Mem1, IR, EA) end)
   end.
+
+-spec handle_EQVI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_EQVI(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  Word = (bnot (CA bxor EA#ea.offset)) band ((1 bsl 36) - 1),
+  sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem).
 
 %% Miscellaneous ===============================================================
 
