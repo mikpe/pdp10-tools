@@ -282,6 +282,7 @@ dispatch(Core, Mem, IR, EA) ->
     8#432 -> sim_boolean:handle_XORM(Core, Mem, IR, EA);
     8#433 -> sim_boolean:handle_XORB(Core, Mem, IR, EA);
     8#434 -> sim_boolean:handle_IOR(Core, Mem, IR, EA);
+    8#435 -> sim_boolean:handle_IORI(Core, Mem, IR, EA);
     _ ->
       PC = (Core#core.pc_section bsl 18) bor Core#core.pc_offset,
       {Core, Mem, {error, {?MODULE, {dispatch, PC, IR, EA}}}}

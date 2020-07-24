@@ -37,6 +37,7 @@
         , handle_ANDI/4
         , handle_ANDM/4
         , handle_IOR/4
+        , handle_IORI/4
         , handle_SETMB/4
         , handle_SETMI/4
         , handle_SETMM/4
@@ -361,6 +362,14 @@ handle_IOR(Core, Mem, IR, EA) ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_IOR(Core1, Mem1, IR, EA) end)
   end.
+
+-spec handle_IORI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_IORI(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  Word = CA bor EA#ea.offset,
+  sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem).
 
 %% Miscellaneous ===============================================================
 
