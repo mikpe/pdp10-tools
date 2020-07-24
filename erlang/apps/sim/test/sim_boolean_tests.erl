@@ -71,6 +71,7 @@
 -define(OP_XOR, 8#430).
 -define(OP_XORI, 8#431).
 -define(OP_XORM, 8#432).
+-define(OP_XORB, 8#433).
 
 %% 2.4 Boolean Functions =======================================================
 
@@ -409,6 +410,18 @@ xorm_test() ->
     ],
   expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 8#200, islocal = false}, 8#434343} % C(1,,200) = 0,,434343
+         ]).
+
+xorb_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 8#707070)} % 1,,100/ MOVEI 1,707070
+    , {1, 8#101, ?INSN(?OP_XORB, 1, 0, 0, 8#200)}     % 1,,101/ XORB 1,200
+    , {1, 8#102, ?INSN_INVALID}                       % 1,,102/ <invalid>
+    , {1, 8#200, ?COMMA2(0, 8#333333)}                % 1,,200/ 0,,333333
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 8#200, islocal = false}, 8#434343} % C(1,,200) = 0,,434343
+         , {#ea{section = 1, offset = 1, islocal = false}, 8#434343} % AC1 = 0,,434343
          ]).
 
 %% Common code to run short sequences ==========================================
