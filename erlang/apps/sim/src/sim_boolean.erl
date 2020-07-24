@@ -36,6 +36,7 @@
         , handle_ANDCMM/4
         , handle_ANDI/4
         , handle_ANDM/4
+        , handle_IOR/4
         , handle_SETMB/4
         , handle_SETMI/4
         , handle_SETMM/4
@@ -343,6 +344,22 @@ handle_XORB(Core, Mem, IR, EA) ->
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_XORB(Core1, Mem1, IR, EA) end)
+  end.
+
+%% IOR - Inclusive Or with AC
+
+-spec handle_IOR(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_IOR(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      CA = sim_core:get_ac(Core, AC),
+      Word = CE bor CA,
+      sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> handle_IOR(Core1, Mem1, IR, EA) end)
   end.
 
 %% Miscellaneous ===============================================================
