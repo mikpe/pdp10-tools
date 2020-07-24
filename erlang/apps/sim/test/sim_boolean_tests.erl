@@ -76,6 +76,7 @@
 -define(OP_IORI, 8#435).
 -define(OP_IORM, 8#436).
 -define(OP_IORB, 8#437).
+-define(OP_ANDCB, 8#440).
 
 %% 2.4 Boolean Functions =======================================================
 
@@ -472,6 +473,19 @@ iorb_test() ->
   expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 8#200, islocal = false}, 8#777777} % C(1,,200) = 0,,-1
          , {#ea{section = 1, offset = 1, islocal = false}, 8#777777} % AC1 = 0,,-1
+         ]).
+
+%% ANDCB - And Complements of Both
+
+andcb_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 8#707070)} % 1,,100/ MOVEI 1,707070
+    , {1, 8#101, ?INSN(?OP_ANDCB, 1, 0, 0, 8#200)}    % 1,,101/ ANDCB 1,200
+    , {1, 8#102, ?INSN_INVALID}                       % 1,,102/ <invalid>
+    , {1, 8#200, ?COMMA2(0, 8#070707)}                % 1,,200/ 0,,070707
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(-1, 0)} % AC1 = -1,,0
          ]).
 
 %% Common code to run short sequences ==========================================

@@ -30,6 +30,7 @@
         , handle_ANDCAB/4
         , handle_ANDCAI/4
         , handle_ANDCAM/4
+        , handle_ANDCB/4
         , handle_ANDCM/4
         , handle_ANDCMB/4
         , handle_ANDCMI/4
@@ -399,6 +400,22 @@ handle_IORB(Core, Mem, IR, EA) ->
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_IORB(Core1, Mem1, IR, EA) end)
+  end.
+
+%% ANDCB - And Complements of Both
+
+-spec handle_ANDCB(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_ANDCB(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      CA = sim_core:get_ac(Core, AC),
+      Word = ((bnot CE) band (bnot CA)) band ((1 bsl 36) - 1),
+      sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> handle_ANDCA(Core1, Mem1, IR, EA) end)
   end.
 
 %% Miscellaneous ===============================================================
