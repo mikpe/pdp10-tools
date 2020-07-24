@@ -80,6 +80,7 @@
 -define(OP_ANDCBI, 8#441).
 -define(OP_ANDCBM, 8#442).
 -define(OP_ANDCBB, 8#443).
+-define(OP_EQV, 8#444).
 
 %% 2.4 Boolean Functions =======================================================
 
@@ -522,6 +523,19 @@ andcbb_test() ->
   expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 8#200, islocal = false}, ?COMMA2(-1, 0)} % C(1,,200) = -1,,0
          , {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(-1, 0)} % AC1 = -1,,0
+         ]).
+
+%% EQV - Equivalence with AC
+
+eqv_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 8#707070)} % 1,,100/ MOVEI 1,707070
+    , {1, 8#101, ?INSN(?OP_EQV, 1, 0, 0, 8#200)}      % 1,,101/ EQV 1,200
+    , {1, 8#102, ?INSN_INVALID}                       % 1,,102/ <invalid>
+    , {1, 8#200, ?COMMA2(0, 8#333333)}                % 1,,200/ 0,,333333
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(-1, 8#343434)} % AC1 = -1,,343434
          ]).
 
 %% Common code to run short sequences ==========================================
