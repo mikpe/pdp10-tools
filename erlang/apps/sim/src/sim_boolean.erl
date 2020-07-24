@@ -32,6 +32,7 @@
         , handle_ANDCAM/4
         , handle_ANDCB/4
         , handle_ANDCBI/4
+        , handle_ANDCBM/4
         , handle_ANDCM/4
         , handle_ANDCMB/4
         , handle_ANDCMI/4
@@ -426,6 +427,20 @@ handle_ANDCBI(Core, Mem, IR, EA) ->
   CA = sim_core:get_ac(Core, AC),
   Word = ((bnot CA) band (bnot EA#ea.offset)) band ((1 bsl 36) - 1),
   sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem).
+
+-spec handle_ANDCBM(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_ANDCBM(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      CA = sim_core:get_ac(Core, AC),
+      Word = ((bnot CE) band (bnot CA)) band ((1 bsl 36) - 1),
+      handle_ANDM_1(Core, Mem, EA, Word);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> handle_ANDCBM(Core1, Mem1, IR, EA) end)
+  end.
 
 %% Miscellaneous ===============================================================
 
