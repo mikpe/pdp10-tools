@@ -84,6 +84,7 @@
 -define(OP_EQVI, 8#445).
 -define(OP_EQVM, 8#446).
 -define(OP_EQVB, 8#447).
+-define(OP_SETCA, 8#450).
 
 %% 2.4 Boolean Functions =======================================================
 
@@ -572,6 +573,18 @@ eqvb_test() ->
   expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 8#200, islocal = false}, ?COMMA2(-1, 8#343434)} % C(1,,200) = -1,,343434
          , {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(-1, 8#343434)} % AC1 = -1,,343434
+         ]).
+
+%% SETCA - Set to Complement of AC
+
+setca_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 8#707070)} % 1,,100/ MOVEI 1,707070
+    , {1, 8#101, ?INSN(?OP_SETCA, 1, 0, 0, 0)}        % 1,,101/ SETCA 1,
+    , {1, 8#102, ?INSN_INVALID}                       % 1,,102/ <invalid>
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(-1, 8#070707)} % AC1 = -1,,070707
          ]).
 
 %% Common code to run short sequences ==========================================
