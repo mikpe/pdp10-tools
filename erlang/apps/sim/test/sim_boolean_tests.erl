@@ -93,6 +93,7 @@
 -define(OP_ORCAM, 8#456).
 -define(OP_ORCAB, 8#457).
 -define(OP_SETCM, 8#460).
+-define(OP_SETCMI, 8#461).
 
 %% 2.4 Boolean Functions =======================================================
 
@@ -681,6 +682,15 @@ setcm_test() ->
     [ {1, 8#100, ?INSN(?OP_SETCM, 1, 0, 0, 8#200)}    % 1,,100/ SETCM 1,200
     , {1, 8#101, ?INSN_INVALID}                       % 1,,101/ <invalid>
     , {1, 8#200, ?COMMA2(0, 8#707070)}                % 1,,200/ 0,,707070
+    ],
+  expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(-1, 8#070707)} % AC1 = -1,,070707
+         ]).
+
+setcmi_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_SETCMI, 1, 0, 0, 8#707070)} % 1,,100/ SETCMI 1,707070
+    , {1, 8#101, ?INSN_INVALID}                        % 1,,101/ <invalid>
     ],
   expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(-1, 8#070707)} % AC1 = -1,,070707

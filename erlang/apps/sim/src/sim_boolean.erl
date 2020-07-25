@@ -56,6 +56,7 @@
         , handle_SETCAB/4
         , handle_SETCAM/4
         , handle_SETCM/4
+        , handle_SETCMI/4
         , handle_SETMB/4
         , handle_SETMI/4
         , handle_SETMM/4
@@ -613,6 +614,13 @@ handle_SETCM(Core, Mem, IR, EA) ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_SETCM(Core1, Mem1, IR, EA) end)
   end.
+
+-spec handle_SETCMI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_SETCMI(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  Word = (bnot EA#ea.offset) band ((1 bsl 36) - 1),
+  sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem).
 
 %% Miscellaneous ===============================================================
 
