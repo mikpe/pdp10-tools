@@ -99,6 +99,7 @@
 -define(OP_ORCM, 8#464).
 -define(OP_ORCMI, 8#465).
 -define(OP_ORCMM, 8#466).
+-define(OP_ORCMB, 8#467).
 
 %% 2.4 Boolean Functions =======================================================
 
@@ -754,6 +755,18 @@ orcmm_test() ->
     ],
   expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 8#200, islocal = false}, ?COMMA2(-1, -1)} % C(1,,200) = -1,,-1
+         ]).
+
+orcmb_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 8#707070)} % 1,,100/ MOVEI 1,707070
+    , {1, 8#101, ?INSN(?OP_ORCMB, 1, 0, 0, 8#200)}    % 1,,101/ ORCMB 1,200
+    , {1, 8#102, ?INSN_INVALID}                       % 1,,102/ <invalid>
+    , {1, 8#200, ?COMMA2(0, 8#707070)}                % 1,,200/ 0,,707070
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 8#200, islocal = false}, ?COMMA2(-1, -1)} % C(1,,200) = -1,,-1
+         , {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(-1, -1)} % AC1 = -1,,-1
          ]).
 
 %% Common code to run short sequences ==========================================

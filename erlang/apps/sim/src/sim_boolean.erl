@@ -53,6 +53,7 @@
         , handle_ORCAI/4
         , handle_ORCAM/4
         , handle_ORCM/4
+        , handle_ORCMB/4
         , handle_ORCMI/4
         , handle_ORCMM/4
         , handle_SETCA/4
@@ -688,6 +689,20 @@ handle_ORCMM(Core, Mem, IR, EA) ->
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_ORCMM(Core1, Mem1, IR, EA) end)
+  end.
+
+-spec handle_ORCMB(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_ORCMB(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      CA = sim_core:get_ac(Core, AC),
+      Word = (CA bor bnot CE) band ((1 bsl 36) - 1),
+      handle_ANDB(Core, Mem, AC, EA, Word);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> handle_ORCMB(Core1, Mem1, IR, EA) end)
   end.
 
 %% Miscellaneous ===============================================================
