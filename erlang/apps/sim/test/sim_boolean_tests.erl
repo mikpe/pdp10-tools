@@ -101,6 +101,7 @@
 -define(OP_ORCMM, 8#466).
 -define(OP_ORCMB, 8#467).
 -define(OP_ORCB, 8#470).
+-define(OP_ORCBI, 8#471).
 
 %% 2.4 Boolean Functions =======================================================
 
@@ -778,6 +779,16 @@ orcb_test() ->
     , {1, 8#101, ?INSN(?OP_ORCB, 1, 0, 0, 8#200)}     % 1,,101/ ORCB 1,200
     , {1, 8#102, ?INSN_INVALID}                       % 1,,102/ <invalid>
     , {1, 8#200, ?COMMA2(0, 8#070707)}                % 1,,200/ 0,,070707
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(-1, -1)} % AC1 = -1,,-1
+         ]).
+
+orcbi_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 8#707070)}  % 1,,100/ MOVEI 1,707070
+    , {1, 8#101, ?INSN(?OP_ORCBI, 1, 0, 0, 8#070707)}  % 1,,101/ ORCBI 1,070707
+    , {1, 8#102, ?INSN_INVALID}                        % 1,,102/ <invalid>
     ],
   expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(-1, -1)} % AC1 = -1,,-1

@@ -53,6 +53,7 @@
         , handle_ORCAI/4
         , handle_ORCAM/4
         , handle_ORCB/4
+        , handle_ORCBI/4
         , handle_ORCM/4
         , handle_ORCMB/4
         , handle_ORCMI/4
@@ -721,6 +722,14 @@ handle_ORCB(Core, Mem, IR, EA) ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_ORCB(Core1, Mem1, IR, EA) end)
   end.
+
+-spec handle_ORCBI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_ORCBI(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  Word = ((bnot CA) bor (bnot EA#ea.offset)) band ((1 bsl 36) - 1),
+  sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem).
 
 %% Miscellaneous ===============================================================
 
