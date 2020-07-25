@@ -96,13 +96,8 @@ handle_SETZ(Core, Mem, IR, _EA) ->
 
 -spec handle_SETZM(#core{}, sim_mem:mem(), IR :: word(), #ea{})
       -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
-handle_SETZM(Core, Mem, IR, EA) ->
-  case sim_core:cset(Core, Mem, EA, 0) of
-    {ok, Core1} -> sim_core:next_pc(Core1, Mem);
-    {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
-                          fun(Core1, Mem1) -> handle_SETZM(Core1, Mem1, IR, EA) end)
-  end.
+handle_SETZM(Core, Mem, _IR, EA) ->
+  handle_writeback(Core, Mem, EA, _Word = 0).
 
 -spec handle_SETZB(#core{}, sim_mem:mem(), IR :: word(), #ea{})
       -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
@@ -148,18 +143,10 @@ handle_ANDM(Core, Mem, IR, EA) ->
       AC = IR band 8#17,
       CA = sim_core:get_ac(Core, AC),
       Word = CE band CA,
-      handle_ANDM_1(Core, Mem, EA, Word);
+      handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_ANDM(Core1, Mem1, IR, EA) end)
-  end.
-
-handle_ANDM_1(Core, Mem, EA, Word) ->
-  case sim_core:cset(Core, Mem, EA, Word) of
-    {ok, Core1} -> sim_core:next_pc(Core1, Mem);
-    {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
-                          fun(Core1, Mem1) -> handle_ANDM_1(Core1, Mem1, EA, Word) end)
   end.
 
 -spec handle_ANDB(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -216,7 +203,7 @@ handle_ANDCAM(Core, Mem, IR, EA) ->
       AC = IR band 8#17,
       CA = sim_core:get_ac(Core, AC),
       Word = CE band bnot CA,
-      handle_ANDM_1(Core, Mem, EA, Word);
+      handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_ANDCAM(Core1, Mem1, IR, EA) end)
@@ -256,7 +243,7 @@ handle_SETMM(Core, Mem, IR, EA) ->
   %% SETMM only checks that E is readable and writable.
   case sim_core:c(Core, Mem, EA) of
     {ok, CE} ->
-      handle_ANDM_1(Core, Mem, EA, CE);
+      handle_writeback(Core, Mem, EA, CE);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_SETMM(Core1, Mem1, IR, EA) end)
@@ -307,7 +294,7 @@ handle_ANDCMM(Core, Mem, IR, EA) ->
       AC = IR band 8#17,
       CA = sim_core:get_ac(Core, AC),
       Word = CA band bnot CE,
-      handle_ANDM_1(Core, Mem, EA, Word);
+      handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_ANDCMM(Core1, Mem1, IR, EA) end)
@@ -359,7 +346,7 @@ handle_XORM(Core, Mem, IR, EA) ->
       AC = IR band 8#17,
       CA = sim_core:get_ac(Core, AC),
       Word = CE bxor CA,
-      handle_ANDM_1(Core, Mem, EA, Word);
+      handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_XORM(Core1, Mem1, IR, EA) end)
@@ -411,7 +398,7 @@ handle_IORM(Core, Mem, IR, EA) ->
       AC = IR band 8#17,
       CA = sim_core:get_ac(Core, AC),
       Word = CE bor CA,
-      handle_ANDM_1(Core, Mem, EA, Word);
+      handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_IORM(Core1, Mem1, IR, EA) end)
@@ -463,7 +450,7 @@ handle_ANDCBM(Core, Mem, IR, EA) ->
       AC = IR band 8#17,
       CA = sim_core:get_ac(Core, AC),
       Word = ((bnot CE) band (bnot CA)) band ((1 bsl 36) - 1),
-      handle_ANDM_1(Core, Mem, EA, Word);
+      handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_ANDCBM(Core1, Mem1, IR, EA) end)
@@ -515,7 +502,7 @@ handle_EQVM(Core, Mem, IR, EA) ->
       AC = IR band 8#17,
       CA = sim_core:get_ac(Core, AC),
       Word = (bnot (CE bxor CA)) band ((1 bsl 36) - 1),
-      handle_ANDM_1(Core, Mem, EA, Word);
+      handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_EQVM(Core1, Mem1, IR, EA) end)
@@ -551,7 +538,7 @@ handle_SETCAM(Core, Mem, IR, EA) ->
   AC = IR band 8#17,
   CA = sim_core:get_ac(Core, AC),
   Word = (bnot CA) band ((1 bsl 36) - 1),
-  handle_ANDM_1(Core, Mem, EA, Word).
+  handle_writeback(Core, Mem, EA, Word).
 
 -spec handle_SETCAB(#core{}, sim_mem:mem(), IR :: word(), #ea{})
       -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
@@ -593,7 +580,7 @@ handle_ORCAM(Core, Mem, IR, EA) ->
       AC = IR band 8#17,
       CA = sim_core:get_ac(Core, AC),
       Word = (CE bor bnot CA) band ((1 bsl 36) - 1),
-      handle_ANDM_1(Core, Mem, EA, Word);
+      handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_ORCAM(Core1, Mem1, IR, EA) end)
@@ -641,7 +628,7 @@ handle_SETCMM(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, CE} ->
       Word = (bnot CE) band ((1 bsl 36) - 1),
-      handle_ANDM_1(Core, Mem, EA, Word);
+      handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_SETCMM(Core1, Mem1, IR, EA) end)
@@ -692,7 +679,7 @@ handle_ORCMM(Core, Mem, IR, EA) ->
       AC = IR band 8#17,
       CA = sim_core:get_ac(Core, AC),
       Word = (CA bor bnot CE) band ((1 bsl 36) - 1),
-      handle_ANDM_1(Core, Mem, EA, Word);
+      handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_ORCMM(Core1, Mem1, IR, EA) end)
@@ -744,7 +731,7 @@ handle_ORCBM(Core, Mem, IR, EA) ->
       AC = IR band 8#17,
       CA = sim_core:get_ac(Core, AC),
       Word = ((bnot CA) bor (bnot CE)) band ((1 bsl 36) - 1),
-      handle_ANDM_1(Core, Mem, EA, Word);
+      handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_ORCBM(Core1, Mem1, IR, EA) end)
@@ -777,7 +764,7 @@ handle_SETO(Core, Mem, IR, _EA) ->
       -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
 handle_SETOM(Core, Mem, _IR, EA) ->
   Word = (1 bsl 36) - 1,
-  handle_ANDM_1(Core, Mem, EA, Word).
+  handle_writeback(Core, Mem, EA, Word).
 
 -spec handle_SETOB(#core{}, sim_mem:mem(), IR :: word(), #ea{})
       -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
@@ -787,6 +774,14 @@ handle_SETOB(Core, Mem, IR, EA) ->
   handle_ANDB(Core, Mem, AC, EA, Word).
 
 %% Miscellaneous ===============================================================
+
+handle_writeback(Core, Mem, EA, Word) ->
+  case sim_core:cset(Core, Mem, EA, Word) of
+    {ok, Core1} -> sim_core:next_pc(Core1, Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+                          fun(Core1, Mem1) -> handle_writeback(Core1, Mem1, EA, Word) end)
+  end.
 
 ea_address(#ea{section = Section, offset = Offset}) ->
   (Section bsl 18) bor Offset.
