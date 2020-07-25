@@ -301,6 +301,7 @@ dispatch(Core, Mem, IR, EA) ->
     8#455 -> sim_boolean:handle_ORCAI(Core, Mem, IR, EA);
     8#456 -> sim_boolean:handle_ORCAM(Core, Mem, IR, EA);
     8#457 -> sim_boolean:handle_ORCAB(Core, Mem, IR, EA);
+    8#460 -> sim_boolean:handle_SETCM(Core, Mem, IR, EA);
     _ ->
       PC = (Core#core.pc_section bsl 18) bor Core#core.pc_offset,
       {Core, Mem, {error, {?MODULE, {dispatch, PC, IR, EA}}}}

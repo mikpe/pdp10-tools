@@ -55,6 +55,7 @@
         , handle_SETCA/4
         , handle_SETCAB/4
         , handle_SETCAM/4
+        , handle_SETCM/4
         , handle_SETMB/4
         , handle_SETMI/4
         , handle_SETMM/4
@@ -596,6 +597,21 @@ handle_ORCAB(Core, Mem, IR, EA) ->
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_ORCAB(Core1, Mem1, IR, EA) end)
+  end.
+
+%% SETCM - Set to Complement of Memory
+
+-spec handle_SETCM(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_SETCM(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      Word = (bnot CE) band ((1 bsl 36) - 1),
+      sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> handle_SETCM(Core1, Mem1, IR, EA) end)
   end.
 
 %% Miscellaneous ===============================================================
