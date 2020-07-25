@@ -49,6 +49,7 @@
         , handle_IORI/4
         , handle_IORM/4
         , handle_ORCA/4
+        , handle_ORCAI/4
         , handle_SETCA/4
         , handle_SETCAB/4
         , handle_SETCAM/4
@@ -558,6 +559,14 @@ handle_ORCA(Core, Mem, IR, EA) ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_ORCA(Core1, Mem1, IR, EA) end)
   end.
+
+-spec handle_ORCAI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_ORCAI(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  Word = (EA#ea.offset bor bnot CA) band ((1 bsl 36) - 1),
+  sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem).
 
 %% Miscellaneous ===============================================================
 
