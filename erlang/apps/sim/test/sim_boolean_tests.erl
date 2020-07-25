@@ -85,6 +85,7 @@
 -define(OP_EQVM, 8#446).
 -define(OP_EQVB, 8#447).
 -define(OP_SETCA, 8#450).
+-define(OP_SETCAI, 8#451).
 
 %% 2.4 Boolean Functions =======================================================
 
@@ -581,6 +582,16 @@ setca_test() ->
   Prog =
     [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 8#707070)} % 1,,100/ MOVEI 1,707070
     , {1, 8#101, ?INSN(?OP_SETCA, 1, 0, 0, 0)}        % 1,,101/ SETCA 1,
+    , {1, 8#102, ?INSN_INVALID}                       % 1,,102/ <invalid>
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(-1, 8#070707)} % AC1 = -1,,070707
+         ]).
+
+setcai_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 8#707070)} % 1,,100/ MOVEI 1,707070
+    , {1, 8#101, ?INSN(?OP_SETCAI, 1, 0, 0, 0)}       % 1,,101/ SETCAI 1,
     , {1, 8#102, ?INSN_INVALID}                       % 1,,102/ <invalid>
     ],
   expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
