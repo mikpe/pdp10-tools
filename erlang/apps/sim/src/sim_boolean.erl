@@ -438,7 +438,7 @@ handle_ANDCB(Core, Mem, IR, EA) ->
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_ANDCA(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> handle_ANDCB(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_ANDCBI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
