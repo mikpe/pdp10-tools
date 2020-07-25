@@ -56,6 +56,7 @@
         , handle_SETCAB/4
         , handle_SETCAM/4
         , handle_SETCM/4
+        , handle_SETCMB/4
         , handle_SETCMI/4
         , handle_SETCMM/4
         , handle_SETMB/4
@@ -633,6 +634,19 @@ handle_SETCMM(Core, Mem, IR, EA) ->
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_SETCMM(Core1, Mem1, IR, EA) end)
+  end.
+
+-spec handle_SETCMB(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_SETCMB(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      Word = (bnot CE) band ((1 bsl 36) - 1),
+      handle_ANDB(Core, Mem, AC, EA, Word);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> handle_SETCMB(Core1, Mem1, IR, EA) end)
   end.
 
 %% Miscellaneous ===============================================================

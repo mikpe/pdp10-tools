@@ -95,6 +95,7 @@
 -define(OP_SETCM, 8#460).
 -define(OP_SETCMI, 8#461).
 -define(OP_SETCMM, 8#462).
+-define(OP_SETCMB, 8#463).
 
 %% 2.4 Boolean Functions =======================================================
 
@@ -705,6 +706,17 @@ setcmm_test() ->
     ],
   expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 8#200, islocal = false}, ?COMMA2(-1, 8#070707)} % C(1,,200) = -1,,070707
+         ]).
+
+setcmb_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_SETCMB, 1, 0, 0, 8#200)}   % 1,,100/ SETCMB 1,200
+    , {1, 8#101, ?INSN_INVALID}                       % 1,,101/ <invalid>
+    , {1, 8#200, ?COMMA2(0, 8#707070)}                % 1,,200/ 0,,707070
+    ],
+  expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 8#200, islocal = false}, ?COMMA2(-1, 8#070707)} % C(1,,200) = -1,,070707
+         , {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(-1, 8#070707)} % AC1 = -1,,070707
          ]).
 
 %% Common code to run short sequences ==========================================
