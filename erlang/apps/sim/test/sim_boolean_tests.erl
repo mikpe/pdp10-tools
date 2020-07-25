@@ -104,6 +104,7 @@
 -define(OP_ORCBI, 8#471).
 -define(OP_ORCBM, 8#472).
 -define(OP_ORCBB, 8#473).
+-define(OP_SETO, 8#474).
 
 %% 2.4 Boolean Functions =======================================================
 
@@ -817,6 +818,17 @@ orcbb_test() ->
   expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 8#200, islocal = false}, ?COMMA2(-1, -1)} % C(1,,200) = -1,,-1
          , {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(-1, -1)} % AC1 = -1,,-1
+         ]).
+
+%% SETO - Set to Ones
+
+seto_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_SETO, 1, 0, 0, 0)}  % 1,,100/ SETO 1,
+    , {1, 8#101, ?INSN_INVALID}                % 1,,101/ <invalid>
+    ],
+  expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(-1, -1)} % AC1 = -1,,-1
          ]).
 
 %% Common code to run short sequences ==========================================

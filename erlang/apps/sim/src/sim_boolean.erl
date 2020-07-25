@@ -70,6 +70,7 @@
         , handle_SETMB/4
         , handle_SETMI/4
         , handle_SETMM/4
+        , handle_SETO/4
         , handle_SETZ/4
         , handle_SETZB/4
         , handle_SETZM/4
@@ -760,6 +761,15 @@ handle_ORCBB(Core, Mem, IR, EA) ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_ORCBB(Core1, Mem1, IR, EA) end)
   end.
+
+%% SETO - Set to Ones
+
+-spec handle_SETO(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_SETO(Core, Mem, IR, _EA) ->
+  AC = IR band 8#17,
+  Word = (1 bsl 36) - 1,
+  sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem).
 
 %% Miscellaneous ===============================================================
 
