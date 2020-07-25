@@ -107,6 +107,7 @@
 -define(OP_SETO, 8#474).
 -define(OP_SETOI, 8#475).
 -define(OP_SETOM, 8#476).
+-define(OP_SETOB, 8#477).
 
 %% 2.4 Boolean Functions =======================================================
 
@@ -850,6 +851,17 @@ setom_test() ->
     ],
   expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 8#200, islocal = false}, ?COMMA2(-1, -1)} % C(1,,200) = -1,,-1
+         ]).
+
+setob_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_SETOB, 1, 0, 0, 8#200)} % 1,,100/ SETOB 1,200
+    , {1, 8#101, ?INSN_INVALID}                    % 1,,101/ <invalid>
+    , {1, 8#200, 0}                                % 1,,200/ 0
+    ],
+  expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 8#200, islocal = false}, ?COMMA2(-1, -1)} % C(1,,200) = -1,,-1
+         , {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(-1, -1)} % AC1 = -1,,-1
          ]).
 
 %% Common code to run short sequences ==========================================

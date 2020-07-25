@@ -71,6 +71,7 @@
         , handle_SETMI/4
         , handle_SETMM/4
         , handle_SETO/4
+        , handle_SETOB/4
         , handle_SETOM/4
         , handle_SETZ/4
         , handle_SETZB/4
@@ -777,6 +778,13 @@ handle_SETO(Core, Mem, IR, _EA) ->
 handle_SETOM(Core, Mem, _IR, EA) ->
   Word = (1 bsl 36) - 1,
   handle_ANDM_1(Core, Mem, EA, Word).
+
+-spec handle_SETOB(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_SETOB(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  Word = (1 bsl 36) - 1,
+  handle_ANDB(Core, Mem, AC, EA, Word).
 
 %% Miscellaneous ===============================================================
 
