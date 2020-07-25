@@ -295,6 +295,7 @@ dispatch(Core, Mem, IR, EA) ->
     8#447 -> sim_boolean:handle_EQVB(Core, Mem, IR, EA);
     8#450 -> sim_boolean:handle_SETCA(Core, Mem, IR, EA);
     8#451 -> sim_boolean:handle_SETCA(Core, Mem, IR, EA); % SETCAI = SETCA
+    8#452 -> sim_boolean:handle_SETCAM(Core, Mem, IR, EA);
     _ ->
       PC = (Core#core.pc_section bsl 18) bor Core#core.pc_offset,
       {Core, Mem, {error, {?MODULE, {dispatch, PC, IR, EA}}}}
