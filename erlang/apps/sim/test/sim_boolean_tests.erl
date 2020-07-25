@@ -88,6 +88,7 @@
 -define(OP_SETCAI, 8#451).
 -define(OP_SETCAM, 8#452).
 -define(OP_SETCAB, 8#453).
+-define(OP_ORCA, 8#454).
 
 %% 2.4 Boolean Functions =======================================================
 
@@ -621,6 +622,19 @@ setcab_test() ->
   expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 8#200, islocal = false}, ?COMMA2(-1, 8#070707)} % C(1,,200) = -1,,070707
          , {#ea{section = 1, offset = 8#200, islocal = false}, ?COMMA2(-1, 8#070707)} % C(1,,200) = -1,,070707
+         ]).
+
+%% ORCA - Inclusive Or with Complement of AC
+
+orca_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 8#707070)} % 1,,100/ MOVEI 1,707070
+    , {1, 8#101, ?INSN(?OP_ORCA, 1, 0, 0, 8#200)}     % 1,,101/ ORCA 1,200
+    , {1, 8#102, ?INSN_INVALID}                       % 1,,102/ <invalid>
+    , {1, 8#200, ?COMMA2(0, 8#303030)}                % 1,,200/ 0,,303030
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(-1, 8#373737)} % AC1 = -1,,373737
          ]).
 
 %% Common code to run short sequences ==========================================
