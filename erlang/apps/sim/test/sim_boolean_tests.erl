@@ -87,6 +87,7 @@
 -define(OP_SETCA, 8#450).
 -define(OP_SETCAI, 8#451).
 -define(OP_SETCAM, 8#452).
+-define(OP_SETCAB, 8#453).
 
 %% 2.4 Boolean Functions =======================================================
 
@@ -608,6 +609,18 @@ setcam_test() ->
     ],
   expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 8#200, islocal = false}, ?COMMA2(-1, 8#070707)} % C(1,,200) = -1,,070707
+         ]).
+
+setcab_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 8#707070)} % 1,,100/ MOVEI 1,707070
+    , {1, 8#101, ?INSN(?OP_SETCAB, 1, 0, 0, 8#200)}   % 1,,101/ SETCAB 1,200
+    , {1, 8#102, ?INSN_INVALID}                       % 1,,102/ <invalid>
+    , {1, 8#200, 0}                                   % 1,,200/ 0
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 8#200, islocal = false}, ?COMMA2(-1, 8#070707)} % C(1,,200) = -1,,070707
+         , {#ea{section = 1, offset = 8#200, islocal = false}, ?COMMA2(-1, 8#070707)} % C(1,,200) = -1,,070707
          ]).
 
 %% Common code to run short sequences ==========================================

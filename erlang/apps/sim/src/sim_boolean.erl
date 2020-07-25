@@ -49,6 +49,7 @@
         , handle_IORI/4
         , handle_IORM/4
         , handle_SETCA/4
+        , handle_SETCAB/4
         , handle_SETCAM/4
         , handle_SETMB/4
         , handle_SETMI/4
@@ -532,6 +533,14 @@ handle_SETCAM(Core, Mem, IR, EA) ->
   CA = sim_core:get_ac(Core, AC),
   Word = (bnot CA) band ((1 bsl 36) - 1),
   handle_ANDM_1(Core, Mem, EA, Word).
+
+-spec handle_SETCAB(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_SETCAB(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  Word = (bnot CA) band ((1 bsl 36) - 1),
+  handle_ANDB(Core, Mem, AC, EA, Word).
 
 %% Miscellaneous ===============================================================
 
