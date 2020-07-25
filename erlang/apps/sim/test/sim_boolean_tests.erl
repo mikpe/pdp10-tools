@@ -105,6 +105,7 @@
 -define(OP_ORCBM, 8#472).
 -define(OP_ORCBB, 8#473).
 -define(OP_SETO, 8#474).
+-define(OP_SETOI, 8#475).
 
 %% 2.4 Boolean Functions =======================================================
 
@@ -825,6 +826,15 @@ orcbb_test() ->
 seto_test() ->
   Prog =
     [ {1, 8#100, ?INSN(?OP_SETO, 1, 0, 0, 0)}  % 1,,100/ SETO 1,
+    , {1, 8#101, ?INSN_INVALID}                % 1,,101/ <invalid>
+    ],
+  expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(-1, -1)} % AC1 = -1,,-1
+         ]).
+
+setoi_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_SETOI, 1, 0, 0, 0)} % 1,,100/ SETOI 1,
     , {1, 8#101, ?INSN_INVALID}                % 1,,101/ <invalid>
     ],
   expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS,

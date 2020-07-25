@@ -314,6 +314,7 @@ dispatch(Core, Mem, IR, EA) ->
     8#472 -> sim_boolean:handle_ORCBM(Core, Mem, IR, EA);
     8#473 -> sim_boolean:handle_ORCBB(Core, Mem, IR, EA);
     8#474 -> sim_boolean:handle_SETO(Core, Mem, IR, EA);
+    8#475 -> sim_boolean:handle_SETO(Core, Mem, IR, EA); % SETOI = SETO
     _ ->
       PC = (Core#core.pc_section bsl 18) bor Core#core.pc_offset,
       {Core, Mem, {error, {?MODULE, {dispatch, PC, IR, EA}}}}
