@@ -96,6 +96,7 @@
 -define(OP_SETCMI, 8#461).
 -define(OP_SETCMM, 8#462).
 -define(OP_SETCMB, 8#463).
+-define(OP_ORCM, 8#464).
 
 %% 2.4 Boolean Functions =======================================================
 
@@ -717,6 +718,19 @@ setcmb_test() ->
   expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 8#200, islocal = false}, ?COMMA2(-1, 8#070707)} % C(1,,200) = -1,,070707
          , {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(-1, 8#070707)} % AC1 = -1,,070707
+         ]).
+
+%% ORCM - Inclusive Or Complement or Memory with AC
+
+orcm_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 8#707070)} % 1,,100/ MOVEI 1,707070
+    , {1, 8#101, ?INSN(?OP_ORCM, 1, 0, 0, 8#200)}     % 1,,101/ ORCM 1,200
+    , {1, 8#102, ?INSN_INVALID}                       % 1,,102/ <invalid>
+    , {1, 8#200, ?COMMA2(0, 8#707070)}                % 1,,200/ 0,,707070
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(-1, -1)} % AC1 = -1,,-1
          ]).
 
 %% Common code to run short sequences ==========================================

@@ -52,6 +52,7 @@
         , handle_ORCAB/4
         , handle_ORCAI/4
         , handle_ORCAM/4
+        , handle_ORCM/4
         , handle_SETCA/4
         , handle_SETCAB/4
         , handle_SETCAM/4
@@ -647,6 +648,22 @@ handle_SETCMB(Core, Mem, IR, EA) ->
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
                           fun(Core1, Mem1) -> handle_SETCMB(Core1, Mem1, IR, EA) end)
+  end.
+
+%% ORCM - Inclusive Or Complement or Memory with AC
+
+-spec handle_ORCM(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_ORCM(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      CA = sim_core:get_ac(Core, AC),
+      Word = (CA bor bnot CE) band ((1 bsl 36) - 1),
+      sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> handle_ORCM(Core1, Mem1, IR, EA) end)
   end.
 
 %% Miscellaneous ===============================================================
