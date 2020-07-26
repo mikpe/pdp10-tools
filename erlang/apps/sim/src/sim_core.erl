@@ -317,6 +317,10 @@ dispatch(Core, Mem, IR, EA) ->
     8#475 -> sim_boolean:handle_SETO(Core, Mem, IR, EA); % SETOI = SETO
     8#476 -> sim_boolean:handle_SETOM(Core, Mem, IR, EA);
     8#477 -> sim_boolean:handle_SETOB(Core, Mem, IR, EA);
+    8#500 -> sim_halfword:handle_HLL(Core, Mem, IR, EA);
+    8#501 -> sim_halfword:handle_HLLI(Core, Mem, IR, EA); % XHLLI in non-zero sections
+    8#502 -> sim_halfword:handle_HLLM(Core, Mem, IR, EA);
+    8#503 -> sim_halfword:handle_HLLS(Core, Mem, IR, EA);
     _ ->
       PC = (Core#core.pc_section bsl 18) bor Core#core.pc_offset,
       {Core, Mem, {error, {?MODULE, {dispatch, PC, IR, EA}}}}
