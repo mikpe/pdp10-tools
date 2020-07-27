@@ -56,6 +56,10 @@
         , handle_HRR/4
         , handle_HRRI/4
         , handle_HRRM/4
+        , handle_HRRO/4
+        , handle_HRROI/4
+        , handle_HRROM/4
+        , handle_HRROS/4
         , handle_HRRS/4
         , handle_HRRZ/4
         , handle_HRRZM/4
@@ -500,6 +504,49 @@ handle_HRRZS(Core, Mem, IR, EA) ->
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
+%% HRRO - Half Word Right to Right, Ones
+
+-spec handle_HRRO(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_HRRO(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      Word = set_right_ones(get_right(CE)),
+      sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
+-spec handle_HRROI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_HRROI(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  Word = set_right_ones(EA#ea.offset),
+  sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem).
+
+-spec handle_HRROM(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_HRROM(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  Word = set_right_ones(get_right(CA)),
+  handle_writeback(Core, Mem, EA, Word).
+
+-spec handle_HRROS(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_HRROS(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      Word = set_right_ones(get_right(CE)),
+      handle_writeback(Core, Mem, AC, EA, Word);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
 %% Miscellaneous ===============================================================
 
 handle_writeback(Core, Mem, EA, Word) ->
@@ -539,3 +586,5 @@ set_left_ones(Left) -> (Left bsl 18) bor ((1 bsl 18) - 1).
 set_left_zeros(Left) -> Left bsl 18.
 
 set_right(Word, Right) -> (Word band (((1 bsl 18) - 1) bsl 18)) bor Right.
+
+set_right_ones(Right) -> (((1 bsl 18) - 1) bsl 18) bor Right.
