@@ -361,6 +361,10 @@ dispatch(Core, Mem, IR, EA) ->
     8#551 -> sim_moves:handle_MOVEI(Core, Mem, IR, EA); % HRRZI = MOVEI
     8#552 -> sim_halfword:handle_HRRZM(Core, Mem, IR, EA);
     8#553 -> sim_halfword:handle_HRRZS(Core, Mem, IR, EA);
+    8#554 -> sim_halfword:handle_HLRZ(Core, Mem, IR, EA);
+    8#555 -> sim_boolean:handle_SETZ(Core, Mem, IR, EA); % HLRZI = HLLZI = SETZ
+    8#556 -> sim_halfword:handle_HLRZM(Core, Mem, IR, EA);
+    8#557 -> sim_halfword:handle_HLRZS(Core, Mem, IR, EA);
     8#560 -> sim_halfword:handle_HRRO(Core, Mem, IR, EA);
     8#561 -> sim_halfword:handle_HRROI(Core, Mem, IR, EA);
     8#562 -> sim_halfword:handle_HRROM(Core, Mem, IR, EA);
