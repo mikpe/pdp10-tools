@@ -57,6 +57,9 @@
         , handle_HRRI/4
         , handle_HRRM/4
         , handle_HRRS/4
+        , handle_HRRZ/4
+        , handle_HRRZM/4
+        , handle_HRRZS/4
         ]).
 
 -include("sim_core.hrl").
@@ -460,6 +463,42 @@ handle_HRRS(Core, Mem, IR, EA) ->
   %% consistency, treat HRRS like HLLS.  Alternatively both should perform the
   %% redundant reads and writes, but then they are not equivalent to MOVE.
   handle_HLLS(Core, Mem, IR, EA).
+
+%% HRRZ - Half Word Right to Right, Zeros
+
+-spec handle_HRRZ(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_HRRZ(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      Word = get_right(CE),
+      sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
+-spec handle_HRRZM(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_HRRZM(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  Word = get_right(CA),
+  handle_writeback(Core, Mem, EA, Word).
+
+-spec handle_HRRZS(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_HRRZS(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      Word = get_right(CE),
+      handle_writeback(Core, Mem, AC, EA, Word);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
 
 %% Miscellaneous ===============================================================
 

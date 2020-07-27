@@ -353,6 +353,10 @@ dispatch(Core, Mem, IR, EA) ->
     8#541 -> sim_halfword:handle_HRRI(Core, Mem, IR, EA);
     8#542 -> sim_halfword:handle_HRRM(Core, Mem, IR, EA);
     8#543 -> sim_halfword:handle_HRRS(Core, Mem, IR, EA);
+    8#550 -> sim_halfword:handle_HRRZ(Core, Mem, IR, EA);
+    8#551 -> sim_moves:handle_MOVEI(Core, Mem, IR, EA); % HRRZI = MOVEI
+    8#552 -> sim_halfword:handle_HRRZM(Core, Mem, IR, EA);
+    8#553 -> sim_halfword:handle_HRRZS(Core, Mem, IR, EA);
     _ ->
       PC = (Core#core.pc_section bsl 18) bor Core#core.pc_offset,
       {Core, Mem, {error, {?MODULE, {dispatch, PC, IR, EA}}}}
