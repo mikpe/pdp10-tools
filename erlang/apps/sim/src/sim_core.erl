@@ -325,6 +325,10 @@ dispatch(Core, Mem, IR, EA) ->
     8#511 -> sim_boolean:handle_SETZ(Core, Mem, IR, EA); % HLLZI = SETZ
     8#512 -> sim_halfword:handle_HLLZM(Core, Mem, IR, EA);
     8#513 -> sim_halfword:handle_HLLZS(Core, Mem, IR, EA);
+    8#520 -> sim_halfword:handle_HLLO(Core, Mem, IR, EA);
+    8#521 -> sim_halfword:handle_HLLOI(Core, Mem, IR, EA);
+    8#522 -> sim_halfword:handle_HLLOM(Core, Mem, IR, EA);
+    8#523 -> sim_halfword:handle_HLLOS(Core, Mem, IR, EA);
     _ ->
       PC = (Core#core.pc_section bsl 18) bor Core#core.pc_offset,
       {Core, Mem, {error, {?MODULE, {dispatch, PC, IR, EA}}}}
