@@ -25,6 +25,9 @@
 -module(sim_halfword).
 
 -export([ handle_HLL/4
+        , handle_HLLE/4
+        , handle_HLLEM/4
+        , handle_HLLES/4
         , handle_HLLI/4
         , handle_HLLM/4
         , handle_HLLS/4
@@ -181,6 +184,42 @@ handle_HLLOS(Core, Mem, IR, EA) ->
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
+%% HLLE - Half Word Left to Left, Extend
+
+-spec handle_HLLE(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_HLLE(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      Word = set_left_extend(get_left(CE)),
+      sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
+-spec handle_HLLEM(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_HLLEM(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  Word = set_left_extend(get_left(CA)),
+  handle_writeback(Core, Mem, EA, Word).
+
+-spec handle_HLLES(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_HLLES(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      Word = set_left_extend(get_left(CE)),
+      handle_writeback(Core, Mem, AC, EA, Word);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
 %% Miscellaneous ===============================================================
 
 handle_writeback(Core, Mem, EA, Word) ->
@@ -210,6 +249,10 @@ get_left(Word) -> Word bsr 18.
 get_right(Word) -> Word band ((1 bsl 18) - 1).
 
 set_left(Word, Left) -> get_right(Word) bor (Left bsl 18).
+
+set_left_extend(Left) ->
+  Right = (0 - ((Left bsr 17) band 1)) band ((1 bsl 18) - 1),
+  (Left bsl 18) bor Right.
 
 set_left_ones(Left) -> (Left bsl 18) bor ((1 bsl 18) - 1).
 
