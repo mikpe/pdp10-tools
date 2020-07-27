@@ -39,6 +39,10 @@
         , handle_HLLZM/4
         , handle_HLLZS/4
         , handle_HRL/4
+        , handle_HRLE/4
+        , handle_HRLEI/4
+        , handle_HRLEM/4
+        , handle_HRLES/4
         , handle_HRLI/4
         , handle_HRLM/4
         , handle_HRLO/4
@@ -355,6 +359,49 @@ handle_HRLOS(Core, Mem, IR, EA) ->
     {ok, CE} ->
       AC = IR band 8#17,
       Word = set_left_ones(get_right(CE)),
+      handle_writeback(Core, Mem, AC, EA, Word);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
+%% HRLE - Half Word Right to Left, Extend
+
+-spec handle_HRLE(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_HRLE(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      Word = set_left_extend(get_right(CE)),
+      sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
+-spec handle_HRLEI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_HRLEI(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  Word = set_left_extend(EA#ea.offset),
+  sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem).
+
+-spec handle_HRLEM(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_HRLEM(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  Word = set_left_extend(get_right(CA)),
+  handle_writeback(Core, Mem, EA, Word).
+
+-spec handle_HRLES(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_HRLES(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      Word = set_left_extend(get_right(CE)),
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
