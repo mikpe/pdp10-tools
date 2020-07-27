@@ -53,6 +53,10 @@
         , handle_HRLZ/4
         , handle_HRLZM/4
         , handle_HRLZS/4
+        , handle_HRR/4
+        , handle_HRRI/4
+        , handle_HRRM/4
+        , handle_HRRS/4
         ]).
 
 -include("sim_core.hrl").
@@ -408,6 +412,55 @@ handle_HRLES(Core, Mem, IR, EA) ->
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
+%% HRR - Half Word Right to Right
+
+-spec handle_HRR(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_HRR(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      CA = sim_core:get_ac(Core, AC),
+      Word = set_right(CA, get_right(CE)),
+      sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
+-spec handle_HRRI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_HRRI(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  Word = set_right(CA, EA#ea.offset),
+  sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem).
+
+-spec handle_HRRM(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_HRRM(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      AC = IR band 8#17,
+      CA = sim_core:get_ac(Core, AC),
+      Word = set_right(CE, get_right(CA)),
+      handle_writeback(Core, Mem, EA, Word);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
+-spec handle_HRRS(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_HRRS(Core, Mem, IR, EA) ->
+  %% The manual states: "If A is zero, HRRS is a no-op (that writes in memory);
+  %% otherwise, it is equivalent to MOVE."  This is a contradictory statement:
+  %% a MOVE A,E reads E but does not write to it.  Compare with HLLI, which has
+  %% a similar statement without the "(that writes in memory)" part.  For
+  %% consistency, treat HRRS like HLLS.  Alternatively both should perform the
+  %% redundant reads and writes, but then they are not equivalent to MOVE.
+  handle_HLLS(Core, Mem, IR, EA).
+
 %% Miscellaneous ===============================================================
 
 handle_writeback(Core, Mem, EA, Word) ->
@@ -445,3 +498,5 @@ set_left_extend(Left) ->
 set_left_ones(Left) -> (Left bsl 18) bor ((1 bsl 18) - 1).
 
 set_left_zeros(Left) -> Left bsl 18.
+
+set_right(Word, Right) -> (Word band (((1 bsl 18) - 1) bsl 18)) bor Right.
