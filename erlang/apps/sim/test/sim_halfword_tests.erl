@@ -105,6 +105,10 @@
 -define(OP_HRREI, 8#571).
 -define(OP_HRREM, 8#572).
 -define(OP_HRRES, 8#573).
+-define(OP_HLRE,  8#574).
+-define(OP_HLREI, 8#575).
+-define(OP_HLREM, 8#576).
+-define(OP_HLRES, 8#577).
 
 %% 2.8 Half-Word Data Transmission =============================================
 
@@ -997,6 +1001,64 @@ hlros_no_ac_test() ->
   expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
          [ {#ea{section = 1, offset = 8#200, islocal = false}, ?COMMA2(-1, 1)} % C(1,,200) = -1,,1
          , {#ea{section = 1, offset = 0, islocal = false}, ?COMMA2(1, 0)} % AC0 = 1,,1
+         ]).
+
+%% HLRE - Half Word Left to Right, Extend
+
+hlre_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 1)}     % 1,,100/ MOVEI 1,1
+    , {1, 8#101, ?INSN(?OP_HLRE, 1, 0, 0, 8#200)}  % 1,,101/ HLRE 1,200
+    , {1, 8#102, ?INSN_INVALID}                    % 1,,102/ <invalid>
+    , {1, 8#200, ?COMMA2(8#400000, 0)}             % 1,,200/ 400000,,0
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(-1, 8#400000)} % AC1 = -1,,400000
+         ]).
+
+hlrei_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 1)}     % 1,,100/ MOVEI 1,1
+    , {1, 8#101, ?INSN(?OP_HLREI, 1, 0, 0, 1)}     % 1,,101/ HLREI 1,1
+    , {1, 8#102, ?INSN_INVALID}                    % 1,,102/ <invalid>
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(0, 0)} % AC1 = 0,,0
+         ]).
+
+hlrem_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVSI, 1, 0, 0, 1)}     % 1,,100/ MOVSI 1,1
+    , {1, 8#101, ?INSN(?OP_HLREM, 1, 0, 0, 8#200)} % 1,,101/ HLREM 1,200
+    , {1, 8#102, ?INSN_INVALID}                    % 1,,102/ <invalid>
+    , {1, 8#200, ?COMMA2(1, 0)}                    % 1,,200/ 1,,0
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 8#200, islocal = false}, ?COMMA2(0, 1)} % C(1,,200) = 0,,1
+         ]).
+
+hlres_ac_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 1)}     % 1,,100/ MOVEI 1,1
+    , {1, 8#101, ?INSN(?OP_HLRES, 1, 0, 0, 8#200)} % 1,,101/ HLRES 1,200
+    , {1, 8#102, ?INSN_INVALID}                    % 1,,102/ <invalid>
+    , {1, 8#200, ?COMMA2(8#400000, 0)}             % 1,,200/ 400000,,0
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 8#200, islocal = false}, ?COMMA2(-1, 8#400000)} % C(1,,200) = -1,,400000
+         , {#ea{section = 1, offset = 1, islocal = false}, ?COMMA2(-1, 8#400000)} % AC1 = -1,,400000
+         ]).
+
+hlres_no_ac_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVSI, 0, 0, 0, 1)}     % 1,,100/ MOVSI 0,1
+    , {1, 8#101, ?INSN(?OP_HLRES, 0, 0, 0, 8#200)} % 1,,101/ HLRES 0,200
+    , {1, 8#102, ?INSN_INVALID}                    % 1,,102/ <invalid>
+    , {1, 8#200, ?COMMA2(1, 0)}                    % 1,,200/ 1,,0
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,
+         [ {#ea{section = 1, offset = 8#200, islocal = false}, ?COMMA2(0, 1)} % C(1,,200) = 0,,1
+         , {#ea{section = 1, offset = 0, islocal = false}, ?COMMA2(1, 0)} % AC0 = 1,,0
          ]).
 
 %% Common code to run short sequences ==========================================
