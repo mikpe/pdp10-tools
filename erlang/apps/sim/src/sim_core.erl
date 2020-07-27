@@ -369,6 +369,10 @@ dispatch(Core, Mem, IR, EA) ->
     8#561 -> sim_halfword:handle_HRROI(Core, Mem, IR, EA);
     8#562 -> sim_halfword:handle_HRROM(Core, Mem, IR, EA);
     8#563 -> sim_halfword:handle_HRROS(Core, Mem, IR, EA);
+    8#564 -> sim_halfword:handle_HLRO(Core, Mem, IR, EA);
+    8#565 -> sim_halfword:handle_HLROI(Core, Mem, IR, EA);
+    8#566 -> sim_halfword:handle_HLROM(Core, Mem, IR, EA);
+    8#567 -> sim_halfword:handle_HLROS(Core, Mem, IR, EA);
     8#570 -> sim_halfword:handle_HRRE(Core, Mem, IR, EA);
     8#571 -> sim_halfword:handle_HRREI(Core, Mem, IR, EA);
     8#572 -> sim_halfword:handle_HRREM(Core, Mem, IR, EA);
