@@ -353,6 +353,10 @@ dispatch(Core, Mem, IR, EA) ->
     8#541 -> sim_halfword:handle_HRRI(Core, Mem, IR, EA);
     8#542 -> sim_halfword:handle_HRRM(Core, Mem, IR, EA);
     8#543 -> sim_halfword:handle_HRRS(Core, Mem, IR, EA);
+    8#544 -> sim_halfword:handle_HLR(Core, Mem, IR, EA);
+    8#545 -> sim_halfword:handle_HLRI(Core, Mem, IR, EA);
+    8#546 -> sim_halfword:handle_HLRM(Core, Mem, IR, EA);
+    8#547 -> sim_halfword:handle_HLRS(Core, Mem, IR, EA);
     8#550 -> sim_halfword:handle_HRRZ(Core, Mem, IR, EA);
     8#551 -> sim_moves:handle_MOVEI(Core, Mem, IR, EA); % HRRZI = MOVEI
     8#552 -> sim_halfword:handle_HRRZM(Core, Mem, IR, EA);
