@@ -118,7 +118,7 @@ handle_AND(Core, Mem, IR, EA) ->
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_AND(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_ANDI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -140,7 +140,7 @@ handle_ANDM(Core, Mem, IR, EA) ->
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_ANDM(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_ANDB(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -154,7 +154,7 @@ handle_ANDB(Core, Mem, IR, EA) ->
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_ANDB(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 %% ANDCA - And with Complement of AC
@@ -170,7 +170,7 @@ handle_ANDCA(Core, Mem, IR, EA) ->
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_ANDCA(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_ANDCAI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -192,7 +192,7 @@ handle_ANDCAM(Core, Mem, IR, EA) ->
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_ANDCAM(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_ANDCAB(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -206,7 +206,7 @@ handle_ANDCAB(Core, Mem, IR, EA) ->
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_ANDCAB(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 %% SETM - Set to Memory
@@ -232,7 +232,7 @@ handle_SETMM(Core, Mem, IR, EA) ->
       handle_writeback(Core, Mem, EA, CE);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_SETMM(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_SETMB(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -245,7 +245,7 @@ handle_SETMB(Core, Mem, IR, EA) ->
       handle_writeback(Core, Mem, AC, EA, CE);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_SETMB(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 %% ANDCM - And Complement of Memory with AC
@@ -261,7 +261,7 @@ handle_ANDCM(Core, Mem, IR, EA) ->
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_ANDCM(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_ANDCMI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -283,7 +283,7 @@ handle_ANDCMM(Core, Mem, IR, EA) ->
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_ANDCMM(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_ANDCMB(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -297,7 +297,7 @@ handle_ANDCMB(Core, Mem, IR, EA) ->
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_ANDCMB(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 %% XOR - Exclusive Or with AC
@@ -313,7 +313,7 @@ handle_XOR(Core, Mem, IR, EA) ->
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_XOR(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_XORI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -335,7 +335,7 @@ handle_XORM(Core, Mem, IR, EA) ->
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_XORM(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_XORB(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -349,7 +349,7 @@ handle_XORB(Core, Mem, IR, EA) ->
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_XORB(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 %% IOR - Inclusive Or with AC
@@ -365,7 +365,7 @@ handle_IOR(Core, Mem, IR, EA) ->
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_IOR(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_IORI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -387,7 +387,7 @@ handle_IORM(Core, Mem, IR, EA) ->
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_IORM(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_IORB(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -401,7 +401,7 @@ handle_IORB(Core, Mem, IR, EA) ->
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_IORB(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 %% ANDCB - And Complements of Both
@@ -417,7 +417,7 @@ handle_ANDCB(Core, Mem, IR, EA) ->
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_ANDCB(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_ANDCBI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -439,7 +439,7 @@ handle_ANDCBM(Core, Mem, IR, EA) ->
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_ANDCBM(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_ANDCBB(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -453,7 +453,7 @@ handle_ANDCBB(Core, Mem, IR, EA) ->
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_ANDCBB(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 %% EQV - Equivalence with AC
@@ -469,7 +469,7 @@ handle_EQV(Core, Mem, IR, EA) ->
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_EQV(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_EQVI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -491,7 +491,7 @@ handle_EQVM(Core, Mem, IR, EA) ->
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_EQVM(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_EQVB(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -505,7 +505,7 @@ handle_EQVB(Core, Mem, IR, EA) ->
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_EQVB(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 %% SETCA - Set to Complement of AC
@@ -547,7 +547,7 @@ handle_ORCA(Core, Mem, IR, EA) ->
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_ORCA(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_ORCAI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -569,7 +569,7 @@ handle_ORCAM(Core, Mem, IR, EA) ->
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_ORCAM(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_ORCAB(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -583,7 +583,7 @@ handle_ORCAB(Core, Mem, IR, EA) ->
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_ORCAB(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 %% SETCM - Set to Complement of Memory
@@ -598,7 +598,7 @@ handle_SETCM(Core, Mem, IR, EA) ->
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_SETCM(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_SETCMI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -617,7 +617,7 @@ handle_SETCMM(Core, Mem, IR, EA) ->
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_SETCMM(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_SETCMB(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -630,7 +630,7 @@ handle_SETCMB(Core, Mem, IR, EA) ->
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_SETCMB(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 %% ORCM - Inclusive Or Complement or Memory with AC
@@ -646,7 +646,7 @@ handle_ORCM(Core, Mem, IR, EA) ->
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_ORCM(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_ORCMI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -668,7 +668,7 @@ handle_ORCMM(Core, Mem, IR, EA) ->
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_ORCMM(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_ORCMB(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -682,7 +682,7 @@ handle_ORCMB(Core, Mem, IR, EA) ->
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_ORCMB(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 %% ORCB - Inclusive Or Complements of Both
@@ -698,7 +698,7 @@ handle_ORCB(Core, Mem, IR, EA) ->
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_ORCB(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_ORCBI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -720,7 +720,7 @@ handle_ORCBM(Core, Mem, IR, EA) ->
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_ORCBM(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_ORCBB(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -734,7 +734,7 @@ handle_ORCBB(Core, Mem, IR, EA) ->
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_ORCBB(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 %% SETO - Set to Ones
@@ -766,7 +766,7 @@ handle_writeback(Core, Mem, EA, Word) ->
     {ok, Core1} -> sim_core:next_pc(Core1, Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
-                          fun(Core1, Mem1) -> handle_writeback(Core1, Mem1, EA, Word) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, EA, Word) end)
   end.
 
 handle_writeback(Core, Mem, AC, EA, Word) ->
@@ -774,7 +774,7 @@ handle_writeback(Core, Mem, AC, EA, Word) ->
     {ok, Core1} -> sim_core:next_pc(sim_core:set_ac(Core1, AC, Word), Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
-                          fun(Core1, Mem1) -> handle_writeback(Core1, Mem1, AC, EA, Word) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, AC, EA, Word) end)
   end.
 
 ea_address(#ea{section = Section, offset = Offset}) ->
