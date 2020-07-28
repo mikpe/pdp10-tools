@@ -63,7 +63,7 @@ handle_EXCH(Core, Mem, IR, EA) ->
       handle_EXCH(Core, Mem, AC, EA, CE, CA);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_EXCH(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 handle_EXCH(Core, Mem, AC, EA, CE, CA) ->
@@ -71,7 +71,7 @@ handle_EXCH(Core, Mem, AC, EA, CE, CA) ->
     {ok, Core1} -> sim_core:next_pc(sim_core:set_ac(Core1, AC, CE), Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
-                          fun(Core1, Mem1) -> handle_EXCH(Core1, Mem1, AC, EA, CE, CA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, AC, EA, CE, CA) end)
   end.
 
 %% 2.1.2 Move Instruction Class ================================================
@@ -87,7 +87,7 @@ handle_MOVE(Core, Mem, IR, EA) ->
       sim_core:next_pc(sim_core:set_ac(Core, AC, CE), Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_MOVE(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_MOVEI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -108,7 +108,7 @@ handle_MOVEM_1(Core, Mem, Word, EA) ->
     {ok, Core1} -> sim_core:next_pc(Core1, Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
-                          fun(Core1, Mem1) -> handle_MOVEM_1(Core1, Mem1, Word, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, Word, EA) end)
   end.
 
 -spec handle_MOVES(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -120,7 +120,7 @@ handle_MOVES(Core, Mem, IR, EA) ->
       handle_MOVES(Core, Mem, AC, EA, CE);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_MOVES(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 handle_MOVES(Core, Mem, AC, EA, Word) ->
@@ -128,7 +128,7 @@ handle_MOVES(Core, Mem, AC, EA, Word) ->
     {ok, Core1} -> sim_core:next_pc(set_non_zero_ac(Core1, AC, Word), Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
-                          fun(Core1, Mem1) -> handle_MOVES(Core1, Mem1, AC, EA, Word) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, AC, EA, Word) end)
   end.
 
 %% MOVS - Move Swapped
@@ -143,7 +143,7 @@ handle_MOVS(Core, Mem, IR, EA) ->
       sim_core:next_pc(sim_core:set_ac(Core, AC, Swapped), Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_MOVS(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_MOVSI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -168,7 +168,7 @@ handle_MOVSS(Core, Mem, IR, EA) ->
       handle_MOVES(Core, Mem, AC, EA, swap_halves(CE));
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_MOVSS(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 %% MOVN - Move Negative
@@ -183,7 +183,7 @@ handle_MOVN(Core, Mem, IR, EA) ->
       sim_core:next_pc(sim_core:set_ac(sim_core:set_flags(Core, Flags), AC, Negative), Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_MOVN(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_MOVNI(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -211,7 +211,7 @@ handle_MOVNM(Core, Mem, Word, Flags, EA) ->
     {ok, Core1} -> sim_core:next_pc(sim_core:set_flags(Core1, Flags), Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
-                          fun(Core1, Mem1) -> handle_MOVNM(Core1, Mem1, Word, Flags, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, Word, Flags, EA) end)
   end.
 
 -spec handle_MOVNS(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -224,7 +224,7 @@ handle_MOVNS(Core, Mem, IR, EA) ->
       handle_MOVNS(Core, Mem, AC, EA, Negated, Flags);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_MOVNS(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 handle_MOVNS(Core, Mem, AC, EA, Word, Flags) ->
@@ -236,7 +236,7 @@ handle_MOVNS(Core, Mem, AC, EA, Word, Flags) ->
       sim_core:next_pc(Core3, Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
-                          fun(Core1, Mem1) -> handle_MOVNS(Core1, Mem1, AC, EA, Word, Flags) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, AC, EA, Word, Flags) end)
   end.
 
 %% MOVM - Move Magnitude
@@ -251,7 +251,7 @@ handle_MOVM(Core, Mem, IR, EA) ->
       sim_core:next_pc(sim_core:set_ac(sim_core:set_flags(Core, Flags), AC, Magnitude), Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_MOVM(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 -spec handle_MOVMM(#core{}, sim_mem:mem(), IR :: word(), #ea{})
@@ -272,7 +272,7 @@ handle_MOVMS(Core, Mem, IR, EA) ->
       handle_MOVNS(Core, Mem, AC, EA, Magnitude, Flags);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_MOVMS(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 %% 2.1.4 Double Move Instructions ==============================================
@@ -287,7 +287,7 @@ handle_DMOVE(Core, Mem, IR, EA) ->
       handle_DMOVE(Core, Mem, IR, ea_plus_1(EA), Word0);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_DMOVE(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 handle_DMOVE(Core, Mem, IR, EA, Word0) ->
@@ -299,7 +299,7 @@ handle_DMOVE(Core, Mem, IR, EA, Word0) ->
       sim_core:next_pc(Core2, Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_DMOVE(Core1, Mem1, IR, EA, Word0) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA, Word0) end)
   end.
 
 %% DMOVEM - Double Move to Memory
@@ -317,7 +317,7 @@ handle_DMOVEM(Core, Mem, Word0, Word1, EA) ->
     {ok, Core1} -> handle_MOVEM_1(Core1, Mem, Word1, ea_plus_1(EA));
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
-                          fun(Core1, Mem1) -> handle_DMOVEM(Core1, Mem1, Word0, Word1, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, Word0, Word1, EA) end)
   end.
 
 %% DMOVN - Double Move Negative
@@ -330,7 +330,7 @@ handle_DMOVN(Core, Mem, IR, EA) ->
       handle_DMOVN(Core, Mem, IR, ea_plus_1(EA), Word0);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_DMOVN(Core1, Mem1, IR, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
 handle_DMOVN(Core, Mem, IR, EA, Word0) ->
@@ -344,7 +344,7 @@ handle_DMOVN(Core, Mem, IR, EA, Word0) ->
       sim_core:next_pc(Core3, Mem);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
-                          fun(Core1, Mem1) -> handle_DMOVN(Core1, Mem1, IR, EA, Word0) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA, Word0) end)
   end.
 
 %% DMOVNM - Double Move Negative to Memory
@@ -363,7 +363,7 @@ handle_DMOVNM(Core, Mem, Word0, Word1, Flags, EA) ->
     {ok, Core1} -> handle_MOVNM(Core1, Mem, Word1, Flags, ea_plus_1(EA));
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
-                          fun(Core1, Mem1) -> handle_DMOVNM(Core1, Mem1, Word0, Word1, Flags, EA) end)
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, Word0, Word1, Flags, EA) end)
   end.
 
 %% 2.1.5 Block Transfers =======================================================
