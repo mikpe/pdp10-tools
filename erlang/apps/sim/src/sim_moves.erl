@@ -101,15 +101,7 @@ handle_MOVEI(Core, Mem, IR, #ea{offset = E}) ->
 handle_MOVEM(Core, Mem, IR, EA) ->
   AC = IR band 8#17,
   CA = sim_core:get_ac(Core, AC),
-  handle_MOVEM_1(Core, Mem, CA, EA).
-
-handle_MOVEM_1(Core, Mem, Word, EA) ->
-  case sim_core:cset(Core, Mem, EA, Word) of
-    {ok, Core1} -> sim_core:next_pc(Core1, Mem);
-    {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
-                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, Word, EA) end)
-  end.
+  handle_writeback(Core, Mem, EA, CA).
 
 -spec handle_MOVES(#core{}, sim_mem:mem(), IR :: word(), #ea{})
       -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
@@ -157,7 +149,7 @@ handle_MOVSI(Core, Mem, IR, #ea{offset = E}) ->
 handle_MOVSM(Core, Mem, IR, EA) ->
   AC = IR band 8#17,
   CA = sim_core:get_ac(Core, AC),
-  handle_MOVEM_1(Core, Mem, swap_halves(CA), EA).
+  handle_writeback(Core, Mem, EA, swap_halves(CA)).
 
 -spec handle_MOVSS(#core{}, sim_mem:mem(), IR :: word(), #ea{})
       -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
@@ -314,7 +306,7 @@ handle_DMOVEM(Core, Mem, IR, EA) ->
 
 handle_DMOVEM(Core, Mem, Word0, Word1, EA) ->
   case sim_core:cset(Core, Mem, EA, Word0) of
-    {ok, Core1} -> handle_MOVEM_1(Core1, Mem, Word1, ea_plus_1(EA));
+    {ok, Core1} -> handle_writeback(Core1, Mem, ea_plus_1(EA), Word1);
     {error, Reason} ->
       sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, Word0, Word1, EA) end)
@@ -418,6 +410,14 @@ handle_BLT_flush(Core, AC, SrcOffset, DstOffset) ->
   sim_core:set_ac(Core, AC, (SrcOffset bsl 18) bor DstOffset).
 
 %% Miscellaneous ===============================================================
+
+handle_writeback(Core, Mem, EA, Word) ->
+  case sim_core:cset(Core, Mem, EA, Word) of
+    {ok, Core1} -> sim_core:next_pc(Core1, Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, EA, Word) end)
+  end.
 
 ac_plus_1(AC) ->
   (AC + 1) band 8#17.
