@@ -114,8 +114,8 @@
 
 -define(ET_NONE,        0).       % No file type
 -define(ET_REL,         1).       % Relocatable file
--define(ET_EXEC,        2).       % Executable file
--define(ET_DYN,         3).       % Shared object file
+-define(ET_EXEC,        2).       % Position-dependent executable file
+-define(ET_DYN,         3).       % Position-independent executable or shared object file
 -define(ET_CORE,        4).       % Core file
 -define(ET_LOOS,        16#FE00). % Operating system-specific
 -define(ET_HIOS,        16#FEFF). % Operating system-specific
@@ -812,6 +812,8 @@
                                                 %   note name must be "LINUX".
 -define(NT_ARM_PAC_MASK,        16#406).        % AArch pointer authentication code masks
                                                 %   note name must be "LINUX".
+-define(NT_ARC_V2,              16#600).        % ARC HS accumulator/extra registers.
+                                                %   note name must be "LINUX".
 -define(NT_SIGINFO,             16#53494749).   % Fields of siginfo_t.
 -define(NT_FILE,                16#46494c45).   % Description of mapped files.
 
@@ -845,8 +847,10 @@
 %% Note segments for core files on NetBSD systems.  Note name
 %% must start with "NetBSD-CORE".
 
--define(NT_NETBSDCORE_PROCINFO, 1).     % Has a struct procinfo
--define(NT_NETBSDCORE_FIRSTMACH,32).    % start of machdep note types
+-define(NT_NETBSDCORE_PROCINFO,         1).     % Has a struct procinfo
+-define(NT_NETBSDCORE_AUXV,             2).     % Has auxv data
+-define(NT_NETBSDCORE_LWPSTATUS,        24).    % Has LWPSTATUS data
+-define(NT_NETBSDCORE_FIRSTMACH,        32).    % start of machdep note types
 
 
 %% Note segments for core files on OpenBSD systems.  Note name is
@@ -1410,6 +1414,20 @@
 -define(AT_L2_CACHESHAPE,       36).
 -define(AT_L3_CACHESHAPE,       37).
 
+%% Shapes of the caches, with more room to describe them.
+%% *GEOMETRY are comprised of cache line size in bytes in the bottom 16 bits
+%% and the cache associativity in the next 16 bits.
+-define(AT_L1I_CACHESIZE,       40).
+-define(AT_L1I_CACHEGEOMETRY,   41).
+-define(AT_L1D_CACHESIZE,       42).
+-define(AT_L1D_CACHEGEOMETRY,   43).
+-define(AT_L2_CACHESIZE,        44).
+-define(AT_L2_CACHEGEOMETRY,    45).
+-define(AT_L3_CACHESIZE,        46).
+-define(AT_L3_CACHEGEOMETRY,    47).
+
+-define(AT_MINSIGSTKSZ,         51). % Stack needed for signal delivery (AArch64).
+
 -define(AT_FREEBSD_EXECPATH,    15).    % Path to the executable.
 -define(AT_FREEBSD_CANARY,      16).    % Canary for SSP.
 -define(AT_FREEBSD_CANARYLEN,   17).    % Length of the canary.
@@ -1422,6 +1440,7 @@
 -define(AT_FREEBSD_EHDRFLAGS,   24).    % e_flags field from ELF header.
 -define(AT_FREEBSD_HWCAP,       25).    % CPU feature flags.
 -define(AT_FREEBSD_HWCAP2,      26).    % CPU feature flags 2.
+-define(AT_FREEBSD_BSDFLAGS,    27).    % ELF BSD Flags.
 
 -define(AT_SUN_UID,             2000).  % Effective user ID.
 -define(AT_SUN_RUID,            2001).  % Real user ID.
