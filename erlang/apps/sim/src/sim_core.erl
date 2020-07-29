@@ -85,14 +85,33 @@ next_pc(#core{pc_offset = PCOffset} = Core, Mem) ->
 %% c.f. Toad-1 Architecture Manual, page 41, Figure 1.11
 
 %% Instruction Fetch.  This always uses local addressing.
-insn_fetch(Core0, Mem) ->
-  %% TODO: Handle 2.9.6 Overflow Trapping
-  %% For now, arithmetic overflows are ignored, as if the user had installed a
-  %% no-op handler, so that C's unsigned arithmetic can work, and stack overflows
-  %% are treated as fatal errors.
-  %% TODO: Handle TRAP_2 (Stack Overflow/Underflow)
-  #core{flags = Flags0} = Core0,
-  Core = Core0#core{flags = Flags0 band bnot (1 bsl ?PDP10_PF_TRAP_1)},
+insn_fetch(Core, Mem) ->
+  %% Arithmetic and stack overflows set trap flags which are checked after
+  %% completion of the faulting instruction, i.e., at the start of the next
+  %% instruction fetch cycle.
+  #core{flags = Flags} = Core,
+  %% TRAP_1 and TRAP_2 are adjacent
+  case (Flags bsr ?PDP10_PF_TRAP_1) band 3 of
+    0 ->
+      %% No trap flag set.
+      insn_fetch1(Core, Mem);
+    1 ->
+      %% TRAP_1 (arithmetic overflow) set.
+      %% For now, arithmetic overflows are ignored as if the user had installed
+      %% a no-op handler.   This is so that C's unsigned arithmetic can work.
+      %% TODO: Handle 2.9.6 Overflow Trapping
+      Flags1 = Flags band bnot (1 bsl ?PDP10_PF_TRAP_1),
+      Core1 = Core#core{flags = Flags1},
+      insn_fetch1(Core1, Mem);
+    _ ->
+      %% TRAP_2 (stack overflow) set.
+      %% For now, treat this as a fatal error terminating execution.
+      %% TODO: Handle stack overflow faults properly.
+      PC = (Core#core.pc_section bsl 18) bor Core#core.pc_offset,
+      {Core, Mem, {error, {?MODULE, {stack_fault, PC}}}}
+  end.
+
+insn_fetch1(Core, Mem) ->
   PCOffset = Core#core.pc_offset,
   case PCOffset =< 8#17 of
     true ->
@@ -491,7 +510,9 @@ format_error(Reason) ->
                     [PC, IR, format_ea(EA)]);
     {page_fault, Address, PC, Op, Reason, Cont} ->
       io_lib:format("PAGE FAULT: ADDR=~10.8.0b PC=~10.8.0b OP=~p RSN=~p CONT=~p",
-                    [Address, PC, Op, Reason, Cont])
+                    [Address, PC, Op, Reason, Cont]);
+    {stack_fault, PC} ->
+      io_lib:format("STACK FAULT: PC=~10.8.0b", [PC])
   end.
 
 format_ea(#ea{section = Section, offset = Offset, islocal = IsLocal}) ->
