@@ -414,6 +414,70 @@ dispatch(Core, Mem, IR, EA) ->
     8#575 -> sim_boolean:handle_SETZ(Core, Mem, IR, EA); % HLREI = HLRZI = SETZ
     8#576 -> sim_halfword:handle_HLREM(Core, Mem, IR, EA);
     8#577 -> sim_halfword:handle_HLRES(Core, Mem, IR, EA);
+    8#600 -> next_pc(Core, Mem); % TRN = no-op
+    8#601 -> next_pc(Core, Mem); % TLN = no-op
+    8#602 -> sim_logical:handle_TRNE(Core, Mem, IR, EA);
+    8#603 -> sim_logical:handle_TLNE(Core, Mem, IR, EA);
+    8#604 -> skip(Core, Mem); % TRNA = SKIPA without the memory read
+    8#605 -> skip(Core, Mem); % TLNA = SKIPA without the memory read
+    8#606 -> sim_logical:handle_TRNN(Core, Mem, IR, EA);
+    8#607 -> sim_logical:handle_TLNN(Core, Mem, IR, EA);
+    8#610 -> sim_logical:handle_TDN(Core, Mem, IR, EA);
+    8#611 -> sim_logical:handle_TSN(Core, Mem, IR, EA);
+    8#612 -> sim_logical:handle_TDNE(Core, Mem, IR, EA);
+    8#613 -> sim_logical:handle_TSNE(Core, Mem, IR, EA);
+    8#614 -> sim_logical:handle_TDNA(Core, Mem, IR, EA);
+    8#615 -> sim_logical:handle_TSNA(Core, Mem, IR, EA);
+    8#616 -> sim_logical:handle_TDNN(Core, Mem, IR, EA);
+    8#617 -> sim_logical:handle_TSNN(Core, Mem, IR, EA);
+    8#620 -> sim_logical:handle_TRZ(Core, Mem, IR, EA);
+    8#621 -> sim_logical:handle_TLZ(Core, Mem, IR, EA);
+    8#622 -> sim_logical:handle_TRZE(Core, Mem, IR, EA);
+    8#623 -> sim_logical:handle_TLZE(Core, Mem, IR, EA);
+    8#624 -> sim_logical:handle_TRZA(Core, Mem, IR, EA);
+    8#625 -> sim_logical:handle_TLZA(Core, Mem, IR, EA);
+    8#626 -> sim_logical:handle_TRZN(Core, Mem, IR, EA);
+    8#627 -> sim_logical:handle_TLZN(Core, Mem, IR, EA);
+    8#630 -> sim_logical:handle_TDZ(Core, Mem, IR, EA);
+    8#631 -> sim_logical:handle_TSZ(Core, Mem, IR, EA);
+    8#632 -> sim_logical:handle_TDZE(Core, Mem, IR, EA);
+    8#633 -> sim_logical:handle_TSZE(Core, Mem, IR, EA);
+    8#634 -> sim_logical:handle_TDZA(Core, Mem, IR, EA);
+    8#635 -> sim_logical:handle_TSZA(Core, Mem, IR, EA);
+    8#636 -> sim_logical:handle_TDZN(Core, Mem, IR, EA);
+    8#637 -> sim_logical:handle_TSZN(Core, Mem, IR, EA);
+    8#640 -> sim_logical:handle_TRC(Core, Mem, IR, EA);
+    8#641 -> sim_logical:handle_TLC(Core, Mem, IR, EA);
+    8#642 -> sim_logical:handle_TRCE(Core, Mem, IR, EA);
+    8#643 -> sim_logical:handle_TLCE(Core, Mem, IR, EA);
+    8#644 -> sim_logical:handle_TRCA(Core, Mem, IR, EA);
+    8#645 -> sim_logical:handle_TLCA(Core, Mem, IR, EA);
+    8#646 -> sim_logical:handle_TRCN(Core, Mem, IR, EA);
+    8#647 -> sim_logical:handle_TLCN(Core, Mem, IR, EA);
+    8#650 -> sim_logical:handle_TDC(Core, Mem, IR, EA);
+    8#651 -> sim_logical:handle_TSC(Core, Mem, IR, EA);
+    8#652 -> sim_logical:handle_TDCE(Core, Mem, IR, EA);
+    8#653 -> sim_logical:handle_TSCE(Core, Mem, IR, EA);
+    8#654 -> sim_logical:handle_TDCA(Core, Mem, IR, EA);
+    8#655 -> sim_logical:handle_TSCA(Core, Mem, IR, EA);
+    8#656 -> sim_logical:handle_TDCN(Core, Mem, IR, EA);
+    8#657 -> sim_logical:handle_TSCN(Core, Mem, IR, EA);
+    8#660 -> sim_logical:handle_TRO(Core, Mem, IR, EA);
+    8#661 -> sim_logical:handle_TLO(Core, Mem, IR, EA);
+    8#662 -> sim_logical:handle_TROE(Core, Mem, IR, EA);
+    8#663 -> sim_logical:handle_TLOE(Core, Mem, IR, EA);
+    8#664 -> sim_logical:handle_TROA(Core, Mem, IR, EA);
+    8#665 -> sim_logical:handle_TLOA(Core, Mem, IR, EA);
+    8#666 -> sim_logical:handle_TRON(Core, Mem, IR, EA);
+    8#667 -> sim_logical:handle_TLON(Core, Mem, IR, EA);
+    8#670 -> sim_logical:handle_TDO(Core, Mem, IR, EA);
+    8#671 -> sim_logical:handle_TSO(Core, Mem, IR, EA);
+    8#672 -> sim_logical:handle_TDOE(Core, Mem, IR, EA);
+    8#673 -> sim_logical:handle_TSOE(Core, Mem, IR, EA);
+    8#674 -> sim_logical:handle_TDOA(Core, Mem, IR, EA);
+    8#675 -> sim_logical:handle_TSOA(Core, Mem, IR, EA);
+    8#676 -> sim_logical:handle_TDON(Core, Mem, IR, EA);
+    8#677 -> sim_logical:handle_TSON(Core, Mem, IR, EA);
     _ ->
       PC = (Core#core.pc_section bsl 18) bor Core#core.pc_offset,
       {Core, Mem, {error, {?MODULE, {dispatch, PC, IR, EA}}}}
