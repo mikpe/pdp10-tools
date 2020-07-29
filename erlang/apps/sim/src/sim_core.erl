@@ -90,6 +90,7 @@ insn_fetch(Core0, Mem) ->
   %% For now, arithmetic overflows are ignored, as if the user had installed a
   %% no-op handler, so that C's unsigned arithmetic can work, and stack overflows
   %% are treated as fatal errors.
+  %% TODO: Handle TRAP_2 (Stack Overflow/Underflow)
   #core{flags = Flags0} = Core0,
   Core = Core0#core{flags = Flags0 band bnot (1 bsl ?PDP10_PF_TRAP_1)},
   PCOffset = Core#core.pc_offset,
@@ -231,6 +232,7 @@ dispatch(Core, Mem, IR, EA) ->
   %% Dispatch on the opcode (top 9 bits).
   case IR bsr 4 of
     8#104 -> sim_kernel:handle_JSYS(Core, Mem, IR, EA);
+    8#105 -> sim_stack:handle_ADJSP(Core, Mem, IR, EA);
     8#120 -> sim_moves:handle_DMOVE(Core, Mem, IR, EA);
     8#121 -> sim_moves:handle_DMOVN(Core, Mem, IR, EA);
     8#124 -> sim_moves:handle_DMOVEM(Core, Mem, IR, EA);
@@ -253,6 +255,10 @@ dispatch(Core, Mem, IR, EA) ->
     8#217 -> sim_moves:handle_MOVMS(Core, Mem, IR, EA);
     8#250 -> sim_moves:handle_EXCH(Core, Mem, IR, EA);
     8#251 -> sim_moves:handle_BLT(Core, Mem, IR, EA);
+    8#260 -> sim_stack:handle_PUSHJ(Core, Mem, IR, EA);
+    8#261 -> sim_stack:handle_PUSH(Core, Mem, IR, EA);
+    8#262 -> sim_stack:handle_POP(Core, Mem, IR, EA);
+    8#263 -> sim_stack:handle_POPJ(Core, Mem, IR, EA);
     8#400 -> sim_boolean:handle_SETZ(Core, Mem, IR, EA);
     8#401 -> sim_boolean:handle_SETZ(Core, Mem, IR, EA); % SETZI = SETZ
     8#402 -> sim_boolean:handle_SETZM(Core, Mem, IR, EA);
