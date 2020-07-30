@@ -27,6 +27,7 @@
 -export([ run/6
         , run/2
         , next_pc/2
+        , skip/2
         , page_fault/6
         , c/3
         , cset/4
@@ -80,6 +81,13 @@ run(Core, Mem) ->
 next_pc(#core{pc_offset = PCOffset} = Core, Mem) ->
   PCOffset1 = (PCOffset + 1) band ((1 bsl 18) - 1),
   insn_fetch(Core#core{pc_offset = PCOffset1}, Mem).
+
+%% Skip next instruction: increment PC by two but stay in current section.
+-spec skip(#core{}, sim_mem:mem())
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+skip(#core{pc_offset = PCOffset} = Core, Mem) ->
+  PCOffset2 = (PCOffset + 2) band ((1 bsl 18) - 1),
+  insn_fetch(Core#core{pc_offset = PCOffset2}, Mem).
 
 %% Instruction Fetch and Effective Address Calculation =========================
 %% c.f. Toad-1 Architecture Manual, page 41, Figure 1.11
