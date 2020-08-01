@@ -282,6 +282,8 @@ dispatch(Core, Mem, IR, EA) ->
     8#217 -> sim_moves:handle_MOVMS(Core, Mem, IR, EA);
     8#250 -> sim_moves:handle_EXCH(Core, Mem, IR, EA);
     8#251 -> sim_moves:handle_BLT(Core, Mem, IR, EA);
+    8#252 -> sim_arithmetic:handle_AOBJP(Core, Mem, IR, EA);
+    8#253 -> sim_arithmetic:handle_AOBJN(Core, Mem, IR, EA);
     8#260 -> sim_stack:handle_PUSHJ(Core, Mem, IR, EA);
     8#261 -> sim_stack:handle_PUSH(Core, Mem, IR, EA);
     8#262 -> sim_stack:handle_POP(Core, Mem, IR, EA);
