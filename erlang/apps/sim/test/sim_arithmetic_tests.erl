@@ -30,6 +30,7 @@
 -define(DEFAULT_FLAGS, (1 bsl ?PDP10_PF_USER)).
 
 -define(LOW18(X), ((X) band ((1 bsl 18) - 1))).
+-define(LOW36(X), ((X) band ((1 bsl 36) - 1))).
 
 -define(INSN(OP, AC, I, X, Y),
         (((OP) bsl (35 - 8)) bor
@@ -58,6 +59,14 @@
 -define(OP_CAIGE,  8#305).
 -define(OP_CAIN,   8#306).
 -define(OP_CAIG,   8#307).
+-define(OP_CAM,    8#310).
+-define(OP_CAML,   8#311).
+-define(OP_CAME,   8#312).
+-define(OP_CAMLE,  8#313).
+-define(OP_CAMA,   8#314).
+-define(OP_CAMGE,  8#315).
+-define(OP_CAMN,   8#316).
+-define(OP_CAMG,   8#317).
 
 %% 2.6.1 Add One to Both Halves of AC and Jump =================================
 
@@ -231,6 +240,149 @@ caig_test() ->
     , {1, 8#101, ?INSN(?OP_CAIG, 1, 0, 0, 2)}        % 1,,101/ CAIG 1,2
     , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
     , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS, []). % no skip
+
+%% CAM - Compare AC with Memory and Skip if Condition Satisfied
+
+cam_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_CAM, 0, 0, 0, 8#150)}     % 1,,100/ CAM 150
+    , {1, 8#101, ?INSN_INVALID}                      % 1,,101/ <invalid>
+    , {1, 8#150, 2}                                  % 1,,150/ 0,,2
+    ],
+  expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS, []).  % no skip
+
+caml_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 3)}       % 1,,100/ MOVNI 1,3
+    , {1, 8#101, ?INSN(?OP_CAML, 1, 0, 0, 8#150)}    % 1,,101/ CAML 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, 2}                                  % 1,,150/ 0,,2
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS, []), % skip
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 3)}       % 1,,100/ MOVEI 1,3
+    , {1, 8#101, ?INSN(?OP_CAML, 1, 0, 0, 8#150)}    % 1,,101/ CAML 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, 2}                                  % 1,,150/ 0,,2
+    ],
+  expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS, []). % no skip
+
+came_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 2)}       % 1,,100/ MOVEI 1,2
+    , {1, 8#101, ?INSN(?OP_CAME, 1, 0, 0, 8#150)}    % 1,,101/ CAME 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, 2}                                  % 1,,150/ 0,,2
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS, []), % skip
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 3)}       % 1,,100/ MOVEI 1,3
+    , {1, 8#101, ?INSN(?OP_CAME, 1, 0, 0, 8#150)}    % 1,,101/ CAME 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, 2}                                  % 1,,150/ 0,,2
+    ],
+  expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS, []). % no skip
+
+camle_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 3)}       % 1,,100/ MOVNI 1,3
+    , {1, 8#101, ?INSN(?OP_CAMLE, 1, 0, 0, 8#150)}   % 1,,101/ CAMLE 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, 2}                                  % 1,,150/ 0,,2
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS, []), % skip
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 2)}       % 1,,100/ MOVEI 1,2
+    , {1, 8#101, ?INSN(?OP_CAMLE, 1, 0, 0, 8#150)}   % 1,,101/ CAMLE 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, 2}                                  % 1,,150/ 0,,2
+    ],
+  expect(Prog2, [], {1, 8#103}, ?DEFAULT_FLAGS, []), % skip
+  Prog3 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 3)}       % 1,,100/ MOVEI 1,3
+    , {1, 8#101, ?INSN(?OP_CAMLE, 1, 0, 0, 8#150)}   % 1,,101/ CAMLE 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, 2}                                  % 1,,150/ 0,,2
+    ],
+  expect(Prog3, [], {1, 8#102}, ?DEFAULT_FLAGS, []). % no skip
+
+cama_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_CAMA, 0, 0, 0, 8#150)}    % 1,,100/ CAMA 150
+    , {1, 8#101, ?INSN_INVALID}                      % 1,,101/ <invalid>
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#150, 2}                                  % 1,,150/ 0,,2
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS, []).  % skip
+
+camge_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 3)}       % 1,,100/ MOVEI 1,3
+    , {1, 8#101, ?INSN(?OP_CAMGE, 1, 0, 0, 8#150)}   % 1,,101/ CAMGE 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, 2}                                  % 1,,150/ 0,,2
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS, []), % skip
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 2)}       % 1,,100/ MOVEI 1,2
+    , {1, 8#101, ?INSN(?OP_CAMGE, 1, 0, 0, 8#150)}   % 1,,101/ CAMGE 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, 2}                                  % 1,,150/ 0,,2
+    ],
+  expect(Prog2, [], {1, 8#103}, ?DEFAULT_FLAGS, []), % skip
+  Prog3 =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 3)}       % 1,,100/ MOVNI 1,3
+    , {1, 8#101, ?INSN(?OP_CAMGE, 1, 0, 0, 8#150)}   % 1,,101/ CAMGE 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, 2}                                  % 1,,150/ 0,,2
+    ],
+  expect(Prog3, [], {1, 8#102}, ?DEFAULT_FLAGS, []). % no skip
+
+camn_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 3)}       % 1,,100/ MOVEI 1,3
+    , {1, 8#101, ?INSN(?OP_CAMN, 1, 0, 0, 8#150)}    % 1,,101/ CAMN 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, 2}                                  % 1,,150/ 0,,2
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS, []), % skip
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 2)}       % 1,,100/ MOVEI 1,2
+    , {1, 8#101, ?INSN(?OP_CAMN, 1, 0, 0, 8#150)}    % 1,,101/ CAMN 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, 2}                                  % 1,,150/ 0,,2
+    ],
+  expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS, []). % no skip
+
+camg_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 3)}       % 1,,100/ MOVEI 1,3
+    , {1, 8#101, ?INSN(?OP_CAMG, 1, 0, 0, 8#150)}    % 1,,101/ CAMG 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, ?LOW36(-2)}                         % 1,,150/ -2
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS, []), % skip
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 3)}       % 1,,100/ MOVNI 1,3
+    , {1, 8#101, ?INSN(?OP_CAMG, 1, 0, 0, 8#150)}    % 1,,101/ CAMG 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, ?LOW36(-2)}                         % 1,,150/ -2
     ],
   expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS, []). % no skip
 

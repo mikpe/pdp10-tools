@@ -296,6 +296,14 @@ dispatch(Core, Mem, IR, EA) ->
     8#305 -> sim_arithmetic:handle_CAIGE(Core, Mem, IR, EA);
     8#306 -> sim_arithmetic:handle_CAIN(Core, Mem, IR, EA);
     8#307 -> sim_arithmetic:handle_CAIG(Core, Mem, IR, EA);
+    8#310 -> sim_arithmetic:handle_CAM(Core, Mem, IR, EA);
+    8#311 -> sim_arithmetic:handle_CAML(Core, Mem, IR, EA);
+    8#312 -> sim_arithmetic:handle_CAME(Core, Mem, IR, EA);
+    8#313 -> sim_arithmetic:handle_CAMLE(Core, Mem, IR, EA);
+    8#314 -> sim_arithmetic:handle_CAMA(Core, Mem, IR, EA);
+    8#315 -> sim_arithmetic:handle_CAMGE(Core, Mem, IR, EA);
+    8#316 -> sim_arithmetic:handle_CAMN(Core, Mem, IR, EA);
+    8#317 -> sim_arithmetic:handle_CAMG(Core, Mem, IR, EA);
     8#400 -> sim_boolean:handle_SETZ(Core, Mem, IR, EA);
     8#401 -> sim_boolean:handle_SETZ(Core, Mem, IR, EA); % SETZI = SETZ
     8#402 -> sim_boolean:handle_SETZM(Core, Mem, IR, EA);
