@@ -67,6 +67,14 @@
 -define(OP_CAMGE,  8#315).
 -define(OP_CAMN,   8#316).
 -define(OP_CAMG,   8#317).
+-define(OP_JUMP,   8#320).
+-define(OP_JUMPL,  8#321).
+-define(OP_JUMPE,  8#322).
+-define(OP_JUMPLE, 8#323).
+-define(OP_JUMPA,  8#324).
+-define(OP_JUMPGE, 8#325).
+-define(OP_JUMPN,  8#326).
+-define(OP_JUMPG,  8#327).
 
 %% 2.6.1 Add One to Both Halves of AC and Jump =================================
 
@@ -385,6 +393,133 @@ camg_test() ->
     , {1, 8#150, ?LOW36(-2)}                         % 1,,150/ -2
     ],
   expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS, []). % no skip
+
+%% JUMP - Jump if AC Condition Satisfied
+
+jump_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_JUMP, 0, 0, 0, 0)}        % 1,,100/ JUMP
+    , {1, 8#101, ?INSN_INVALID}                      % 1,,101/ <invalid>
+    ],
+  expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS, []).  % no jump
+
+jumpl_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 3)}       % 1,,100/ MOVNI 1,3
+    , {1, 8#101, ?INSN(?OP_JUMPL, 1, 0, 0, 8#103)}   % 1,,101/ JUMPL 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS, []), % jump
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 3)}       % 1,,100/ MOVEI 1,3
+    , {1, 8#101, ?INSN(?OP_JUMPL, 1, 0, 0, 8#103)}   % 1,,101/ JUMPL 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS, []). % no jump
+
+jumpe_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 0)}       % 1,,100/ MOVEI 1,0
+    , {1, 8#101, ?INSN(?OP_JUMPE, 1, 0, 0, 8#103)}   % 1,,101/ JUMPE 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS, []), % jump
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 3)}       % 1,,100/ MOVEI 1,3
+    , {1, 8#101, ?INSN(?OP_JUMPE, 1, 0, 0, 8#103)}   % 1,,101/ JUMPE 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS, []). % no jump
+
+jumple_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 3)}       % 1,,100/ MOVNI 1,3
+    , {1, 8#101, ?INSN(?OP_JUMPLE, 1, 0, 0, 8#103)}  % 1,,101/ JUMPLE 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS, []), % jump
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 0)}       % 1,,100/ MOVEI 1,0
+    , {1, 8#101, ?INSN(?OP_JUMPLE, 1, 0, 0, 8#103)}  % 1,,101/ JUMPLE 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#103}, ?DEFAULT_FLAGS, []), % jump
+  Prog3 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 3)}       % 1,,100/ MOVEI 1,3
+    , {1, 8#101, ?INSN(?OP_JUMPLE, 1, 0, 0, 8#103)}  % 1,,101/ JUMPLE 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog3, [], {1, 8#102}, ?DEFAULT_FLAGS, []). % no jump
+
+jumpa_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_JUMPA, 0, 0, 0, 8#102)}   % 1,,100/ JUMPA 102
+    , {1, 8#101, ?INSN_INVALID}                      % 1,,101/ <invalid>
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS, []).  % jump
+
+jumpge_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 3)}       % 1,,100/ MOVEI 1,3
+    , {1, 8#101, ?INSN(?OP_JUMPGE, 1, 0, 0, 8#103)}  % 1,,101/ JUMPGE 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS, []), % jump
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 0)}       % 1,,100/ MOVEI 1,0
+    , {1, 8#101, ?INSN(?OP_JUMPGE, 1, 0, 0, 8#103)}  % 1,,101/ JUMPGE 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#103}, ?DEFAULT_FLAGS, []), % jump
+  Prog3 =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 3)}       % 1,,100/ MOVNI 1,3
+    , {1, 8#101, ?INSN(?OP_JUMPGE, 1, 0, 0, 8#103)}  % 1,,101/ JUMPGE 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog3, [], {1, 8#102}, ?DEFAULT_FLAGS, []). % no jump
+
+jumpn_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 3)}       % 1,,100/ MOVEI 1,3
+    , {1, 8#101, ?INSN(?OP_JUMPN, 1, 0, 0, 8#103)}   % 1,,101/ JUMPN 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS, []), % jump
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 0)}       % 1,,100/ MOVEI 1,0
+    , {1, 8#101, ?INSN(?OP_JUMPN, 1, 0, 0, 8#103)}   % 1,,101/ JUMPN 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS, []). % no jump
+
+jumpg_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 3)}       % 1,,100/ MOVEI 1,3
+    , {1, 8#101, ?INSN(?OP_JUMPG, 1, 0, 0, 8#103)}   % 1,,101/ JUMPG 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS, []), % jump
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 3)}       % 1,,100/ MOVNI 1,3
+    , {1, 8#101, ?INSN(?OP_JUMPG, 1, 0, 0, 8#103)}   % 1,,101/ JUMPG 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS, []). % no jump
 
 %% Common code to run short sequences ==========================================
 

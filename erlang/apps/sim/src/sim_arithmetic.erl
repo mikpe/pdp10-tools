@@ -40,6 +40,13 @@
         , handle_CAML/4
         , handle_CAMLE/4
         , handle_CAMN/4
+        , handle_JUMPA/4
+        , handle_JUMPE/4
+        , handle_JUMPG/4
+        , handle_JUMPGE/4
+        , handle_JUMPL/4
+        , handle_JUMPLE/4
+        , handle_JUMPN/4
         ]).
 
 -include("sim_core.hrl").
@@ -234,7 +241,92 @@ handle_CAMG(Core, Mem, IR, EA) ->
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
+%% JUMP - Jump if AC Condition Satisfied
+
+-spec handle_JUMPL(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_JUMPL(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  jump_if_L(Core, Mem, CA, EA).
+
+-spec handle_JUMPE(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_JUMPE(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  jump_if_E(Core, Mem, CA, EA).
+
+-spec handle_JUMPLE(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_JUMPLE(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  jump_if_LE(Core, Mem, CA, EA).
+
+-spec handle_JUMPA(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_JUMPA(Core, Mem, _IR, EA) ->
+  jump(Core, Mem, EA).
+
+-spec handle_JUMPGE(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_JUMPGE(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  jump_if_GE(Core, Mem, CA, EA).
+
+-spec handle_JUMPN(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_JUMPN(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  jump_if_N(Core, Mem, CA, EA).
+
+-spec handle_JUMPG(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_JUMPG(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  jump_if_G(Core, Mem, CA, EA).
+
 %% Miscellaneous ===============================================================
+
+jump_if_E(Core, Mem, X, EA) ->
+  case X =:= 0 of
+    true -> jump(Core, Mem, EA);
+    false -> sim_core:next_pc(Core, Mem)
+  end.
+
+jump_if_G(Core, Mem, X, EA) ->
+  case sext36(X) > 0 of
+    true -> jump(Core, Mem, EA);
+    false -> sim_core:next_pc(Core, Mem)
+  end.
+
+jump_if_GE(Core, Mem, X, EA) ->
+  case sext36(X) >= 0 of
+    true -> jump(Core, Mem, EA);
+    false -> sim_core:next_pc(Core, Mem)
+  end.
+
+jump_if_L(Core, Mem, X, EA) ->
+  case sext36(X) < 0 of
+    true -> jump(Core, Mem, EA);
+    false -> sim_core:next_pc(Core, Mem)
+  end.
+
+jump_if_LE(Core, Mem, X, EA) ->
+  case sext36(X) =< 0 of
+    true -> jump(Core, Mem, EA);
+    false -> sim_core:next_pc(Core, Mem)
+  end.
+
+jump_if_N(Core, Mem, X, EA) ->
+  case X =/= 0 of
+    true -> jump(Core, Mem, EA);
+    false -> sim_core:next_pc(Core, Mem)
+  end.
 
 jump(Core, Mem, EA) ->
   sim_core:run(Core#core{pc_offset = EA#ea.offset}, Mem).

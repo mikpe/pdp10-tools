@@ -304,6 +304,14 @@ dispatch(Core, Mem, IR, EA) ->
     8#315 -> sim_arithmetic:handle_CAMGE(Core, Mem, IR, EA);
     8#316 -> sim_arithmetic:handle_CAMN(Core, Mem, IR, EA);
     8#317 -> sim_arithmetic:handle_CAMG(Core, Mem, IR, EA);
+    8#320 -> next_pc(Core, Mem); % JUMP = no-op
+    8#321 -> sim_arithmetic:handle_JUMPL(Core, Mem, IR, EA);
+    8#322 -> sim_arithmetic:handle_JUMPE(Core, Mem, IR, EA);
+    8#323 -> sim_arithmetic:handle_JUMPLE(Core, Mem, IR, EA);
+    8#324 -> sim_arithmetic:handle_JUMPA(Core, Mem, IR, EA);
+    8#325 -> sim_arithmetic:handle_JUMPGE(Core, Mem, IR, EA);
+    8#326 -> sim_arithmetic:handle_JUMPN(Core, Mem, IR, EA);
+    8#327 -> sim_arithmetic:handle_JUMPG(Core, Mem, IR, EA);
     8#400 -> sim_boolean:handle_SETZ(Core, Mem, IR, EA);
     8#401 -> sim_boolean:handle_SETZ(Core, Mem, IR, EA); % SETZI = SETZ
     8#402 -> sim_boolean:handle_SETZM(Core, Mem, IR, EA);
