@@ -288,6 +288,14 @@ dispatch(Core, Mem, IR, EA) ->
     8#261 -> sim_stack:handle_PUSH(Core, Mem, IR, EA);
     8#262 -> sim_stack:handle_POP(Core, Mem, IR, EA);
     8#263 -> sim_stack:handle_POPJ(Core, Mem, IR, EA);
+    8#300 -> next_pc(Core, Mem); % CAI = no-op
+    8#301 -> sim_arithmetic:handle_CAIL(Core, Mem, IR, EA);
+    8#302 -> sim_arithmetic:handle_CAIE(Core, Mem, IR, EA);
+    8#303 -> sim_arithmetic:handle_CAILE(Core, Mem, IR, EA);
+    8#304 -> skip(Core, Mem); % CAIA = SKIPA without the memory read
+    8#305 -> sim_arithmetic:handle_CAIGE(Core, Mem, IR, EA);
+    8#306 -> sim_arithmetic:handle_CAIN(Core, Mem, IR, EA);
+    8#307 -> sim_arithmetic:handle_CAIG(Core, Mem, IR, EA);
     8#400 -> sim_boolean:handle_SETZ(Core, Mem, IR, EA);
     8#401 -> sim_boolean:handle_SETZ(Core, Mem, IR, EA); % SETZI = SETZ
     8#402 -> sim_boolean:handle_SETZM(Core, Mem, IR, EA);

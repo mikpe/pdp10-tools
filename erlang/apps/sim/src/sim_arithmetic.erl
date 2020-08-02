@@ -26,6 +26,12 @@
 
 -export([ handle_AOBJN/4
         , handle_AOBJP/4
+        , handle_CAIE/4
+        , handle_CAIG/4
+        , handle_CAIGE/4
+        , handle_CAIL/4
+        , handle_CAILE/4
+        , handle_CAIN/4
         ]).
 
 -include("sim_core.hrl").
@@ -72,7 +78,84 @@ handle_AOBJN(Core, Mem, IR, EA) ->
     _ -> jump(Core1, Mem, EA)
   end.
 
+%% 2.6.2 Comparisons, Skips, and Jumps =========================================
+
+%% CAI - Compare AC Immediate and Skip if Condition Satisfied
+
+-spec handle_CAIL(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_CAIL(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  skip_if_L(Core, Mem, sext36(CA), EA#ea.offset).
+
+-spec handle_CAIE(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_CAIE(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  skip_if_E(Core, Mem, CA, EA#ea.offset).
+
+-spec handle_CAILE(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_CAILE(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  skip_if_LE(Core, Mem, sext36(CA), EA#ea.offset).
+
+-spec handle_CAIGE(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_CAIGE(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  skip_if_LE(Core, Mem, EA#ea.offset, sext36(CA)). % AC >= 0,E -> 0,E =< AC
+
+-spec handle_CAIN(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_CAIN(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  skip_if_N(Core, Mem, CA, EA#ea.offset).
+
+-spec handle_CAIG(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_CAIG(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  skip_if_L(Core, Mem, EA#ea.offset, sext36(CA)). % AC > 0,E -> 0,E < AC
+
 %% Miscellaneous ===============================================================
 
 jump(Core, Mem, EA) ->
   sim_core:run(Core#core{pc_offset = EA#ea.offset}, Mem).
+
+skip_if_E(Core, Mem, X, Y) ->
+  case X =:= Y of
+    true -> sim_core:skip(Core, Mem);
+    false -> sim_core:next_pc(Core, Mem)
+  end.
+
+skip_if_L(Core, Mem, X, Y) ->
+  case X < Y of
+    true -> sim_core:skip(Core, Mem);
+    false -> sim_core:next_pc(Core, Mem)
+  end.
+
+skip_if_LE(Core, Mem, X, Y) ->
+  case X =< Y of
+    true -> sim_core:skip(Core, Mem);
+    false -> sim_core:next_pc(Core, Mem)
+  end.
+
+skip_if_N(Core, Mem, X, Y) ->
+  case X =/= Y of
+    true -> sim_core:skip(Core, Mem);
+    false -> sim_core:next_pc(Core, Mem)
+  end.
+
+%% Sign-extend a uint36_t() to the full width of its representation type.
+-spec sext36(uint36_t()) -> integer().
+sext36(X) ->
+  UInt36Sbit = 1 bsl (36 - 1),
+  UInt36Max = (1 bsl 36) - 1,
+  ((X band UInt36Max) bxor UInt36Sbit) - UInt36Sbit.

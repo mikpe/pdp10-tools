@@ -45,9 +45,19 @@
 
 -define(INSN_INVALID, ?INSN(0, 0, 0, 0, 0)).
 
+-define(OP_MOVEI,  8#201).
 -define(OP_MOVSI,  8#205).
+-define(OP_MOVNI,  8#211).
 -define(OP_AOBJP,  8#252).
 -define(OP_AOBJN,  8#253).
+-define(OP_CAI,    8#300).
+-define(OP_CAIL,   8#301).
+-define(OP_CAIE,   8#302).
+-define(OP_CAILE,  8#303).
+-define(OP_CAIA,   8#304).
+-define(OP_CAIGE,  8#305).
+-define(OP_CAIN,   8#306).
+-define(OP_CAIG,   8#307).
 
 %% 2.6.1 Add One to Both Halves of AC and Jump =================================
 
@@ -94,6 +104,135 @@ aobjn_test() ->
   expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS,     % no jump
          [{?AC(1), ?COMMA2(0, 1)}                   % AC1 = 0,,1
          ]).
+
+%% 2.6.2 Comparisons, Skips, and Jumps =========================================
+
+%% CAI - Compare AC Immediate and Skip if Condition Satisfied
+
+cai_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_CAI, 0, 0, 0, 0)}         % 1,,100/ CAI
+    , {1, 8#101, ?INSN_INVALID}                      % 1,,101/ <invalid>
+    ],
+  expect(Prog, [], {1, 8#101}, ?DEFAULT_FLAGS, []).  % no skip
+
+cail_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 3)}       % 1,,100/ MOVNI 1,3
+    , {1, 8#101, ?INSN(?OP_CAIL, 1, 0, 0, 2)}        % 1,,101/ CAIL 1,2
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS, []), % skip
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 3)}       % 1,,100/ MOVEI 1,3
+    , {1, 8#101, ?INSN(?OP_CAIL, 1, 0, 0, 2)}        % 1,,101/ CAIL 1,2
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS, []). % no skip
+
+caie_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 2)}       % 1,,100/ MOVEI 1,2
+    , {1, 8#101, ?INSN(?OP_CAIE, 1, 0, 0, 2)}        % 1,,101/ CAIE 1,2
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS, []), % skip
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 3)}       % 1,,100/ MOVEI 1,3
+    , {1, 8#101, ?INSN(?OP_CAIE, 1, 0, 0, 2)}        % 1,,101/ CAIE 1,2
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS, []). % no skip
+
+caile_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 3)}       % 1,,100/ MOVNI 1,3
+    , {1, 8#101, ?INSN(?OP_CAILE, 1, 0, 0, 2)}       % 1,,101/ CAILE 1,2
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS, []), % skip
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 2)}       % 1,,100/ MOVEI 1,2
+    , {1, 8#101, ?INSN(?OP_CAILE, 1, 0, 0, 2)}       % 1,,101/ CAILE 1,2
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#103}, ?DEFAULT_FLAGS, []), % skip
+  Prog3 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 3)}       % 1,,100/ MOVEI 1,3
+    , {1, 8#101, ?INSN(?OP_CAILE, 1, 0, 0, 2)}       % 1,,101/ CAILE 1,2
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog3, [], {1, 8#102}, ?DEFAULT_FLAGS, []). % no skip
+
+caia_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_CAIA, 0, 0, 0, 0)}        % 1,,100/ CAIA
+    , {1, 8#101, ?INSN_INVALID}                      % 1,,101/ <invalid>
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS, []).  % skip
+
+caige_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 3)}       % 1,,100/ MOVEI 1,3
+    , {1, 8#101, ?INSN(?OP_CAIGE, 1, 0, 0, 2)}       % 1,,101/ CAIGE 1,2
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS, []), % skip
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 2)}       % 1,,100/ MOVEI 1,2
+    , {1, 8#101, ?INSN(?OP_CAIGE, 1, 0, 0, 2)}       % 1,,101/ CAIGE 1,2
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#103}, ?DEFAULT_FLAGS, []), % skip
+  Prog3 =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 3)}       % 1,,100/ MOVNI 1,3
+    , {1, 8#101, ?INSN(?OP_CAIGE, 1, 0, 0, 2)}       % 1,,101/ CAIGE 1,2
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog3, [], {1, 8#102}, ?DEFAULT_FLAGS, []). % no skip
+
+cain_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 3)}       % 1,,100/ MOVEI 1,3
+    , {1, 8#101, ?INSN(?OP_CAIN, 1, 0, 0, 2)}        % 1,,101/ CAIN 1,2
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS, []), % skip
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 2)}       % 1,,100/ MOVEI 1,2
+    , {1, 8#101, ?INSN(?OP_CAIN, 1, 0, 0, 2)}        % 1,,101/ CAIN 1,2
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS, []). % no skip
+
+caig_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 3)}       % 1,,100/ MOVEI 1,3
+    , {1, 8#101, ?INSN(?OP_CAIG, 1, 0, 0, 2)}        % 1,,101/ CAIG 1,2
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS, []), % skip
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 3)}       % 1,,100/ MOVNI 1,3
+    , {1, 8#101, ?INSN(?OP_CAIG, 1, 0, 0, 2)}        % 1,,101/ CAIG 1,2
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS, []). % no skip
 
 %% Common code to run short sequences ==========================================
 
