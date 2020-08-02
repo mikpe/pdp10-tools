@@ -75,6 +75,14 @@
 -define(OP_JUMPGE, 8#325).
 -define(OP_JUMPN,  8#326).
 -define(OP_JUMPG,  8#327).
+-define(OP_SKIP,   8#330).
+-define(OP_SKIPL,  8#331).
+-define(OP_SKIPE,  8#332).
+-define(OP_SKIPLE, 8#333).
+-define(OP_SKIPA,  8#334).
+-define(OP_SKIPGE, 8#335).
+-define(OP_SKIPN,  8#336).
+-define(OP_SKIPG,  8#337).
 
 %% 2.6.1 Add One to Both Halves of AC and Jump =================================
 
@@ -520,6 +528,151 @@ jumpg_test() ->
     , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
     ],
   expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS, []). % no jump
+
+%% SKIP - Skip if Memory Condition Satisfied
+
+skip_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 0, 0, 0, 8#42)}    % 1,,100/ MOVEI 0,42
+    , {1, 8#101, ?INSN(?OP_SKIP, 0, 0, 0, 8#150)}    % 1,,101/ SKIP 150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#150, 2}                                  % 1,,150/ 2
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,       % no skip
+         [{?AC(0), 8#42}]).                          % AC(0) = 42
+
+skipl_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_SKIPL, 1, 0, 0, 8#150)}   % 1,,100/ SKIPL 1,150
+    , {1, 8#101, ?INSN_INVALID}                      % 1,,101/ <invalid>
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#150, ?LOW36(-2)}                         % 1,,150/ -2
+    ],
+  expect(Prog1, [], {1, 8#102}, ?DEFAULT_FLAGS,      % skip
+         [{?AC(1), ?LOW36(-2)}]),                    % AC1 = -2
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_SKIPL, 1, 0, 0, 8#150)}   % 1,,100/ SKIPL 1,150
+    , {1, 8#101, ?INSN_INVALID}                      % 1,,101/ <invalid>
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#150, 2}                                  % 1,,150/ 2
+    ],
+  expect(Prog2, [], {1, 8#101}, ?DEFAULT_FLAGS,      % no skip
+         [{?AC(1), 2}]).                             % AC1 = 2
+
+skipe_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_SKIPE, 1, 0, 0, 8#150)}   % 1,,100/ SKIPE 1,150
+    , {1, 8#101, ?INSN_INVALID}                      % 1,,101/ <invalid>
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#150, 0}                                  % 1,,150/ 0
+    ],
+  expect(Prog1, [], {1, 8#102}, ?DEFAULT_FLAGS, []), % skip
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_SKIPE, 1, 0, 0, 8#150)}   % 1,,100/ SKIPE 1,150
+    , {1, 8#101, ?INSN_INVALID}                      % 1,,101/ <invalid>
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#150, 2}                                  % 1,,150/ 0,,2
+    ],
+  expect(Prog2, [], {1, 8#101}, ?DEFAULT_FLAGS,      % no skip
+        [{?AC(1), 2}]).                              % AC1 = 2
+
+skiple_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_SKIPLE, 1, 0, 0, 8#150)}  % 1,,100/ SKIPLE 1,150
+    , {1, 8#101, ?INSN_INVALID}                      % 1,,101/ <invalid>
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#150, ?LOW36(-2)}                         % 1,,150/ -2
+    ],
+  expect(Prog1, [], {1, 8#102}, ?DEFAULT_FLAGS,      %
+         [{?AC(1), ?LOW36(-2)}]),                    % AC1 = -2
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_SKIPLE, 1, 0, 0, 8#150)}  % 1,,100/ SKIPLE 1,150
+    , {1, 8#101, ?INSN_INVALID}                      % 1,,101/ <invalid>
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#150, 0}                                  % 1,,150/ 0
+    ],
+  expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS,      % skip
+         [{?AC(1), 0}]),                             % AC1 = 0
+  Prog3 =
+    [ {1, 8#100, ?INSN(?OP_SKIPLE, 1, 0, 0, 8#150)}  % 1,,100/ SKIPLE 1,150
+    , {1, 8#101, ?INSN_INVALID}                      % 1,,101/ <invalid>
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#150, 2}                                  % 1,,150/ 2
+    ],
+  expect(Prog3, [], {1, 8#101}, ?DEFAULT_FLAGS,      % no skip
+         [{?AC(1), 2}]).                             % AC1 = 2
+
+skipa_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_SKIPA, 1, 0, 0, 8#150)}   % 1,,100/ SKIPA 1,150
+    , {1, 8#101, ?INSN_INVALID}                      % 1,,101/ <invalid>
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#150, 2}                                  % 1,,150/ 2
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,       % skip
+         [{?AC(1), 2}]).                             % AC1 = 2
+
+skipge_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_SKIPGE, 1, 0, 0, 8#150)}  % 1,,100/ SKIPGE 1,150
+    , {1, 8#101, ?INSN_INVALID}                      % 1,,101/ <invalid>
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#150, 2}                                  % 1,,150/ 2
+    ],
+  expect(Prog1, [], {1, 8#102}, ?DEFAULT_FLAGS,      % skip
+         [{?AC(1), 2}]),                             % AC1 = 2
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_SKIPGE, 1, 0, 0, 8#150)}  % 1,,100/ SKIPGE 1,150
+    , {1, 8#101, ?INSN_INVALID}                      % 1,,101/ <invalid>
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#150, 0}                                  % 1,,150/ 0
+    ],
+  expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS,      % skip
+         [{?AC(1), 0}]),                             % AC1 = 0
+  Prog3 =
+    [ {1, 8#100, ?INSN(?OP_SKIPGE, 1, 0, 0, 8#150)}  % 1,,100/ SKIPGE 1,150
+    , {1, 8#101, ?INSN_INVALID}                      % 1,,101/ <invalid>
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#150, ?LOW36(-2)}                         % 1,,150/ -2
+    ],
+  expect(Prog3, [], {1, 8#101}, ?DEFAULT_FLAGS,      % no skip
+         [{?AC(1), ?LOW36(-2)}]).                    % AC1 = -2
+
+skipn_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_SKIPN, 1, 0, 0, 8#150)}   % 1,,100/ SKIPN 1,150
+    , {1, 8#101, ?INSN_INVALID}                      % 1,,101/ <invalid>
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#150, 2}                                  % 1,,150/ 2
+    ],
+  expect(Prog1, [], {1, 8#102}, ?DEFAULT_FLAGS,      % skip
+         [{?AC(1), 2}]),                             % AC(1) = 2
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_SKIPN, 1, 0, 0, 8#150)}   % 1,,100/ SKIPN 1,150
+    , {1, 8#101, ?INSN_INVALID}                      % 1,,101/ <invalid>
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#150, 0}                                  % 1,,150/ 0
+    ],
+  expect(Prog2, [], {1, 8#101}, ?DEFAULT_FLAGS,      % no skip
+         [{?AC(1), 0}]).                             % AC(1) = 0
+
+skipg_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_SKIPG, 1, 0, 0, 8#150)}   % 1,,100/ SKIPG 1,150
+    , {1, 8#101, ?INSN_INVALID}                      % 1,,101/ <invalid>
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#150, 2}                                  % 1,,150/ 2
+    ],
+  expect(Prog1, [], {1, 8#102}, ?DEFAULT_FLAGS,      % skip
+         [{?AC(1), 2}]),                             % AC(1) = 2
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_SKIPG, 1, 0, 0, 8#150)}   % 1,,100/ SKIPG 1,150
+    , {1, 8#101, ?INSN_INVALID}                      % 1,,101/ <invalid>
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#150, ?LOW36(-2)}                         % 1,,150/ -2
+    ],
+  expect(Prog2, [], {1, 8#101}, ?DEFAULT_FLAGS,      % no skip
+         [{?AC(1), ?LOW36(-2)}]).                    % AC(1) = -2
 
 %% Common code to run short sequences ==========================================
 

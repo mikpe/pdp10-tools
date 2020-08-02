@@ -47,6 +47,14 @@
         , handle_JUMPL/4
         , handle_JUMPLE/4
         , handle_JUMPN/4
+        , handle_SKIP/4
+        , handle_SKIPA/4
+        , handle_SKIPE/4
+        , handle_SKIPG/4
+        , handle_SKIPGE/4
+        , handle_SKIPL/4
+        , handle_SKIPLE/4
+        , handle_SKIPN/4
         ]).
 
 -include("sim_core.hrl").
@@ -290,6 +298,96 @@ handle_JUMPG(Core, Mem, IR, EA) ->
   CA = sim_core:get_ac(Core, AC),
   jump_if_G(Core, Mem, CA, EA).
 
+%% SKIP - Skip if Memory Condition Satisfied
+
+-spec handle_SKIP(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_SKIP(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      sim_core:next_pc(set_non_zero_ac(Core, IR, CE), Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
+-spec handle_SKIPL(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_SKIPL(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      skip_if_L(set_non_zero_ac(Core, IR, CE), Mem, sext36(CE), 0);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
+-spec handle_SKIPE(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_SKIPE(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      skip_if_E(set_non_zero_ac(Core, IR, CE), Mem, CE, 0);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
+-spec handle_SKIPLE(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_SKIPLE(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      skip_if_LE(set_non_zero_ac(Core, IR, CE), Mem, sext36(CE), 0);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
+-spec handle_SKIPA(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_SKIPA(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      sim_core:skip(set_non_zero_ac(Core, IR, CE), Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
+-spec handle_SKIPGE(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_SKIPGE(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      skip_if_LE(set_non_zero_ac(Core, IR, CE), Mem, 0, sext36(CE)); % C(E) >= 0 -> 0 =< C(E)
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
+-spec handle_SKIPN(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_SKIPN(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      skip_if_N(set_non_zero_ac(Core, IR, CE), Mem, CE, 0);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
+-spec handle_SKIPG(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_SKIPG(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      skip_if_L(set_non_zero_ac(Core, IR, CE), Mem, 0, sext36(CE)); % C(E) > 0 -> 0 < C(E)
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
 %% Miscellaneous ===============================================================
 
 jump_if_E(Core, Mem, X, EA) ->
@@ -361,6 +459,12 @@ sext36(X) ->
   UInt36Sbit = 1 bsl (36 - 1),
   UInt36Max = (1 bsl 36) - 1,
   ((X band UInt36Max) bxor UInt36Sbit) - UInt36Sbit.
+
+set_non_zero_ac(Core, IR, Word) ->
+  case IR band 8#17 of
+    0 -> Core;
+    AC -> sim_core:set_ac(Core, AC, Word)
+  end.
 
 ea_address(#ea{section = Section, offset = Offset}) ->
   (Section bsl 18) bor Offset.
