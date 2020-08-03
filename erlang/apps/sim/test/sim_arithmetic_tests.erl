@@ -103,6 +103,14 @@
 -define(OP_AOSGE,  8#355).
 -define(OP_AOSN,   8#356).
 -define(OP_AOSG,   8#357).
+-define(OP_SOJ,    8#360).
+-define(OP_SOJL,   8#361).
+-define(OP_SOJE,   8#362).
+-define(OP_SOJLE,  8#363).
+-define(OP_SOJA,   8#364).
+-define(OP_SOJGE,  8#365).
+-define(OP_SOJN,   8#366).
+-define(OP_SOJG,   8#367).
 
 %% 2.6.1 Add One to Both Halves of AC and Jump =================================
 
@@ -999,6 +1007,151 @@ aosg_test() ->
   expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS,      % no jump
          [ {?EA(1, 8#150), ?LOW36(-1)}               % C(1,,150) = -1
          , {?AC(1), ?LOW36(-1)}]).                   % AC(1) = -1
+
+%% SOJ - Subtract One from AC and Jump if Condition Satisfied
+
+soj_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 2)}       % 1,,100/ MOVEI 1,2
+    , {1, 8#101, ?INSN(?OP_SOJ, 1, 0, 0, 0)}         % 1,,101/ SOJ 1,
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    ],
+  expect(Prog, [], {1, 8#102}, ?CARRY_FLAGS,         % no jump, carry 0 and 1
+         [ {?AC(1), 1}]).                            % AC(1) = 1
+
+sojl_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 2)}       % 1,,100/ MOVNI 1,2
+    , {1, 8#101, ?INSN(?OP_SOJL, 1, 0, 0, 8#103)}    % 1,,101/ SOJL 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog1, [], {1, 8#103}, ?CARRY_FLAGS,        % jump, carry 0 and 1
+         [ {?AC(1), ?LOW36(-3)}]),                   % AC(1) = -3
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 2)}       % 1,,100/ MOVEI 1,2
+    , {1, 8#101, ?INSN(?OP_SOJL, 1, 0, 0, 8#103)}    % 1,,101/ SOJL 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#102}, ?CARRY_FLAGS,        % no jump, carry 0 and 1
+         [ {?AC(1), 1}]).                            % AC(1) = 1
+
+soje_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 1)}       % 1,,100/ MOVEI 1,1
+    , {1, 8#101, ?INSN(?OP_SOJE, 1, 0, 0, 8#103)}    % 1,,101/ SOJE 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog1, [], {1, 8#103}, ?CARRY_FLAGS,        % jump, carry 0 and 1
+         [ {?AC(1), 0}]),                            % AC(1) = 0
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 2)}       % 1,,100/ MOVEI 1,2
+    , {1, 8#101, ?INSN(?OP_SOJE, 1, 0, 0, 8#103)}    % 1,,101/ SOJE 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#102}, ?CARRY_FLAGS,        % no jump, carry 0 and 1
+         [ {?AC(1), 1}]).                            % AC(1) = 1
+
+sojle_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 0)}       % 1,,100/ MOVEI 1,0
+    , {1, 8#101, ?INSN(?OP_SOJLE, 1, 0, 0, 8#103)}   % 1,,101/ SOJLE 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS,      % jump, no carry flags
+         [ {?AC(1), ?LOW36(-1)}]),                   % AC(1) = -1
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 1)}       % 1,,100/ MOVEI 1,1
+    , {1, 8#101, ?INSN(?OP_SOJLE, 1, 0, 0, 8#103)}   % 1,,101/ SOJLE 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#103}, ?CARRY_FLAGS,        % jump, carry 0 and 1
+         [ {?AC(1), 0}]),                            % AC(1) = 0
+  Prog3 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 2)}       % 1,,100/ MOVEI 1,2
+    , {1, 8#101, ?INSN(?OP_SOJLE, 1, 0, 0, 8#103)}   % 1,,101/ SOJLE 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog3, [], {1, 8#102}, ?CARRY_FLAGS,        % no jump, carry 0 and 1
+         [ {?AC(1), 1}]).                            % AC(1) = 1
+
+soja_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 2)}       % 1,,100/ MOVEI 1,2
+    , {1, 8#101, ?INSN(?OP_SOJA, 1, 0, 0, 8#103)}    % 1,,101/ SOJA 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog, [], {1, 8#103}, ?CARRY_FLAGS,         % jump, carry 0 and 1
+         [ {?AC(1), 1}]).                            % AC(1) = 1
+
+sojge_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 2)}       % 1,,100/ MOVEI 1,2
+    , {1, 8#101, ?INSN(?OP_SOJGE, 1, 0, 0, 8#103)}   % 1,,101/ SOJGE 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog1, [], {1, 8#103}, ?CARRY_FLAGS,        % jump, carry 0 and 1
+         [ {?AC(1), 1}]),                            % AC(1) = 1
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 1)}       % 1,,100/ MOVEI 1,1
+    , {1, 8#101, ?INSN(?OP_SOJGE, 1, 0, 0, 8#103)}   % 1,,101/ SOJGE 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#103}, ?CARRY_FLAGS,        % jump, carry 0 and 1
+         [ {?AC(1), 0}]),                            % AC(1) = 0
+  Prog3 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 0)}       % 1,,100/ MOVEI 1,0
+    , {1, 8#101, ?INSN(?OP_SOJGE, 1, 0, 0, 8#103)}   % 1,,101/ SOJGE 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog3, [], {1, 8#102}, ?DEFAULT_FLAGS,      % no jump, no carry flags
+         [ {?AC(1), ?LOW36(-1)}]).                   % AC(1) = -1
+
+sojn_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 2)}       % 1,,100/ MOVEI 1,2
+    , {1, 8#101, ?INSN(?OP_SOJN, 1, 0, 0, 8#103)}    % 1,,101/ SOJN 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog1, [], {1, 8#103}, ?CARRY_FLAGS,        % jump, carry 0 and 1
+         [ {?AC(1), 1}]),                            % AC(1) = 1
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 1)}       % 1,,100/ MOVEI 1,1
+    , {1, 8#101, ?INSN(?OP_SOJN, 1, 0, 0, 8#103)}    % 1,,101/ SOJN 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#102}, ?CARRY_FLAGS,        % no jump, carry 0 and 1
+         [ {?AC(1), 0}]).                            % AC(1) = 0
+
+sojg_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 2)}       % 1,,100/ MOVEI 1,2
+    , {1, 8#101, ?INSN(?OP_SOJG, 1, 0, 0, 8#103)}    % 1,,101/ SOJG 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog1, [], {1, 8#103}, ?CARRY_FLAGS,        % jump, carry 0 and 1
+         [ {?AC(1), 1}]),                            % AC(1) = 1
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 2)}       % 1,,100/ MOVNI 1,2
+    , {1, 8#101, ?INSN(?OP_SOJG, 1, 0, 0, 8#103)}    % 1,,101/ SOJG 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#102}, ?CARRY_FLAGS,        % no jump, carry 0 and 1
+         [ {?AC(1), ?LOW36(-3)}]).                   % AC(1) = -3
 
 %% Common code to run short sequences ==========================================
 
