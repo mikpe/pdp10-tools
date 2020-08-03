@@ -28,6 +28,10 @@
 -include_lib("eunit/include/eunit.hrl").
 
 -define(DEFAULT_FLAGS, (1 bsl ?PDP10_PF_USER)).
+-define(CARRY_FLAGS, % for AOJ/AOS/SOJ/SOS when carry 0 and 1 get set
+        (?DEFAULT_FLAGS bor
+         (1 bsl ?PDP10_PF_CARRY_0) bor
+         (1 bsl ?PDP10_PF_CARRY_1))).
 
 -define(LOW18(X), ((X) band ((1 bsl 18) - 1))).
 -define(LOW36(X), ((X) band ((1 bsl 36) - 1))).
@@ -83,6 +87,14 @@
 -define(OP_SKIPGE, 8#335).
 -define(OP_SKIPN,  8#336).
 -define(OP_SKIPG,  8#337).
+-define(OP_AOJ,    8#340).
+-define(OP_AOJL,   8#341).
+-define(OP_AOJE,   8#342).
+-define(OP_AOJLE,  8#343).
+-define(OP_AOJA,   8#344).
+-define(OP_AOJGE,  8#345).
+-define(OP_AOJN,   8#346).
+-define(OP_AOJG,   8#347).
 
 %% 2.6.1 Add One to Both Halves of AC and Jump =================================
 
@@ -673,6 +685,151 @@ skipg_test() ->
     ],
   expect(Prog2, [], {1, 8#101}, ?DEFAULT_FLAGS,      % no skip
          [{?AC(1), ?LOW36(-2)}]).                    % AC(1) = -2
+
+%% AOJ - Add One to AC and Jump if Condition Satisfied
+
+aoj_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 2)}       % 1,,100/ MOVEI 1,2
+    , {1, 8#101, ?INSN(?OP_AOJ, 1, 0, 0, 0)}         % 1,,101/ AOJ 1,
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,       % no jump
+         [ {?AC(1), 3}]).                            % AC(1) = 3
+
+aojl_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 2)}       % 1,,100/ MOVNI 1,2
+    , {1, 8#101, ?INSN(?OP_AOJL, 1, 0, 0, 8#103)}    % 1,,101/ AOJL 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS,      % jump
+         [ {?AC(1), ?LOW36(-1)}]),                   % AC(1) = -1
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 2)}       % 1,,100/ MOVEI 1,2
+    , {1, 8#101, ?INSN(?OP_AOJL, 1, 0, 0, 8#103)}    % 1,,101/ AOJL 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS,      % no jump
+         [ {?AC(1), 3}]).                            % AC(1) = 3
+
+aoje_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 1)}       % 1,,100/ MOVNI 1,1
+    , {1, 8#101, ?INSN(?OP_AOJE, 1, 0, 0, 8#103)}    % 1,,101/ AOJE 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog1, [], {1, 8#103}, ?CARRY_FLAGS,        % jump, carry 0 and 1
+         [ {?AC(1), 0}]),                            % AC(1) = 0
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 2)}       % 1,,100/ MOVEI 1,2
+    , {1, 8#101, ?INSN(?OP_AOJE, 1, 0, 0, 8#103)}    % 1,,101/ AOJE 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS,      % no jump
+         [ {?AC(1), 3}]).                            % AC(1) = 3
+
+aojle_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 2)}       % 1,,100/ MOVNI 1,2
+    , {1, 8#101, ?INSN(?OP_AOJLE, 1, 0, 0, 8#103)}   % 1,,101/ AOJLE 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS,      % jump
+         [ {?AC(1), ?LOW36(-1)}]),                   % AC(1) = -1
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 1)}       % 1,,100/ MOVNI 1,1
+    , {1, 8#101, ?INSN(?OP_AOJLE, 1, 0, 0, 8#103)}   % 1,,101/ AOJLE 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#103}, ?CARRY_FLAGS,        % jump, carry 0 and 1
+         [ {?AC(1), 0}]),                            % AC(1) = 0
+  Prog3 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 2)}       % 1,,100/ MOVEI 1,2
+    , {1, 8#101, ?INSN(?OP_AOJLE, 1, 0, 0, 8#103)}   % 1,,101/ AOJLE 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog3, [], {1, 8#102}, ?DEFAULT_FLAGS,      % no jump
+         [ {?AC(1), 3}]).                            % AC(1) = 3
+
+aoja_test() ->
+  Prog =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 2)}       % 1,,100/ MOVEI 1,2
+    , {1, 8#101, ?INSN(?OP_AOJA, 1, 0, 0, 8#103)}    % 1,,101/ AOJA 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog, [], {1, 8#103}, ?DEFAULT_FLAGS,       % jump
+         [ {?AC(1), 3}]).                            % AC(1) = 3
+
+aojge_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 2)}       % 1,,100/ MOVEI 1,2
+    , {1, 8#101, ?INSN(?OP_AOJGE, 1, 0, 0, 8#103)}   % 1,,101/ AOJGE 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS,      % jump
+         [ {?AC(1), 3}]),                            % AC(1) = 3
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 1)}       % 1,,100/ MOVNI 1,1
+    , {1, 8#101, ?INSN(?OP_AOJGE, 1, 0, 0, 8#103)}   % 1,,101/ AOJGE 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#103}, ?CARRY_FLAGS,        % jump, carry 0 and 1
+         [ {?AC(1), 0}]),                            % AC(1) = 0
+  Prog3 =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 2)}       % 1,,100/ MOVNI 1,2
+    , {1, 8#101, ?INSN(?OP_AOJGE, 1, 0, 0, 8#103)}   % 1,,101/ AOJGE 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog3, [], {1, 8#102}, ?DEFAULT_FLAGS,      % no jump
+         [ {?AC(1), ?LOW36(-1)}]).                   % AC(1) = -1
+
+aojn_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 2)}       % 1,,100/ MOVEI 1,2
+    , {1, 8#101, ?INSN(?OP_AOJN, 1, 0, 0, 8#103)}    % 1,,101/ AOJN 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS,      % jump
+         [ {?AC(1), 3}]),                            % AC(1) = 3
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 1)}       % 1,,100/ MOVNI 1,1
+    , {1, 8#101, ?INSN(?OP_AOJN, 1, 0, 0, 8#103)}    % 1,,101/ AOJN 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#102}, ?CARRY_FLAGS,        % no jump, carry 0 and 1
+         [ {?AC(1), 0}]).                            % AC(1) = 0
+
+aojg_test() ->
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_MOVEI, 1, 0, 0, 2)}       % 1,,100/ MOVEI 1,2
+    , {1, 8#101, ?INSN(?OP_AOJG, 1, 0, 0, 8#103)}    % 1,,101/ AOJG 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS,      % jump
+         [ {?AC(1), 3}]),                            % AC(1) = 3
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_MOVNI, 1, 0, 0, 2)}       % 1,,100/ MOVNI 1,2
+    , {1, 8#101, ?INSN(?OP_AOJG, 1, 0, 0, 8#103)}    % 1,,101/ AOJG 1,103
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    ],
+  expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS,      % no jump
+         [ {?AC(1), ?LOW36(-1)}]).                   % AC(1) = -1
 
 %% Common code to run short sequences ==========================================
 

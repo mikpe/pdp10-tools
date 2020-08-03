@@ -26,6 +26,14 @@
 
 -export([ handle_AOBJN/4
         , handle_AOBJP/4
+        , handle_AOJ/4
+        , handle_AOJA/4
+        , handle_AOJE/4
+        , handle_AOJG/4
+        , handle_AOJGE/4
+        , handle_AOJL/4
+        , handle_AOJLE/4
+        , handle_AOJN/4
         , handle_CAIE/4
         , handle_CAIG/4
         , handle_CAIGE/4
@@ -388,6 +396,72 @@ handle_SKIPG(Core, Mem, IR, EA) ->
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
+%% AOJ - Add One to AC and Jump if Condition Satisfied
+
+-spec handle_AOJ(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_AOJ(Core, Mem, IR, _EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  {Word, Flags} = add1(CA),
+  sim_core:next_pc(sim_core:set_flags(sim_core:set_ac(Core, AC, Word), Flags), Mem).
+
+-spec handle_AOJL(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_AOJL(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  {Word, Flags} = add1(CA),
+  jump_if_L(sim_core:set_flags(sim_core:set_ac(Core, AC, Word), Flags), Mem, Word, EA).
+
+-spec handle_AOJE(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_AOJE(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  {Word, Flags} = add1(CA),
+  jump_if_E(sim_core:set_flags(sim_core:set_ac(Core, AC, Word), Flags), Mem, Word, EA).
+
+-spec handle_AOJLE(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_AOJLE(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  {Word, Flags} = add1(CA),
+  jump_if_LE(sim_core:set_flags(sim_core:set_ac(Core, AC, Word), Flags), Mem, Word, EA).
+
+-spec handle_AOJA(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_AOJA(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  {Word, Flags} = add1(CA),
+  jump(sim_core:set_flags(sim_core:set_ac(Core, AC, Word), Flags), Mem, EA).
+
+-spec handle_AOJGE(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_AOJGE(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  {Word, Flags} = add1(CA),
+  jump_if_GE(sim_core:set_flags(sim_core:set_ac(Core, AC, Word), Flags), Mem, Word, EA).
+
+-spec handle_AOJN(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_AOJN(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  {Word, Flags} = add1(CA),
+  jump_if_N(sim_core:set_flags(sim_core:set_ac(Core, AC, Word), Flags), Mem, Word, EA).
+
+-spec handle_AOJG(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_AOJG(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  {Word, Flags} = add1(CA),
+  jump_if_G(sim_core:set_flags(sim_core:set_ac(Core, AC, Word), Flags), Mem, Word, EA).
+
 %% Miscellaneous ===============================================================
 
 jump_if_E(Core, Mem, X, EA) ->
@@ -452,6 +526,20 @@ skip_if_N(Core, Mem, X, Y) ->
     true -> sim_core:skip(Core, Mem);
     false -> sim_core:next_pc(Core, Mem)
   end.
+
+add1(Word) ->
+  Add1 = (Word + 1) band ((1 bsl 36) - 1),
+  Flags =
+    case Add1 of
+      8#400000000000 -> % (2^35 - 1) + 1
+        (1 bsl ?PDP10_PF_TRAP_1) bor
+        (1 bsl ?PDP10_PF_OVERFLOW) bor
+        (1 bsl ?PDP10_PF_CARRY_1);
+      0 -> % -1 + 1
+        (1 bsl ?PDP10_PF_CARRY_0) bor (1 bsl ?PDP10_PF_CARRY_1);
+      _ -> 0
+    end,
+  {Add1, Flags}.
 
 %% Sign-extend a uint36_t() to the full width of its representation type.
 -spec sext36(uint36_t()) -> integer().

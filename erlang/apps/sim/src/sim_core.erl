@@ -320,6 +320,14 @@ dispatch(Core, Mem, IR, EA) ->
     8#335 -> sim_arithmetic:handle_SKIPGE(Core, Mem, IR, EA);
     8#336 -> sim_arithmetic:handle_SKIPN(Core, Mem, IR, EA);
     8#337 -> sim_arithmetic:handle_SKIPG(Core, Mem, IR, EA);
+    8#340 -> sim_arithmetic:handle_AOJ(Core, Mem, IR, EA);
+    8#341 -> sim_arithmetic:handle_AOJL(Core, Mem, IR, EA);
+    8#342 -> sim_arithmetic:handle_AOJE(Core, Mem, IR, EA);
+    8#343 -> sim_arithmetic:handle_AOJLE(Core, Mem, IR, EA);
+    8#344 -> sim_arithmetic:handle_AOJA(Core, Mem, IR, EA);
+    8#345 -> sim_arithmetic:handle_AOJGE(Core, Mem, IR, EA);
+    8#346 -> sim_arithmetic:handle_AOJN(Core, Mem, IR, EA);
+    8#347 -> sim_arithmetic:handle_AOJG(Core, Mem, IR, EA);
     8#400 -> sim_boolean:handle_SETZ(Core, Mem, IR, EA);
     8#401 -> sim_boolean:handle_SETZ(Core, Mem, IR, EA); % SETZI = SETZ
     8#402 -> sim_boolean:handle_SETZM(Core, Mem, IR, EA);
