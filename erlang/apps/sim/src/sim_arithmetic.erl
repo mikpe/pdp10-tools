@@ -34,6 +34,14 @@
         , handle_AOJL/4
         , handle_AOJLE/4
         , handle_AOJN/4
+        , handle_AOS/4
+        , handle_AOSA/4
+        , handle_AOSE/4
+        , handle_AOSG/4
+        , handle_AOSGE/4
+        , handle_AOSL/4
+        , handle_AOSLE/4
+        , handle_AOSN/4
         , handle_CAIE/4
         , handle_CAIG/4
         , handle_CAIGE/4
@@ -461,6 +469,192 @@ handle_AOJG(Core, Mem, IR, EA) ->
   CA = sim_core:get_ac(Core, AC),
   {Word, Flags} = add1(CA),
   jump_if_G(sim_core:set_flags(sim_core:set_ac(Core, AC, Word), Flags), Mem, Word, EA).
+
+%% AOS - Add One to Memory and Skip if Condition Satisfied
+
+-spec handle_AOS(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_AOS(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      {Word, Flags} = add1(CE),
+      handle_AOS(Core, Mem, IR, EA, Word, Flags);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
+handle_AOS(Core, Mem, IR, EA, Word, Flags) ->
+  case sim_core:cset(Core, Mem, EA, Word) of
+    {ok, Core1} ->
+      Core2 = set_non_zero_ac(Core1, IR, Word),
+      Core3 = sim_core:set_flags(Core2, Flags),
+      sim_core:next_pc(Core3, Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA, Word, Flags) end)
+  end.
+
+-spec handle_AOSL(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_AOSL(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      {Word, Flags} = add1(CE),
+      handle_AOSL(Core, Mem, IR, EA, Word, Flags);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
+handle_AOSL(Core, Mem, IR, EA, Word, Flags) ->
+  case sim_core:cset(Core, Mem, EA, Word) of
+    {ok, Core1} ->
+      Core2 = set_non_zero_ac(Core1, IR, Word),
+      Core3 = sim_core:set_flags(Core2, Flags),
+      skip_if_L(Core3, Mem, sext36(Word), 0);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA, Word, Flags) end)
+  end.
+
+-spec handle_AOSE(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_AOSE(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      {Word, Flags} = add1(CE),
+      handle_AOSE(Core, Mem, IR, EA, Word, Flags);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
+handle_AOSE(Core, Mem, IR, EA, Word, Flags) ->
+  case sim_core:cset(Core, Mem, EA, Word) of
+    {ok, Core1} ->
+      Core2 = set_non_zero_ac(Core1, IR, Word),
+      Core3 = sim_core:set_flags(Core2, Flags),
+      skip_if_E(Core3, Mem, Word, 0);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA, Word, Flags) end)
+  end.
+
+-spec handle_AOSLE(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_AOSLE(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      {Word, Flags} = add1(CE),
+      handle_AOSLE(Core, Mem, IR, EA, Word, Flags);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
+handle_AOSLE(Core, Mem, IR, EA, Word, Flags) ->
+  case sim_core:cset(Core, Mem, EA, Word) of
+    {ok, Core1} ->
+      Core2 = set_non_zero_ac(Core1, IR, Word),
+      Core3 = sim_core:set_flags(Core2, Flags),
+      skip_if_LE(Core3, Mem, sext36(Word), 0);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA, Word, Flags) end)
+  end.
+
+-spec handle_AOSA(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_AOSA(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      {Word, Flags} = add1(CE),
+      handle_AOSA(Core, Mem, IR, EA, Word, Flags);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
+handle_AOSA(Core, Mem, IR, EA, Word, Flags) ->
+  case sim_core:cset(Core, Mem, EA, Word) of
+    {ok, Core1} ->
+      Core2 = set_non_zero_ac(Core1, IR, Word),
+      Core3 = sim_core:set_flags(Core2, Flags),
+      sim_core:skip(Core3, Mem);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA, Word, Flags) end)
+  end.
+
+-spec handle_AOSGE(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_AOSGE(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      {Word, Flags} = add1(CE),
+      handle_AOSGE(Core, Mem, IR, EA, Word, Flags);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
+handle_AOSGE(Core, Mem, IR, EA, Word, Flags) ->
+  case sim_core:cset(Core, Mem, EA, Word) of
+    {ok, Core1} ->
+      Core2 = set_non_zero_ac(Core1, IR, Word),
+      Core3 = sim_core:set_flags(Core2, Flags),
+      skip_if_LE(Core3, Mem, 0, sext36(Word)); % Word >= 0 -> 0 =< Word
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA, Word, Flags) end)
+  end.
+
+-spec handle_AOSN(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_AOSN(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      {Word, Flags} = add1(CE),
+      handle_AOSN(Core, Mem, IR, EA, Word, Flags);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
+handle_AOSN(Core, Mem, IR, EA, Word, Flags) ->
+  case sim_core:cset(Core, Mem, EA, Word) of
+    {ok, Core1} ->
+      Core2 = set_non_zero_ac(Core1, IR, Word),
+      Core3 = sim_core:set_flags(Core2, Flags),
+      skip_if_N(Core3, Mem, Word, 0);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA, Word, Flags) end)
+  end.
+
+-spec handle_AOSG(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_AOSG(Core, Mem, IR, EA) ->
+  case sim_core:c(Core, Mem, EA) of
+    {ok, CE} ->
+      {Word, Flags} = add1(CE),
+      handle_AOSG(Core, Mem, IR, EA, Word, Flags);
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
+  end.
+
+handle_AOSG(Core, Mem, IR, EA, Word, Flags) ->
+  case sim_core:cset(Core, Mem, EA, Word) of
+    {ok, Core1} ->
+      Core2 = set_non_zero_ac(Core1, IR, Word),
+      Core3 = sim_core:set_flags(Core2, Flags),
+      skip_if_L(Core3, Mem, 0, sext36(Word)); % Word > 0 -> 0 < Word
+    {error, Reason} ->
+      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+                          fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA, Word, Flags) end)
+  end.
 
 %% Miscellaneous ===============================================================
 

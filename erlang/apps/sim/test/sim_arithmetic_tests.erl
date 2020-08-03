@@ -95,6 +95,14 @@
 -define(OP_AOJGE,  8#345).
 -define(OP_AOJN,   8#346).
 -define(OP_AOJG,   8#347).
+-define(OP_AOS,    8#350).
+-define(OP_AOSL,   8#351).
+-define(OP_AOSE,   8#352).
+-define(OP_AOSLE,  8#353).
+-define(OP_AOSA,   8#354).
+-define(OP_AOSGE,  8#355).
+-define(OP_AOSN,   8#356).
+-define(OP_AOSG,   8#357).
 
 %% 2.6.1 Add One to Both Halves of AC and Jump =================================
 
@@ -830,6 +838,167 @@ aojg_test() ->
     ],
   expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS,      % no jump
          [ {?AC(1), ?LOW36(-1)}]).                   % AC(1) = -1
+
+%% AOS - Add One to Memory and Skip if Condition Satisfied
+
+aos_test() ->
+  Prog =
+    [ {1, 8#101, ?INSN(?OP_AOS, 1, 0, 0, 8#150)}     % 1,,101/ AOS 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#150, ?LOW36(2)}                          % 1,,150/ 2
+    ],
+  expect(Prog, [], {1, 8#102}, ?DEFAULT_FLAGS,       % no jump
+         [ {?EA(1, 8#150), ?LOW36(3)}                % C(1,,150) = 3
+         , {?AC(1), ?LOW36(3)}]).                    % AC(1) = 3
+
+aosl_test() ->
+  Prog1 =
+    [ {1, 8#101, ?INSN(?OP_AOSL, 1, 0, 0, 8#150)}    % 1,,101/ AOSL 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, ?LOW36(-2)}                         % 1,,150/ -2
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS,      % jump
+         [ {?EA(1, 8#150), ?LOW36(-1)}               % C(1,,150) = -1
+         , {?AC(1), ?LOW36(-1)}]),                   % AC(1) = -1
+  Prog2 =
+    [ {1, 8#101, ?INSN(?OP_AOSL, 1, 0, 0, 8#150)}    % 1,,101/ AOSL 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, ?LOW36(2)}                          % 1,,150/ 2
+    ],
+  expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS,      % no jump
+         [ {?EA(1, 8#150), ?LOW36(3)}                % C(1,,150) = 3
+         , {?AC(1), ?LOW36(3)}]).                    % AC(1) = 3
+
+aose_test() ->
+  Prog1 =
+    [ {1, 8#101, ?INSN(?OP_AOSE, 1, 0, 0, 8#150)}    % 1,,101/ AOSE 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, ?LOW36(-1)}                         % 1,,150/ -1
+    ],
+  expect(Prog1, [], {1, 8#103}, ?CARRY_FLAGS,        % jump, carry 0 and 1
+         [ {?EA(1, 8#150), ?LOW36(0)}                % C(1,,150) = 0
+         , {?AC(1), ?LOW36(0)}]),                    % AC(1) = 0
+  Prog2 =
+    [ {1, 8#101, ?INSN(?OP_AOSE, 1, 0, 0, 8#150)}    % 1,,101/ AOSE 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, ?LOW36(2)}                          % 1,,150/ 2
+    ],
+  expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS,      % no jump
+         [ {?EA(1, 8#150), ?LOW36(3)}                % C(1,,150) = 3
+         , {?AC(1), ?LOW36(3)}]).                    % AC(1) = 3
+
+aosle_test() ->
+  Prog1 =
+    [ {1, 8#101, ?INSN(?OP_AOSLE, 1, 0, 0, 8#150)}   % 1,,101/ AOSLE 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, ?LOW36(-2)}                         % 1,,150/ -2
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS,      % jump
+         [ {?EA(1, 8#150), ?LOW36(-1)}               % C(1,,150) = -1
+         , {?AC(1), ?LOW36(-1)}]),                   % AC(1) = -1
+  Prog2 =
+    [ {1, 8#101, ?INSN(?OP_AOSLE, 1, 0, 0, 8#150)}   % 1,,101/ AOSLE 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, ?LOW36(-1)}                         % 1,,150/ -1
+    ],
+  expect(Prog2, [], {1, 8#103}, ?CARRY_FLAGS,        % jump, carry 0 and 1
+         [ {?EA(1, 8#150), ?LOW36(0)}                % C(1,,150) = 0
+         , {?AC(1), ?LOW36(0)}]),                    % AC(1) = 0
+  Prog3 =
+    [ {1, 8#101, ?INSN(?OP_AOSLE, 1, 0, 0, 8#150)}   % 1,,101/ AOSLE 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, ?LOW36(2)}                          % 1,,150/ 2
+    ],
+  expect(Prog3, [], {1, 8#102}, ?DEFAULT_FLAGS,      % no jump
+         [ {?EA(1, 8#150), ?LOW36(3)}                % C(1,,150) = 3
+         , {?AC(1), ?LOW36(3)}]).                    % AC(1) = 3
+
+aosa_test() ->
+  Prog =
+    [ {1, 8#101, ?INSN(?OP_AOSA, 1, 0, 0, 8#150)}    % 1,,101/ AOSA 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, ?LOW36(2)}                          % 1,,150/ 2
+    ],
+  expect(Prog, [], {1, 8#103}, ?DEFAULT_FLAGS,       % jump
+         [ {?EA(1, 8#150), ?LOW36(3)}                % C(1,,150) = 3
+         , {?AC(1), ?LOW36(3)}]).                    % AC(1) = 3
+
+aosge_test() ->
+  Prog1 =
+    [ {1, 8#101, ?INSN(?OP_AOSGE, 1, 0, 0, 8#150)}   % 1,,101/ AOSGE 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, ?LOW36(2)}                          % 1,,150/ 2
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS,      % jump
+         [ {?EA(1, 8#150), ?LOW36(3)}                % C(1,,150) = 3
+         , {?AC(1), ?LOW36(3)}]),                    % AC(1) = 3
+  Prog2 =
+    [ {1, 8#101, ?INSN(?OP_AOSGE, 1, 0, 0, 8#150)}   % 1,,101/ AOSGE 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, ?LOW36(-1)}                         % 1,,150/ -1
+    ],
+  expect(Prog2, [], {1, 8#103}, ?CARRY_FLAGS,        % jump, carry 0 and 1
+         [ {?EA(1, 8#150), ?LOW36(0)}                % C(1,,150) = 0
+         , {?AC(1), ?LOW36(0)}]),                    % AC(1) = 0
+  Prog3 =
+    [ {1, 8#101, ?INSN(?OP_AOSGE, 1, 0, 0, 8#150)}   % 1,,101/ AOSGE 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, ?LOW36(-2)}                         % 1,,150/ -2
+    ],
+  expect(Prog3, [], {1, 8#102}, ?DEFAULT_FLAGS,      % no jump
+         [ {?EA(1, 8#150), ?LOW36(-1)}               % C(1,,150) = -1
+         , {?AC(1), ?LOW36(-1)}]).                   % AC(1) = -1
+
+aosn_test() ->
+  Prog1 =
+    [ {1, 8#101, ?INSN(?OP_AOSN, 1, 0, 0, 8#150)}    % 1,,101/ AOSN 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, ?LOW36(2)}                          % 1,,150/ 2
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS,      % jump
+         [ {?EA(1, 8#150), ?LOW36(3)}                % C(1,,150) = 3
+         , {?AC(1), ?LOW36(3)}]),                    % AC(1) = 3
+  Prog2 =
+    [ {1, 8#101, ?INSN(?OP_AOSN, 1, 0, 0, 8#150)}    % 1,,101/ AOSN 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, ?LOW36(-1)}                         % 1,,150/ -1
+    ],
+  expect(Prog2, [], {1, 8#102}, ?CARRY_FLAGS,        % no jump, carry 0 and 1
+         [ {?EA(1, 8#150), ?LOW36(0)}                % C(1,,150) = 0
+         , {?AC(1), ?LOW36(0)}]).                    % AC(1) = 0
+
+aosg_test() ->
+  Prog1 =
+    [ {1, 8#101, ?INSN(?OP_AOSG, 1, 0, 0, 8#150)}    % 1,,101/ AOSG 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, ?LOW36(2)}                          % 1,,150/ 2
+    ],
+  expect(Prog1, [], {1, 8#103}, ?DEFAULT_FLAGS,      % jump
+         [ {?EA(1, 8#150), ?LOW36(3)}                % C(1,,150) = 3
+         , {?AC(1), ?LOW36(3)}]),                    % AC(1) = 3
+  Prog2 =
+    [ {1, 8#101, ?INSN(?OP_AOSG, 1, 0, 0, 8#150)}    % 1,,101/ AOSG 1,150
+    , {1, 8#102, ?INSN_INVALID}                      % 1,,102/ <invalid>
+    , {1, 8#103, ?INSN_INVALID}                      % 1,,103/ <invalid>
+    , {1, 8#150, ?LOW36(-2)}                         % 1,,150/ -2
+    ],
+  expect(Prog2, [], {1, 8#102}, ?DEFAULT_FLAGS,      % no jump
+         [ {?EA(1, 8#150), ?LOW36(-1)}               % C(1,,150) = -1
+         , {?AC(1), ?LOW36(-1)}]).                   % AC(1) = -1
 
 %% Common code to run short sequences ==========================================
 
