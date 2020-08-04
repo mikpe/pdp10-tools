@@ -344,6 +344,14 @@ dispatch(Core, Mem, IR, EA) ->
     8#365 -> sim_arithmetic:handle_SOJGE(Core, Mem, IR, EA);
     8#366 -> sim_arithmetic:handle_SOJN(Core, Mem, IR, EA);
     8#367 -> sim_arithmetic:handle_SOJG(Core, Mem, IR, EA);
+    8#370 -> sim_arithmetic:handle_SOS(Core, Mem, IR, EA);
+    8#371 -> sim_arithmetic:handle_SOSL(Core, Mem, IR, EA);
+    8#372 -> sim_arithmetic:handle_SOSE(Core, Mem, IR, EA);
+    8#373 -> sim_arithmetic:handle_SOSLE(Core, Mem, IR, EA);
+    8#374 -> sim_arithmetic:handle_SOSA(Core, Mem, IR, EA);
+    8#375 -> sim_arithmetic:handle_SOSGE(Core, Mem, IR, EA);
+    8#376 -> sim_arithmetic:handle_SOSN(Core, Mem, IR, EA);
+    8#377 -> sim_arithmetic:handle_SOSG(Core, Mem, IR, EA);
     8#400 -> sim_boolean:handle_SETZ(Core, Mem, IR, EA);
     8#401 -> sim_boolean:handle_SETZ(Core, Mem, IR, EA); % SETZI = SETZ
     8#402 -> sim_boolean:handle_SETZM(Core, Mem, IR, EA);
