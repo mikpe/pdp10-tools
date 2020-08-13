@@ -1216,4 +1216,4 @@ init_core(PCSection, PCOffset, ACs) ->
        }.
 
 init_acs([], ACS) -> ACS;
-init_acs([{AC, Val} | Rest], ACS) -> init_acs(Rest, setelement(AC + 1, Val, ACS)).
+init_acs([{AC, Val} | Rest], ACS) -> init_acs(Rest, setelement(AC + 1, ACS, Val)).
