@@ -26,6 +26,8 @@
 
 -export([ handle_LSH/4
         , handle_LSHC/4
+        , handle_ROT/4
+        , handle_ROTC/4
         ]).
 
 -include("sim_core.hrl").
@@ -51,6 +53,27 @@ handle_LSHC(Core, Mem, IR, EA) ->
   CA0 = sim_core:get_ac(Core, AC),
   CA1 = sim_core:get_ac(Core, (AC + 1) band 8#17),
   {Word0, Word1} = lshc(CA0, CA1, EA#ea.offset),
+  set_acs_next_pc(Core, Mem, AC, Word0, Word1).
+
+%% ROT - Rotate
+
+-spec handle_ROT(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_ROT(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA = sim_core:get_ac(Core, AC),
+  Word = rot(CA, EA#ea.offset),
+  set_ac_next_pc(Core, Mem, AC, Word).
+
+%% ROTC - Rotate Combined
+
+-spec handle_ROTC(#core{}, sim_mem:mem(), IR :: word(), #ea{})
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
+handle_ROTC(Core, Mem, IR, EA) ->
+  AC = IR band 8#17,
+  CA0 = sim_core:get_ac(Core, AC),
+  CA1 = sim_core:get_ac(Core, (AC + 1) band 8#17),
+  {Word0, Word1} = rotc(CA0, CA1, EA#ea.offset),
   set_acs_next_pc(Core, Mem, AC, Word0, Word1).
 
 %% Miscellaneous ===============================================================
@@ -94,6 +117,44 @@ lshc(CA0, CA1, Offset) ->
          true ->
            Word0 = CA0 bsr Count,
            Word1 = ((CA0 band ((1 bsl Count) - 1)) bsl (36 - Count)) bor (CA1 bsr Count),
+           {Word0, Word1}
+      end
+  end.
+
+rot(CA, Offset) ->
+  case Offset band (1 bsl 17) of
+    0 -> % rotate left
+      Count = (Offset band ((1 bsl 8) - 1)) rem 36,
+      ((CA band ((1 bsl (36 - Count)) - 1)) bsl Count) bor (CA bsr (36 - Count));
+    _ -> % rotate right
+      Count = ((-Offset) band ((1 bsl 8) - 1)) rem 36,
+      (CA bsr Count) bor ((CA band ((1 bsl Count) - 1)) bsl (36 - Count))
+  end.
+
+rotc(CA0, CA1, Offset) ->
+  case Offset band (1 bsl 17) of
+    0 -> % rotate left
+      Count = (Offset band ((1 bsl 8) - 1)) rem 72,
+      if Count >= 36 ->
+           Count1 = Count - 36,
+           Word0 = ((CA1 band ((1 bsl (36 - Count1)) - 1)) bsl Count1) bor (CA0 bsr (36 - Count1)),
+           Word1 = ((CA0 band ((1 bsl (36 - Count1)) - 1)) bsl Count1) bor (CA1 bsr (36 - Count1)),
+           {Word0, Word1};
+         true ->
+           Word0 = ((CA0 band ((1 bsl (36 - Count)) - 1)) bsl Count) bor (CA1 bsr (36 - Count)),
+           Word1 = ((CA1 band ((1 bsl (36 - Count)) - 1)) bsl Count) bor (CA0 bsr (36 - Count)),
+           {Word0, Word1}
+      end;
+    _ -> % rotate right
+      Count = ((-Offset) band ((1 bsl 8) - 1)) rem 72,
+      if Count >= 36 ->
+           Count1 = Count - 36,
+           Word0 = (CA1 bsr Count1) bor ((CA0 band ((1 bsl Count1) - 1)) bsl (36 - Count1)),
+           Word1 = (CA0 bsr Count1) bor ((CA1 band ((1 bsl Count1) - 1)) bsl (36 - Count1)),
+           {Word0, Word1};
+         true ->
+           Word0 = (CA0 bsr Count) bor ((CA1 band ((1 bsl Count) - 1)) bsl (36 - Count)),
+           Word1 = (CA1 bsr Count) bor ((CA0 band ((1 bsl Count) - 1)) bsl (36 - Count)),
            {Word0, Word1}
       end
   end.

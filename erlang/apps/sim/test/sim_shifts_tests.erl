@@ -46,7 +46,9 @@
 
 -define(INSN_INVALID, ?INSN(0, 0, 0, 0, 0)).
 
+-define(OP_ROT,  8#241).
 -define(OP_LSH,  8#242).
+-define(OP_ROTC, 8#245).
 -define(OP_LSHC, 8#246).
 
 %% 2.5 Shift and Rotate ========================================================
@@ -110,6 +112,67 @@ lshc_test() ->
   expect(Prog4, ACS, {1, 8#101}, ?DEFAULT_FLAGS,
          [ {?AC(1), ?COMMA2(8#000000, 8#000000)}        % AC1 = 000000000000
          , {?AC(2), ?COMMA2(8#000000, 8#111222)}        % AC2 = 000000111222
+         ]).
+
+%% ROT - Rotate
+
+rot_test() ->
+  ACS =
+    [ {1, ?COMMA2(8#111222, 8#333444)}                  % AC1 = 111222333444
+    ],
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_ROT, 1, 0, 0, 36+9)}         % 1,,100/ ROT 1,55
+    , {1, 8#101, ?INSN_INVALID}                         % 1,,101/ <invalid>
+    ],
+  expect(Prog1, ACS, {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {?AC(1), ?COMMA2(8#222333, 8#444111)}        % AC1 = 222333444111
+         ]),
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_ROT, 1, 0, 0, -(36+9))}      % 1,,100/ ROT 1,-55
+    , {1, 8#101, ?INSN_INVALID}                         % 1,,101/ <invalid>
+    ],
+  expect(Prog2, ACS, {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {?AC(1), ?COMMA2(8#444111, 8#222333)}        % AC1 = 444111222333
+         ]).
+
+%% ROTC - Rotate Combined
+
+rotc_test() ->
+  ACS =
+    [ {1, ?COMMA2(8#000111, 8#222333)}                  % AC1 = 000111222333
+    , {2, ?COMMA2(8#444555, 8#666777)}                  % AC2 = 444555666777
+    ],
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_ROTC, 1, 0, 0, 18)}          % 1,,100/ ROTC 1,22
+    , {1, 8#101, ?INSN_INVALID}                         % 1,,101/ <invalid>
+    ],
+  expect(Prog1, ACS, {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {?AC(1), ?COMMA2(8#222333, 8#444555)}        % AC1 = 222333444555
+         , {?AC(2), ?COMMA2(8#666777, 8#000111)}        % AC2 = 666777000111
+         ]),
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_ROTC, 1, 0, 0, 36+18)}       % 1,,100/ ROTC 1,66
+    , {1, 8#101, ?INSN_INVALID}                         % 1,,101/ <invalid>
+    ],
+  expect(Prog2, ACS, {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {?AC(1), ?COMMA2(8#666777, 8#000111)}        % AC1 = 666777000111
+         , {?AC(2), ?COMMA2(8#222333, 8#444555)}        % AC2 = 222333444555
+         ]),
+  Prog3 =
+    [ {1, 8#100, ?INSN(?OP_ROTC, 1, 0, 0, -18)}         % 1,,100/ ROTC 1,-22
+    , {1, 8#101, ?INSN_INVALID}                         % 1,,101/ <invalid>
+    ],
+  expect(Prog3, ACS, {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {?AC(1), ?COMMA2(8#666777, 8#000111)}        % AC1 = 666777000111
+         , {?AC(2), ?COMMA2(8#222333, 8#444555)}        % AC2 = 222333444555
+         ]),
+  Prog4 =
+    [ {1, 8#100, ?INSN(?OP_ROTC, 1, 0, 0, -(36+18))}    % 1,,100/ ROTC 1,-66
+    , {1, 8#101, ?INSN_INVALID}                         % 1,,101/ <invalid>
+    ],
+  expect(Prog4, ACS, {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {?AC(1), ?COMMA2(8#222333, 8#444555)}        % AC1 = 222333444555
+         , {?AC(2), ?COMMA2(8#666777, 8#000111)}        % AC2 = 666777000111
          ]).
 
 %% Common code to run short sequences ==========================================
