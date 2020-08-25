@@ -280,8 +280,10 @@ dispatch(Core, Mem, IR, EA) ->
     8#215 -> sim_moves:handle_MOVEI(Core, Mem, IR, EA); % MOVMI = MOVEI
     8#216 -> sim_moves:handle_MOVMM(Core, Mem, IR, EA);
     8#217 -> sim_moves:handle_MOVMS(Core, Mem, IR, EA);
+    8#240 -> sim_shifts:handle_ASH(Core, Mem, IR, EA);
     8#241 -> sim_shifts:handle_ROT(Core, Mem, IR, EA);
     8#242 -> sim_shifts:handle_LSH(Core, Mem, IR, EA);
+    8#244 -> sim_shifts:handle_ASHC(Core, Mem, IR, EA);
     8#245 -> sim_shifts:handle_ROTC(Core, Mem, IR, EA);
     8#246 -> sim_shifts:handle_LSHC(Core, Mem, IR, EA);
     8#250 -> sim_moves:handle_EXCH(Core, Mem, IR, EA);

@@ -46,8 +46,10 @@
 
 -define(INSN_INVALID, ?INSN(0, 0, 0, 0, 0)).
 
+-define(OP_ASH,  8#240).
 -define(OP_ROT,  8#241).
 -define(OP_LSH,  8#242).
+-define(OP_ASHC, 8#244).
 -define(OP_ROTC, 8#245).
 -define(OP_LSHC, 8#246).
 
@@ -173,6 +175,112 @@ rotc_test() ->
   expect(Prog4, ACS, {1, 8#101}, ?DEFAULT_FLAGS,
          [ {?AC(1), ?COMMA2(8#222333, 8#444555)}        % AC1 = 222333444555
          , {?AC(2), ?COMMA2(8#666777, 8#000111)}        % AC2 = 666777000111
+         ]).
+
+%% ASH - Arithmetic Shift
+
+ash_test() ->
+  ACS1 =
+    [ {1, ?COMMA2(8#000111, 8#222333)}                  % AC1 = 000111222333
+    ],
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_ASH, 1, 0, 0, 6)}            % 1,,100/ ASH 1,6
+    , {1, 8#101, ?INSN_INVALID}                         % 1,,101/ <invalid>
+    ],
+  expect(Prog1, ACS1, {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {?AC(1), ?COMMA2(8#011122, 8#233300)}        % AC1 = 011122233300
+         ]),
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_ASH, 1, 0, 0, -9)}           % 1,,100/ ASH 1,-9
+    , {1, 8#101, ?INSN_INVALID}                         % 1,,101/ <invalid>
+    ],
+  expect(Prog2, ACS1, {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {?AC(1), ?COMMA2(8#000000, 8#111222)}        % AC1 = 000000111222
+         ]),
+  ACS2 =
+    [ {1, ?COMMA2(8#777555, 8#333111)}                  % AC1 = 777555333111
+    ],
+  Prog3 =
+    [ {1, 8#100, ?INSN(?OP_ASH, 1, 0, 0, 6)}            % 1,,100/ ASH 1,6
+    , {1, 8#101, ?INSN_INVALID}                         % 1,,101/ <invalid>
+    ],
+  expect(Prog3, ACS2, {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {?AC(1), ?COMMA2(8#755533, 8#311100)}        % AC1 = 755533311100
+         ]),
+  Prog4 =
+    [ {1, 8#100, ?INSN(?OP_ASH, 1, 0, 0, -9)}           % 1,,100/ ASH 1,-9
+    , {1, 8#101, ?INSN_INVALID}                         % 1,,101/ <invalid>
+    ],
+  expect(Prog4, ACS2, {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {?AC(1), ?COMMA2(8#777777, 8#555333)}        % AC1 = 777777555333
+         ]).
+
+%% ASHC - Arithmetic Shift Combined
+
+ashc_test() ->
+  ACS1 =
+    [ {1, ?COMMA2(8#000111, 8#222333)}                  % AC1 = 000111222333
+    , {2, ?COMMA2(8#777666, 8#555444)}                  % AC2 = 777666555444
+    ],
+  Prog1 =
+    [ {1, 8#100, ?INSN(?OP_ASHC, 1, 0, 0, 6)}           % 1,,100/ ASHC 1,6
+    , {1, 8#101, ?INSN_INVALID}                         % 1,,101/ <invalid>
+   ],
+  expect(Prog1, ACS1, {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {?AC(1), ?COMMA2(8#011122, 8#233377)}        % AC1 = 011122233377
+         , {?AC(2), ?COMMA2(8#366655, 8#544400)}        % AC2 = 366655544400
+         ]),
+  Prog2 =
+    [ {1, 8#100, ?INSN(?OP_ASHC, 1, 0, 0, -9)}          % 1,,100/ ASHC 1,-9
+    , {1, 8#101, ?INSN_INVALID}                         % 1,,101/ <invalid>
+   ],
+  expect(Prog2, ACS1, {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {?AC(1), ?COMMA2(8#000000, 8#111222)}        % AC1 = 000000111222
+         , {?AC(2), ?COMMA2(8#155777, 8#666555)}        % AC2 = 155777666555
+         ]),
+  ACS2 =
+    [ {1, ?COMMA2(8#000000, 8#000000)}                  % AC1 = 0
+    , {2, ?COMMA2(8#000666, 8#555444)}                  % AC2 = 000666555444
+    ],
+  Prog3 =
+    [ {1, 8#100, ?INSN(?OP_ASHC, 1, 0, 0, 35+6)}        % 1,,100/ ASHC 1,51
+    , {1, 8#101, ?INSN_INVALID}                         % 1,,101/ <invalid>
+   ],
+  expect(Prog3, ACS2, {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {?AC(1), ?COMMA2(8#066655, 8#544400)}        % AC1 = 066655544400
+         , {?AC(2), ?COMMA2(8#000000, 8#000000)}        % AC2 = 0
+         ]),
+  Prog4 =
+    [ {1, 8#100, ?INSN(?OP_ASHC, 1, 0, 0, -(35+9))}     % 1,,100/ ASHC 1,54
+    , {1, 8#101, ?INSN_INVALID}                         % 1,,101/ <invalid>
+   ],
+  expect(Prog4, ACS1, {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {?AC(1), ?COMMA2(8#000000, 8#000000)}        % AC1 = 0
+         , {?AC(2), ?COMMA2(8#000000, 8#111222)}        % AC2 = 000000111222
+         ]),
+  ACS3 =
+    [ {1, 0}                                            % AC1 = 0
+    , {2, 0}                                            % AC2 = 0
+    ],
+  Prog5 =
+    [ {1, 8#100, ?INSN(?OP_ASHC, 1, 0, 0, 70+6)}        % 1,,100/ ASHC 1,114
+    , {1, 8#101, ?INSN_INVALID}                         % 1,,101/ <invalid>
+   ],
+  expect(Prog5, ACS3, {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {?AC(1), 0}                                  % AC1 = 0
+         , {?AC(2), 0}                                  % AC2 = 0
+         ]),
+  ACS4 =
+    [ {1, ?COMMA2(-1, -1)}                              % AC1 = -1
+    , {2, ?COMMA2(-1, -1)}                              % AC2 = -1
+    ],
+  Prog6 =
+    [ {1, 8#100, ?INSN(?OP_ASHC, 1, 0, 0, -(70+6))}     % 1,,100/ ASHC 1,-114
+    , {1, 8#101, ?INSN_INVALID}                         % 1,,101/ <invalid>
+   ],
+  expect(Prog6, ACS4, {1, 8#101}, ?DEFAULT_FLAGS,
+         [ {?AC(1), ?COMMA2(-1, -1)}                    % AC1 = -1
+         , {?AC(2), ?COMMA2(-1, -1)}                    % AC2 = -1
          ]).
 
 %% Common code to run short sequences ==========================================
