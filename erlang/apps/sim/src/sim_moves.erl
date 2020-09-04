@@ -62,7 +62,7 @@ handle_EXCH(Core, Mem, IR, EA) ->
       CA = sim_core:get_ac(Core, AC),
       handle_EXCH(Core, Mem, AC, EA, CE, CA);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -70,7 +70,7 @@ handle_EXCH(Core, Mem, AC, EA, CE, CA) ->
   case sim_core:cset(Core, Mem, EA, CA) of
     {ok, Core1} -> sim_core:next_pc(sim_core:set_ac(Core1, AC, CE), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+      sim_core:page_fault(Core, Mem, EA, write, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, AC, EA, CE, CA) end)
   end.
 
@@ -86,7 +86,7 @@ handle_MOVE(Core, Mem, IR, EA) ->
       AC = IR band 8#17,
       sim_core:next_pc(sim_core:set_ac(Core, AC, CE), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -111,7 +111,7 @@ handle_MOVES(Core, Mem, IR, EA) ->
       AC = IR band 8#17,
       handle_MOVES(Core, Mem, AC, EA, CE);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -119,7 +119,7 @@ handle_MOVES(Core, Mem, AC, EA, Word) ->
   case sim_core:cset(Core, Mem, EA, Word) of
     {ok, Core1} -> sim_core:next_pc(set_non_zero_ac(Core1, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+      sim_core:page_fault(Core, Mem, EA, write, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, AC, EA, Word) end)
   end.
 
@@ -134,7 +134,7 @@ handle_MOVS(Core, Mem, IR, EA) ->
       AC = IR band 8#17,
       sim_core:next_pc(sim_core:set_ac(Core, AC, Swapped), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -159,7 +159,7 @@ handle_MOVSS(Core, Mem, IR, EA) ->
       AC = IR band 8#17,
       handle_MOVES(Core, Mem, AC, EA, swap_halves(CE));
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -174,7 +174,7 @@ handle_MOVN(Core, Mem, IR, EA) ->
       AC = IR band 8#17,
       sim_core:next_pc(sim_core:set_ac(sim_core:set_flags(Core, Flags), AC, Negative), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -202,7 +202,7 @@ handle_MOVNM(Core, Mem, Word, Flags, EA) ->
   case sim_core:cset(Core, Mem, EA, Word) of
     {ok, Core1} -> sim_core:next_pc(sim_core:set_flags(Core1, Flags), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+      sim_core:page_fault(Core, Mem, EA, write, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, Word, Flags, EA) end)
   end.
 
@@ -215,7 +215,7 @@ handle_MOVNS(Core, Mem, IR, EA) ->
       {Negated, Flags} = negate(CE),
       handle_MOVNS(Core, Mem, AC, EA, Negated, Flags);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -227,7 +227,7 @@ handle_MOVNS(Core, Mem, AC, EA, Word, Flags) ->
       Core3 = sim_core:set_flags(Core2, Flags),
       sim_core:next_pc(Core3, Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+      sim_core:page_fault(Core, Mem, EA, write, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, AC, EA, Word, Flags) end)
   end.
 
@@ -242,7 +242,7 @@ handle_MOVM(Core, Mem, IR, EA) ->
       AC = IR band 8#17,
       sim_core:next_pc(sim_core:set_ac(sim_core:set_flags(Core, Flags), AC, Magnitude), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -263,7 +263,7 @@ handle_MOVMS(Core, Mem, IR, EA) ->
       {Magnitude, Flags} = magnitude(CE),
       handle_MOVNS(Core, Mem, AC, EA, Magnitude, Flags);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -278,7 +278,7 @@ handle_DMOVE(Core, Mem, IR, EA) ->
     {ok, Word0} ->
       handle_DMOVE(Core, Mem, IR, ea_plus_1(EA), Word0);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -290,7 +290,7 @@ handle_DMOVE(Core, Mem, IR, EA, Word0) ->
       Core2 = sim_core:set_ac(Core1, ac_plus_1(AC), Word1),
       sim_core:next_pc(Core2, Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA, Word0) end)
   end.
 
@@ -308,7 +308,7 @@ handle_DMOVEM(Core, Mem, Word0, Word1, EA) ->
   case sim_core:cset(Core, Mem, EA, Word0) of
     {ok, Core1} -> handle_writeback(Core1, Mem, ea_plus_1(EA), Word1);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+      sim_core:page_fault(Core, Mem, EA, write, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, Word0, Word1, EA) end)
   end.
 
@@ -321,7 +321,7 @@ handle_DMOVN(Core, Mem, IR, EA) ->
     {ok, Word0} ->
       handle_DMOVN(Core, Mem, IR, ea_plus_1(EA), Word0);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -335,7 +335,7 @@ handle_DMOVN(Core, Mem, IR, EA, Word0) ->
       Core3 = sim_core:set_flags(Core2, Flags),
       sim_core:next_pc(Core3, Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA, Word0) end)
   end.
 
@@ -354,7 +354,7 @@ handle_DMOVNM(Core, Mem, Word0, Word1, Flags, EA) ->
   case sim_core:cset(Core, Mem, EA, Word0) of
     {ok, Core1} -> handle_MOVNM(Core1, Mem, Word1, Flags, ea_plus_1(EA));
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+      sim_core:page_fault(Core, Mem, EA, write, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, Word0, Word1, Flags, EA) end)
   end.
 
@@ -403,7 +403,7 @@ handle_BLT_fault(Core, Mem, EA, Op, Reason, AC, SrcOffset, DstOffset) ->
   %% arranges to resume the BLT at the instruction fetch stage instead of
   %% from an internal stage.
   Core1 = handle_BLT_flush(Core, AC, SrcOffset, DstOffset),
-  sim_core:page_fault(Core1, Mem, ea_address(EA), Op, Reason,
+  sim_core:page_fault(Core1, Mem, EA, Op, Reason,
                       fun sim_core:run/2).
 
 handle_BLT_flush(Core, AC, SrcOffset, DstOffset) ->
@@ -415,15 +415,12 @@ handle_writeback(Core, Mem, EA, Word) ->
   case sim_core:cset(Core, Mem, EA, Word) of
     {ok, Core1} -> sim_core:next_pc(Core1, Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+      sim_core:page_fault(Core, Mem, EA, write, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, EA, Word) end)
   end.
 
 ac_plus_1(AC) ->
   (AC + 1) band 8#17.
-
-ea_address(#ea{section = Section, offset = Offset}) ->
-  (Section bsl 18) bor Offset.
 
 ea_is_ac(#ea{section = Section, offset = Offset, islocal = IsLocal}, AC) ->
   (Offset =:= AC) andalso (IsLocal orelse Section =< 1).

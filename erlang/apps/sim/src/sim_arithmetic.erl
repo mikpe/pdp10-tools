@@ -188,7 +188,7 @@ handle_CAM(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, _CE} -> sim_core:next_pc(Core, Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -201,7 +201,7 @@ handle_CAML(Core, Mem, IR, EA) ->
       CA = sim_core:get_ac(Core, AC),
       skip_if_L(Core, Mem, sext36(CA), sext36(CE));
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -214,7 +214,7 @@ handle_CAME(Core, Mem, IR, EA) ->
       CA = sim_core:get_ac(Core, AC),
       skip_if_E(Core, Mem, CA, CE);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -227,7 +227,7 @@ handle_CAMLE(Core, Mem, IR, EA) ->
       CA = sim_core:get_ac(Core, AC),
       skip_if_LE(Core, Mem, sext36(CA), sext36(CE));
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -238,7 +238,7 @@ handle_CAMA(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, _CE} -> sim_core:skip(Core, Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -251,7 +251,7 @@ handle_CAMGE(Core, Mem, IR, EA) ->
       CA = sim_core:get_ac(Core, AC),
       skip_if_LE(Core, Mem, sext36(CE), sext36(CA)); % AC >= E -> E =< AC
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -264,7 +264,7 @@ handle_CAMN(Core, Mem, IR, EA) ->
       CA = sim_core:get_ac(Core, AC),
       skip_if_N(Core, Mem, CA, CE);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -277,7 +277,7 @@ handle_CAMG(Core, Mem, IR, EA) ->
       CA = sim_core:get_ac(Core, AC),
       skip_if_L(Core, Mem, sext36(CE), sext36(CA)); % AC > E -> E < AC
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -339,7 +339,7 @@ handle_SKIP(Core, Mem, IR, EA) ->
     {ok, CE} ->
       sim_core:next_pc(set_non_zero_ac(Core, IR, CE), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -350,7 +350,7 @@ handle_SKIPL(Core, Mem, IR, EA) ->
     {ok, CE} ->
       skip_if_L(set_non_zero_ac(Core, IR, CE), Mem, sext36(CE), 0);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -361,7 +361,7 @@ handle_SKIPE(Core, Mem, IR, EA) ->
     {ok, CE} ->
       skip_if_E(set_non_zero_ac(Core, IR, CE), Mem, CE, 0);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -372,7 +372,7 @@ handle_SKIPLE(Core, Mem, IR, EA) ->
     {ok, CE} ->
       skip_if_LE(set_non_zero_ac(Core, IR, CE), Mem, sext36(CE), 0);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -383,7 +383,7 @@ handle_SKIPA(Core, Mem, IR, EA) ->
     {ok, CE} ->
       sim_core:skip(set_non_zero_ac(Core, IR, CE), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -394,7 +394,7 @@ handle_SKIPGE(Core, Mem, IR, EA) ->
     {ok, CE} ->
       skip_if_LE(set_non_zero_ac(Core, IR, CE), Mem, 0, sext36(CE)); % C(E) >= 0 -> 0 =< C(E)
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -405,7 +405,7 @@ handle_SKIPN(Core, Mem, IR, EA) ->
     {ok, CE} ->
       skip_if_N(set_non_zero_ac(Core, IR, CE), Mem, CE, 0);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -416,7 +416,7 @@ handle_SKIPG(Core, Mem, IR, EA) ->
     {ok, CE} ->
       skip_if_L(set_non_zero_ac(Core, IR, CE), Mem, 0, sext36(CE)); % C(E) > 0 -> 0 < C(E)
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -496,7 +496,7 @@ handle_AOS(Core, Mem, IR, EA) ->
       {Word, Flags} = add1(CE),
       handle_AOS(Core, Mem, IR, EA, Word, Flags);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -507,7 +507,7 @@ handle_AOS(Core, Mem, IR, EA, Word, Flags) ->
       Core3 = sim_core:set_flags(Core2, Flags),
       sim_core:next_pc(Core3, Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+      sim_core:page_fault(Core, Mem, EA, write, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA, Word, Flags) end)
   end.
 
@@ -519,7 +519,7 @@ handle_AOSL(Core, Mem, IR, EA) ->
       {Word, Flags} = add1(CE),
       handle_AOSL(Core, Mem, IR, EA, Word, Flags);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -530,7 +530,7 @@ handle_AOSL(Core, Mem, IR, EA, Word, Flags) ->
       Core3 = sim_core:set_flags(Core2, Flags),
       skip_if_L(Core3, Mem, sext36(Word), 0);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+      sim_core:page_fault(Core, Mem, EA, write, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA, Word, Flags) end)
   end.
 
@@ -542,7 +542,7 @@ handle_AOSE(Core, Mem, IR, EA) ->
       {Word, Flags} = add1(CE),
       handle_AOSE(Core, Mem, IR, EA, Word, Flags);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -553,7 +553,7 @@ handle_AOSE(Core, Mem, IR, EA, Word, Flags) ->
       Core3 = sim_core:set_flags(Core2, Flags),
       skip_if_E(Core3, Mem, Word, 0);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+      sim_core:page_fault(Core, Mem, EA, write, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA, Word, Flags) end)
   end.
 
@@ -565,7 +565,7 @@ handle_AOSLE(Core, Mem, IR, EA) ->
       {Word, Flags} = add1(CE),
       handle_AOSLE(Core, Mem, IR, EA, Word, Flags);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -576,7 +576,7 @@ handle_AOSLE(Core, Mem, IR, EA, Word, Flags) ->
       Core3 = sim_core:set_flags(Core2, Flags),
       skip_if_LE(Core3, Mem, sext36(Word), 0);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+      sim_core:page_fault(Core, Mem, EA, write, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA, Word, Flags) end)
   end.
 
@@ -588,7 +588,7 @@ handle_AOSA(Core, Mem, IR, EA) ->
       {Word, Flags} = add1(CE),
       handle_AOSA(Core, Mem, IR, EA, Word, Flags);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -599,7 +599,7 @@ handle_AOSA(Core, Mem, IR, EA, Word, Flags) ->
       Core3 = sim_core:set_flags(Core2, Flags),
       sim_core:skip(Core3, Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+      sim_core:page_fault(Core, Mem, EA, write, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA, Word, Flags) end)
   end.
 
@@ -611,7 +611,7 @@ handle_AOSGE(Core, Mem, IR, EA) ->
       {Word, Flags} = add1(CE),
       handle_AOSGE(Core, Mem, IR, EA, Word, Flags);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -622,7 +622,7 @@ handle_AOSGE(Core, Mem, IR, EA, Word, Flags) ->
       Core3 = sim_core:set_flags(Core2, Flags),
       skip_if_LE(Core3, Mem, 0, sext36(Word)); % Word >= 0 -> 0 =< Word
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+      sim_core:page_fault(Core, Mem, EA, write, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA, Word, Flags) end)
   end.
 
@@ -634,7 +634,7 @@ handle_AOSN(Core, Mem, IR, EA) ->
       {Word, Flags} = add1(CE),
       handle_AOSN(Core, Mem, IR, EA, Word, Flags);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -645,7 +645,7 @@ handle_AOSN(Core, Mem, IR, EA, Word, Flags) ->
       Core3 = sim_core:set_flags(Core2, Flags),
       skip_if_N(Core3, Mem, Word, 0);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+      sim_core:page_fault(Core, Mem, EA, write, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA, Word, Flags) end)
   end.
 
@@ -657,7 +657,7 @@ handle_AOSG(Core, Mem, IR, EA) ->
       {Word, Flags} = add1(CE),
       handle_AOSG(Core, Mem, IR, EA, Word, Flags);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -668,7 +668,7 @@ handle_AOSG(Core, Mem, IR, EA, Word, Flags) ->
       Core3 = sim_core:set_flags(Core2, Flags),
       skip_if_L(Core3, Mem, 0, sext36(Word)); % Word > 0 -> 0 < Word
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+      sim_core:page_fault(Core, Mem, EA, write, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA, Word, Flags) end)
   end.
 
@@ -748,7 +748,7 @@ handle_SOS(Core, Mem, IR, EA) ->
       {Word, Flags} = sub1(CE),
       handle_AOS(Core, Mem, IR, EA, Word, Flags);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -760,7 +760,7 @@ handle_SOSL(Core, Mem, IR, EA) ->
       {Word, Flags} = sub1(CE),
       handle_AOSL(Core, Mem, IR, EA, Word, Flags);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -772,7 +772,7 @@ handle_SOSE(Core, Mem, IR, EA) ->
       {Word, Flags} = sub1(CE),
       handle_AOSE(Core, Mem, IR, EA, Word, Flags);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -784,7 +784,7 @@ handle_SOSLE(Core, Mem, IR, EA) ->
       {Word, Flags} = sub1(CE),
       handle_AOSLE(Core, Mem, IR, EA, Word, Flags);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -796,7 +796,7 @@ handle_SOSA(Core, Mem, IR, EA) ->
       {Word, Flags} = sub1(CE),
       handle_AOSA(Core, Mem, IR, EA, Word, Flags);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -808,7 +808,7 @@ handle_SOSGE(Core, Mem, IR, EA) ->
       {Word, Flags} = sub1(CE),
       handle_AOSGE(Core, Mem, IR, EA, Word, Flags);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -820,7 +820,7 @@ handle_SOSN(Core, Mem, IR, EA) ->
       {Word, Flags} = sub1(CE),
       handle_AOSN(Core, Mem, IR, EA, Word, Flags);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -832,7 +832,7 @@ handle_SOSG(Core, Mem, IR, EA) ->
       {Word, Flags} = sub1(CE),
       handle_AOSG(Core, Mem, IR, EA, Word, Flags);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -942,6 +942,3 @@ set_non_zero_ac(Core, IR, Word) ->
     0 -> Core;
     AC -> sim_core:set_ac(Core, AC, Word)
   end.
-
-ea_address(#ea{section = Section, offset = Offset}) ->
-  (Section bsl 18) bor Offset.

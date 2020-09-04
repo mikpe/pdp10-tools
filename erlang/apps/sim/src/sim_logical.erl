@@ -283,7 +283,7 @@ handle_TDN(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, _Mask} -> sim_core:next_pc(Core, Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -293,7 +293,7 @@ handle_TDNE(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxNE(Core, Mem, IR, Mask);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -304,7 +304,7 @@ handle_TDNA(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, _Mask} -> sim_core:skip(Core, Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -314,7 +314,7 @@ handle_TDNN(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxNN(Core, Mem, IR, Mask);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -326,7 +326,7 @@ handle_TDZ(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxZ(Core, Mem, IR, Mask);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -336,7 +336,7 @@ handle_TDZE(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxZE(Core, Mem, IR, Mask);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -346,7 +346,7 @@ handle_TDZA(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxZA(Core, Mem, IR, Mask);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -356,7 +356,7 @@ handle_TDZN(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxZN(Core, Mem, IR, Mask);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -368,7 +368,7 @@ handle_TDC(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxC(Core, Mem, IR, Mask);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -378,7 +378,7 @@ handle_TDCE(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxCE(Core, Mem, IR, Mask);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -388,7 +388,7 @@ handle_TDCA(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxCA(Core, Mem, IR, Mask);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -398,7 +398,7 @@ handle_TDCN(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxCN(Core, Mem, IR, Mask);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -410,7 +410,7 @@ handle_TDO(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxO(Core, Mem, IR, Mask);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -420,7 +420,7 @@ handle_TDOE(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxOE(Core, Mem, IR, Mask);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -430,7 +430,7 @@ handle_TDOA(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxOA(Core, Mem, IR, Mask);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -440,7 +440,7 @@ handle_TDON(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxON(Core, Mem, IR, Mask);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -453,7 +453,7 @@ handle_TSN(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, _Mask} -> sim_core:next_pc(Core, Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -463,7 +463,7 @@ handle_TSNE(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxNE(Core, Mem, IR, swap_halves(Mask));
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -474,7 +474,7 @@ handle_TSNA(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, _Mask} -> sim_core:skip(Core, Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -484,7 +484,7 @@ handle_TSNN(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxNN(Core, Mem, IR, swap_halves(Mask));
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -496,7 +496,7 @@ handle_TSZ(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxZ(Core, Mem, IR, swap_halves(Mask));
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -506,7 +506,7 @@ handle_TSZE(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxZE(Core, Mem, IR, swap_halves(Mask));
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -516,7 +516,7 @@ handle_TSZA(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxZA(Core, Mem, IR, swap_halves(Mask));
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -526,7 +526,7 @@ handle_TSZN(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxZN(Core, Mem, IR, swap_halves(Mask));
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -538,7 +538,7 @@ handle_TSC(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxC(Core, Mem, IR, swap_halves(Mask));
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -548,7 +548,7 @@ handle_TSCE(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxCE(Core, Mem, IR, swap_halves(Mask));
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -558,7 +558,7 @@ handle_TSCA(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxCA(Core, Mem, IR, swap_halves(Mask));
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -568,7 +568,7 @@ handle_TSCN(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxCN(Core, Mem, IR, swap_halves(Mask));
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -580,7 +580,7 @@ handle_TSO(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxO(Core, Mem, IR, swap_halves(Mask));
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -590,7 +590,7 @@ handle_TSOE(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxOE(Core, Mem, IR, swap_halves(Mask));
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -600,7 +600,7 @@ handle_TSOA(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxOA(Core, Mem, IR, swap_halves(Mask));
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -610,7 +610,7 @@ handle_TSON(Core, Mem, IR, EA) ->
   case sim_core:c(Core, Mem, EA) of
     {ok, Mask} -> handle_TxON(Core, Mem, IR, swap_halves(Mask));
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -721,6 +721,3 @@ handle_TxZN(Core, Mem, IR, Mask) ->
 swap_halves(Word) ->
   Low18Mask = ((1 bsl 18) - 1),
   ((Word band Low18Mask) bsl 18) bor ((Word bsr 18) band Low18Mask).
-
-ea_address(#ea{section = Section, offset = Offset}) ->
-  (Section bsl 18) bor Offset.

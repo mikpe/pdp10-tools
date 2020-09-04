@@ -126,10 +126,13 @@ insn_fetch1(Core, Mem) ->
       MB = get_ac(Core, PCOffset),
       insn_fetch2(Core, Mem, MB);
     false ->
-      Address = (Core#core.pc_section bsl 18) bor PCOffset,
+      PCSection = Core#core.pc_section,
+      Address = (PCSection bsl 18) bor PCOffset,
       case sim_mem:read_word(Mem, Address) of
         {ok, MB} -> insn_fetch2(Core, Mem, MB);
-        {error, Reason} -> page_fault(Core, Mem, Address, read, Reason, fun insn_fetch/2)
+        {error, Reason} ->
+          EA = #ea{section = PCSection, offset = PCOffset, islocal = true},
+          page_fault(Core, Mem, EA, read, Reason, fun insn_fetch/2)
       end
   end.
 
@@ -217,16 +220,16 @@ fetch_indirect_word(Core, Mem, IR, ESection, EOffset, IsLocal) ->
               %% Local Indirect
               local_format_address_word(Core, Mem, IR, MB, ESection);
             3 ->
-              E = (ESection bsl 18) bor EOffset,
-              page_fault(Core, Mem, E, read, indirect_word,
+              EA = #ea{section = ESection, offset = EOffset, islocal = IsLocal},
+              page_fault(Core, Mem, EA, read, indirect_word,
                          fun(Core1, Mem1) ->
                             fetch_indirect_word(Core1, Mem1, IR, ESection, EOffset, IsLocal)
                           end)
           end
       end;
     {error, Reason} ->
-      E = (ESection bsl 18) bor EOffset,
-      page_fault(Core, Mem, E, read, Reason,
+      EA = #ea{section = ESection, offset = EOffset, islocal = IsLocal},
+      page_fault(Core, Mem, EA, read, Reason,
                  fun(Core1, Mem1) ->
                    fetch_indirect_word(Core1, Mem1, IR, ESection, EOffset, IsLocal)
                  end)
@@ -557,9 +560,10 @@ dispatch(Core, Mem, IR, EA) ->
 
 %% Page Fault Handling =========================================================
 
--spec page_fault(#core{}, sim_mem:mem(), word(), atom(), term(), fun())
+-spec page_fault(#core{}, sim_mem:mem(), #ea{}, atom(), term(), fun())
       -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
-page_fault(Core, Mem, Address, Op, Reason, Cont) ->
+page_fault(Core, Mem, EA, Op, Reason, Cont) ->
+  Address = (EA#ea.section bsl 18) bor EA#ea.offset,
   %% This should trap to kernel mode, but for now we treat all faults as fatal.
   PC = (Core#core.pc_section bsl 18) bor Core#core.pc_offset,
   {Core, Mem, {error, {?MODULE, {page_fault, Address, PC, Op, Reason, Cont}}}}.

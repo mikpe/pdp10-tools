@@ -100,7 +100,7 @@ handle_HLL(Core, Mem, IR, EA) ->
       Word = set_left(CA, get_left(CE)),
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -127,7 +127,7 @@ handle_HLLM(Core, Mem, IR, EA) ->
       Word = set_left(CE, get_left(CA)),
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -144,7 +144,7 @@ handle_HLLS(Core, Mem, IR, EA) ->
         {ok, CE} ->
           sim_core:next_pc(sim_core:set_ac(Core, AC, CE), Mem);
         {error, Reason} ->
-          sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+          sim_core:page_fault(Core, Mem, EA, read, Reason,
                               fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
       end
   end.
@@ -160,7 +160,7 @@ handle_HLLZ(Core, Mem, IR, EA) ->
       Word = set_left_zeros(get_left(CE)),
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -181,7 +181,7 @@ handle_HLLZS(Core, Mem, IR, EA) ->
       Word = set_left_zeros(get_left(CE)),
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -196,7 +196,7 @@ handle_HLLO(Core, Mem, IR, EA) ->
       Word = set_left_ones(get_left(CE)),
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -224,7 +224,7 @@ handle_HLLOS(Core, Mem, IR, EA) ->
       Word = set_left_ones(get_left(CE)),
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -239,7 +239,7 @@ handle_HLLE(Core, Mem, IR, EA) ->
       Word = set_left_extend(get_left(CE)),
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -260,7 +260,7 @@ handle_HLLES(Core, Mem, IR, EA) ->
       Word = set_left_extend(get_left(CE)),
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -276,7 +276,7 @@ handle_HRL(Core, Mem, IR, EA) ->
       Word = set_left(CA, get_right(CE)),
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -298,7 +298,7 @@ handle_HRLM(Core, Mem, IR, EA) ->
       Word = set_left(CE, get_right(CA)),
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -311,7 +311,7 @@ handle_HRLS(Core, Mem, IR, EA) ->
       Word = set_left(CE, get_right(CE)),
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -326,7 +326,7 @@ handle_HRLZ(Core, Mem, IR, EA) ->
       Word = set_left_zeros(get_right(CE)),
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -347,7 +347,7 @@ handle_HRLZS(Core, Mem, IR, EA) ->
       Word = set_left_zeros(get_right(CE)),
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -362,7 +362,7 @@ handle_HRLO(Core, Mem, IR, EA) ->
       Word = set_left_ones(get_right(CE)),
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -390,7 +390,7 @@ handle_HRLOS(Core, Mem, IR, EA) ->
       Word = set_left_ones(get_right(CE)),
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -405,7 +405,7 @@ handle_HRLE(Core, Mem, IR, EA) ->
       Word = set_left_extend(get_right(CE)),
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -433,7 +433,7 @@ handle_HRLES(Core, Mem, IR, EA) ->
       Word = set_left_extend(get_right(CE)),
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -449,7 +449,7 @@ handle_HRR(Core, Mem, IR, EA) ->
       Word = set_right(CA, get_right(CE)),
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -471,7 +471,7 @@ handle_HRRM(Core, Mem, IR, EA) ->
       Word = set_right(CE, get_right(CA)),
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -497,7 +497,7 @@ handle_HRRZ(Core, Mem, IR, EA) ->
       Word = get_right(CE),
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -518,7 +518,7 @@ handle_HRRZS(Core, Mem, IR, EA) ->
       Word = get_right(CE),
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -533,7 +533,7 @@ handle_HRRO(Core, Mem, IR, EA) ->
       Word = set_right_ones(get_right(CE)),
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -561,7 +561,7 @@ handle_HRROS(Core, Mem, IR, EA) ->
       Word = set_right_ones(get_right(CE)),
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -576,7 +576,7 @@ handle_HRRE(Core, Mem, IR, EA) ->
       Word = set_right_extend(get_right(CE)),
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -604,7 +604,7 @@ handle_HRRES(Core, Mem, IR, EA) ->
       Word = set_right_extend(get_right(CE)),
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -620,7 +620,7 @@ handle_HLR(Core, Mem, IR, EA) ->
       Word = set_right(CA, get_left(CE)),
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -642,7 +642,7 @@ handle_HLRM(Core, Mem, IR, EA) ->
       Word = set_right(CE, get_left(CA)),
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -655,7 +655,7 @@ handle_HLRS(Core, Mem, IR, EA) ->
       Word = set_right(CE, get_left(CE)),
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -670,7 +670,7 @@ handle_HLRZ(Core, Mem, IR, EA) ->
       Word = get_left(CE),
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -691,7 +691,7 @@ handle_HLRZS(Core, Mem, IR, EA) ->
       Word = get_left(CE),
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -706,7 +706,7 @@ handle_HLRO(Core, Mem, IR, EA) ->
       Word = set_right_ones(get_left(CE)),
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -734,7 +734,7 @@ handle_HLROS(Core, Mem, IR, EA) ->
       Word = set_right_ones(get_left(CE)),
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -749,7 +749,7 @@ handle_HLRE(Core, Mem, IR, EA) ->
       Word = set_right_extend(get_left(CE)),
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -770,7 +770,7 @@ handle_HLRES(Core, Mem, IR, EA) ->
       Word = set_right_extend(get_left(CE)),
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -780,7 +780,7 @@ handle_writeback(Core, Mem, EA, Word) ->
   case sim_core:cset(Core, Mem, EA, Word) of
     {ok, Core1} -> sim_core:next_pc(Core1, Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+      sim_core:page_fault(Core, Mem, EA, write, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, EA, Word) end)
   end.
 
@@ -788,15 +788,12 @@ handle_writeback(Core, Mem, AC, EA, Word) ->
   case sim_core:cset(Core, Mem, EA, Word) of
     {ok, Core1} -> sim_core:next_pc(set_non_zero_ac(Core1, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+      sim_core:page_fault(Core, Mem, EA, write, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, AC, EA, Word) end)
   end.
 
 set_non_zero_ac(Core, _AC = 0, _Word) -> Core;
 set_non_zero_ac(Core, AC, Word) -> sim_core:set_ac(Core, AC, Word).
-
-ea_address(#ea{section = Section, offset = Offset}) ->
-  (Section bsl 18) bor Offset.
 
 get_left(Word) -> Word bsr 18.
 

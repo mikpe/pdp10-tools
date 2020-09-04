@@ -117,7 +117,7 @@ handle_AND(Core, Mem, IR, EA) ->
       Word = CE band CA,
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -139,7 +139,7 @@ handle_ANDM(Core, Mem, IR, EA) ->
       Word = CE band CA,
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -153,7 +153,7 @@ handle_ANDB(Core, Mem, IR, EA) ->
       Word = CE band CA,
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -169,7 +169,7 @@ handle_ANDCA(Core, Mem, IR, EA) ->
       Word = CE band bnot CA,
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -191,7 +191,7 @@ handle_ANDCAM(Core, Mem, IR, EA) ->
       Word = CE band bnot CA,
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -205,7 +205,7 @@ handle_ANDCAB(Core, Mem, IR, EA) ->
       Word = CE band bnot CA,
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -231,7 +231,7 @@ handle_SETMM(Core, Mem, IR, EA) ->
     {ok, CE} ->
       handle_writeback(Core, Mem, EA, CE);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -244,7 +244,7 @@ handle_SETMB(Core, Mem, IR, EA) ->
       AC = IR band 8#17,
       handle_writeback(Core, Mem, AC, EA, CE);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -260,7 +260,7 @@ handle_ANDCM(Core, Mem, IR, EA) ->
       Word = CA band bnot CE,
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -282,7 +282,7 @@ handle_ANDCMM(Core, Mem, IR, EA) ->
       Word = CA band bnot CE,
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -296,7 +296,7 @@ handle_ANDCMB(Core, Mem, IR, EA) ->
       Word = CA band bnot CE,
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -312,7 +312,7 @@ handle_XOR(Core, Mem, IR, EA) ->
       Word = CE bxor CA,
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -334,7 +334,7 @@ handle_XORM(Core, Mem, IR, EA) ->
       Word = CE bxor CA,
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -348,7 +348,7 @@ handle_XORB(Core, Mem, IR, EA) ->
       Word = CE bxor CA,
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -364,7 +364,7 @@ handle_IOR(Core, Mem, IR, EA) ->
       Word = CE bor CA,
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -386,7 +386,7 @@ handle_IORM(Core, Mem, IR, EA) ->
       Word = CE bor CA,
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -400,7 +400,7 @@ handle_IORB(Core, Mem, IR, EA) ->
       Word = CE bor CA,
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -416,7 +416,7 @@ handle_ANDCB(Core, Mem, IR, EA) ->
       Word = ((bnot CE) band (bnot CA)) band ((1 bsl 36) - 1),
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -438,7 +438,7 @@ handle_ANDCBM(Core, Mem, IR, EA) ->
       Word = ((bnot CE) band (bnot CA)) band ((1 bsl 36) - 1),
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -452,7 +452,7 @@ handle_ANDCBB(Core, Mem, IR, EA) ->
       Word = ((bnot CE) band (bnot CA)) band ((1 bsl 36) - 1),
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -468,7 +468,7 @@ handle_EQV(Core, Mem, IR, EA) ->
       Word = (bnot (CE bxor CA)) band ((1 bsl 36) - 1),
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -490,7 +490,7 @@ handle_EQVM(Core, Mem, IR, EA) ->
       Word = (bnot (CE bxor CA)) band ((1 bsl 36) - 1),
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -504,7 +504,7 @@ handle_EQVB(Core, Mem, IR, EA) ->
       Word = (bnot (CE bxor CA)) band ((1 bsl 36) - 1),
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -546,7 +546,7 @@ handle_ORCA(Core, Mem, IR, EA) ->
       Word = (CE bor bnot CA) band ((1 bsl 36) - 1),
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -568,7 +568,7 @@ handle_ORCAM(Core, Mem, IR, EA) ->
       Word = (CE bor bnot CA) band ((1 bsl 36) - 1),
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -582,7 +582,7 @@ handle_ORCAB(Core, Mem, IR, EA) ->
       Word = (CE bor bnot CA) band ((1 bsl 36) - 1),
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -597,7 +597,7 @@ handle_SETCM(Core, Mem, IR, EA) ->
       Word = (bnot CE) band ((1 bsl 36) - 1),
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -616,7 +616,7 @@ handle_SETCMM(Core, Mem, IR, EA) ->
       Word = (bnot CE) band ((1 bsl 36) - 1),
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -629,7 +629,7 @@ handle_SETCMB(Core, Mem, IR, EA) ->
       Word = (bnot CE) band ((1 bsl 36) - 1),
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -645,7 +645,7 @@ handle_ORCM(Core, Mem, IR, EA) ->
       Word = (CA bor bnot CE) band ((1 bsl 36) - 1),
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -667,7 +667,7 @@ handle_ORCMM(Core, Mem, IR, EA) ->
       Word = (CA bor bnot CE) band ((1 bsl 36) - 1),
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -681,7 +681,7 @@ handle_ORCMB(Core, Mem, IR, EA) ->
       Word = (CA bor bnot CE) band ((1 bsl 36) - 1),
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -697,7 +697,7 @@ handle_ORCB(Core, Mem, IR, EA) ->
       Word = ((bnot CA) bor (bnot CE)) band ((1 bsl 36) - 1),
       sim_core:next_pc(sim_core:set_ac(Core, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -719,7 +719,7 @@ handle_ORCBM(Core, Mem, IR, EA) ->
       Word = ((bnot CA) bor (bnot CE)) band ((1 bsl 36) - 1),
       handle_writeback(Core, Mem, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -733,7 +733,7 @@ handle_ORCBB(Core, Mem, IR, EA) ->
       Word = ((bnot CA) bor (bnot CE)) band ((1 bsl 36) - 1),
       handle_writeback(Core, Mem, AC, EA, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, EA) end)
   end.
 
@@ -765,7 +765,7 @@ handle_writeback(Core, Mem, EA, Word) ->
   case sim_core:cset(Core, Mem, EA, Word) of
     {ok, Core1} -> sim_core:next_pc(Core1, Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+      sim_core:page_fault(Core, Mem, EA, write, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, EA, Word) end)
   end.
 
@@ -773,9 +773,6 @@ handle_writeback(Core, Mem, AC, EA, Word) ->
   case sim_core:cset(Core, Mem, EA, Word) of
     {ok, Core1} -> sim_core:next_pc(sim_core:set_ac(Core1, AC, Word), Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+      sim_core:page_fault(Core, Mem, EA, write, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, AC, EA, Word) end)
   end.
-
-ea_address(#ea{section = Section, offset = Offset}) ->
-  (Section bsl 18) bor Offset.

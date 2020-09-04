@@ -47,7 +47,7 @@ handle_PUSH(Core, Mem, IR, SrcEA) ->
       {SP1, DstEA, Flags} = inc_sp(Core, SP0),
       handle_writeback(Core, Mem, AC, DstEA, SP1, Flags, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(SrcEA), read, Reason,
+      sim_core:page_fault(Core, Mem, SrcEA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, IR, SrcEA) end)
   end.
 
@@ -65,7 +65,7 @@ handle_POP(Core, Mem, AC, DstEA, SP, Flags, SrcEA) ->
   case sim_core:c(Core, Mem, SrcEA) of
     {ok, Word} -> handle_writeback(Core, Mem, AC, DstEA, SP, Flags, Word);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(SrcEA), read, Reason,
+      sim_core:page_fault(Core, Mem, SrcEA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, AC, DstEA, SP, Flags, SrcEA) end)
   end.
 
@@ -91,7 +91,7 @@ handle_PUSHJ(Core, Mem, AC, EA, SP, DstEA, Flags, PCWord) ->
     {ok, Core1} ->
       handle_jump(Core1, Mem, AC, SP, Flags, EA#ea.section, EA#ea.offset);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(DstEA), write, Reason,
+      sim_core:page_fault(Core, Mem, DstEA, write, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, AC, EA, SP, DstEA, Flags, PCWord) end)
   end.
 
@@ -116,7 +116,7 @@ handle_POPJ(Core, Mem, AC, SP, Flags, EA) ->
          end,
        handle_jump(Core, Mem, AC, SP, Flags, PCSection, PCOffset);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), read, Reason,
+      sim_core:page_fault(Core, Mem, EA, read, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, AC, SP, Flags, EA) end)
   end.
 
@@ -140,7 +140,7 @@ handle_writeback(Core, Mem, AC, EA, SP, Flags, Word) ->
       Core3 = sim_core:set_flags(Core2, Flags),
       sim_core:next_pc(Core3, Mem);
     {error, Reason} ->
-      sim_core:page_fault(Core, Mem, ea_address(EA), write, Reason,
+      sim_core:page_fault(Core, Mem, EA, write, Reason,
                           fun(Core1, Mem1) -> ?FUNCTION_NAME(Core1, Mem1, AC, EA, SP, Flags, Word) end)
   end.
 
@@ -254,6 +254,3 @@ global_inc_sp(SP0) ->
 sext18(Half) ->
   UInt18Sbit = 1 bsl (18 - 1),
   (Half bxor UInt18Sbit) - UInt18Sbit.
-
-ea_address(#ea{section = Section, offset = Offset}) ->
-  (Section bsl 18) bor Offset.
