@@ -27,6 +27,7 @@
         , start/2
         ]).
 
+%% TODO: remove when we're on OTP >= 24
 %% escript logs unhandled exceptions to standard output, but we want them to
 %% end up on standard error
 -spec start(fun(([string()]) -> any()), [string()]) -> any().
