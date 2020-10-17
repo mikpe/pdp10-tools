@@ -28,6 +28,7 @@
         , run/2
         , next_pc/2
         , skip/2
+        , calculate_ea/5
         , page_fault/6
         , c/3
         , cset/4
@@ -142,6 +143,13 @@ insn_fetch2(Core, Mem, MB) ->
   calculate_ea(Core, Mem, MB, ESection,
                fun(Core1, Mem1, EA) -> dispatch(Core1, Mem1, IR, EA) end).
 
+-spec calculate_ea(Core :: #core{},
+                   Mem :: sim_mem:mem(),
+                   MB :: word(),
+                   ESection :: word(),
+                   Cont :: fun((#core{}, sim_mem:mem(), #ea{})
+                               -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}))
+      -> {#core{}, sim_mem:mem(), {ok, integer()} | {error, {module(), term()}}}.
 calculate_ea(Core, Mem, MB, ESection, Cont) ->
   local_format_address_word(Core, Mem, MB, ESection, Cont).
 
