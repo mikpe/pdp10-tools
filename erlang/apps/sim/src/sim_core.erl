@@ -139,12 +139,13 @@ insn_fetch1(Core, Mem) ->
 insn_fetch2(Core, Mem, MB) ->
   IR = bits36(MB, 0, 12), % IR := MB_<0:12>
   ESection = Core#core.pc_section, % E_<6:17> := PC_<6:17>
-  calculate_ea(Core, Mem, IR, MB, ESection).
+  calculate_ea(Core, Mem, MB, ESection,
+               fun(Core1, Mem1, EA) -> dispatch(Core1, Mem1, IR, EA) end).
 
-calculate_ea(Core, Mem, IR, MB, ESection) ->
-  local_format_address_word(Core, Mem, IR, MB, ESection).
+calculate_ea(Core, Mem, MB, ESection, Cont) ->
+  local_format_address_word(Core, Mem, MB, ESection, Cont).
 
-local_format_address_word(Core, Mem, IR, MB, ESection) ->
+local_format_address_word(Core, Mem, MB, ESection, Cont) ->
   Y = bits36(MB, 18, 35), % Y_<18:35> := MB_<18:35>
   X = bits36(MB, 14, 17), % X := MB_<14:17>
   I = bit36(MB, 13),      % I := MB_<13>
@@ -153,38 +154,38 @@ local_format_address_word(Core, Mem, IR, MB, ESection) ->
     0 ->
       %% X field =:= 0.  No Indexing.
       EOffset = Y, % E_<18:35> := Y_<18:35>
-      indirect_addressing(Core, Mem, IR, I, ESection, EOffset, _IsLocal = true);
+      indirect_addressing(Core, Mem, I, ESection, EOffset, _IsLocal = true, Cont);
     _ ->
       %% X field =/= 0.  Indexing.
       CX = get_ac(Core, X), % C(X) hoisted from following blocks
       %% Test Section Number in E_<6:17>.
       case ESection of
         0 ->
-          local_index(Core, Mem, IR, I, ESection, CX, Y);
+          local_index(Core, Mem, I, ESection, CX, Y, Cont);
         _ ->
           %% Section =/= 0.
           %% Test C(X).  Global Index when (C(X)_<0> =:= 0) and (C(X)_<6:17> =/= 0).
           case bit36(CX, 0) =:= 0 andalso bits36(CX, 6, 17) =/= 0 of
             true ->
-              global_index(Core, Mem, IR, I, CX, Y);
+              global_index(Core, Mem, I, CX, Y, Cont);
             false ->
-              local_index(Core, Mem, IR, I, ESection, CX, Y)
+              local_index(Core, Mem, I, ESection, CX, Y, Cont)
           end
       end
   end.
 
-local_index(Core, Mem, IR, I, ESection, CX, Y) ->
+local_index(Core, Mem, I, ESection, CX, Y, Cont) ->
   EOffset = bits36low18(CX + Y), % E_<18:35> := C(X)_<18:35> + Y_<18:35>
-  indirect_addressing(Core, Mem, IR, I, ESection, EOffset, _IsLocal = true).
+  indirect_addressing(Core, Mem, I, ESection, EOffset, _IsLocal = true, Cont).
 
-global_index(Core, Mem, IR, I, CX, Y) ->
+global_index(Core, Mem, I, CX, Y, Cont) ->
   Y1 = sext18(Y), % Y_<6:17> =:= 7777 * Y_<18>
   E = CX + Y1, % E_<6:35> := C(X)_<6:35> + Y_<6:35>
   ESection = bits36(E, 6, 17),
   EOffset = bits36(E, 18, 35),
-  indirect_addressing(Core, Mem, IR, I, ESection, EOffset, _IsLocal = false).
+  indirect_addressing(Core, Mem, I, ESection, EOffset, _IsLocal = false, Cont).
 
-indirect_addressing(Core, Mem, IR, I, ESection, EOffset, IsLocal) ->
+indirect_addressing(Core, Mem, I, ESection, EOffset, IsLocal, Cont) ->
   %% Test I bit.
   case I of
     0 ->
@@ -194,36 +195,36 @@ indirect_addressing(Core, Mem, IR, I, ESection, EOffset, IsLocal) ->
       %% in the last section from which an address word was fetched.  This
       %% matters for instructions that use E and E+1, and also to determine
       %% if an address denotes an accumulator or a memory location.
-      dispatch(Core, Mem, IR, #ea{section = ESection, offset = EOffset, islocal = IsLocal});
+      Cont(Core, Mem, #ea{section = ESection, offset = EOffset, islocal = IsLocal});
     _ ->
       %% I =:= 1.
-      fetch_indirect_word(Core, Mem, IR, ESection, EOffset, IsLocal)
+      fetch_indirect_word(Core, Mem, ESection, EOffset, IsLocal, Cont)
   end.
 
-fetch_indirect_word(Core, Mem, IR, ESection, EOffset, IsLocal) ->
+fetch_indirect_word(Core, Mem, ESection, EOffset, IsLocal, Cont) ->
   %% Fetch the Indirect Word.
   case c(Core, Mem, ESection, EOffset, IsLocal) of
     {ok, MB} ->
       %% Non-zero section?  Test E_<6:17>.
       case ESection of
         0 ->
-          local_format_address_word(Core, Mem, IR, MB, ESection);
+          local_format_address_word(Core, Mem, MB, ESection, Cont);
         _ ->
           %% Section =/= 0.
           %% Decode Indirect Word MB_<0:1>.
           case bits36(MB, 0, 1) of
             0 ->
-              global_indirect_word(Core, Mem, IR, MB, _I = 0);
+              global_indirect_word(Core, Mem, MB, _I = 0, Cont);
             1 ->
-              global_indirect_word(Core, Mem, IR, MB, _I = 1);
+              global_indirect_word(Core, Mem, MB, _I = 1, Cont);
             2 ->
               %% Local Indirect
-              local_format_address_word(Core, Mem, IR, MB, ESection);
+              local_format_address_word(Core, Mem, MB, ESection, Cont);
             3 ->
               EA = #ea{section = ESection, offset = EOffset, islocal = IsLocal},
               page_fault(Core, Mem, EA, read, indirect_word,
                          fun(Core1, Mem1) ->
-                            fetch_indirect_word(Core1, Mem1, IR, ESection, EOffset, IsLocal)
+                            fetch_indirect_word(Core1, Mem1, ESection, EOffset, IsLocal, Cont)
                           end)
           end
       end;
@@ -231,11 +232,11 @@ fetch_indirect_word(Core, Mem, IR, ESection, EOffset, IsLocal) ->
       EA = #ea{section = ESection, offset = EOffset, islocal = IsLocal},
       page_fault(Core, Mem, EA, read, Reason,
                  fun(Core1, Mem1) ->
-                   fetch_indirect_word(Core1, Mem1, IR, ESection, EOffset, IsLocal)
+                   fetch_indirect_word(Core1, Mem1, ESection, EOffset, IsLocal, Cont)
                  end)
   end.
 
-global_indirect_word(Core, Mem, IR, MB, I) ->
+global_indirect_word(Core, Mem, MB, I, Cont) ->
   Y = bits36(MB, 6, 35), % Y:= MB_<6,35>
   X = bits36(MB, 2, 5), % X := MB_<2:5>
   %% Indexed Address?  Test X field.
@@ -244,14 +245,14 @@ global_indirect_word(Core, Mem, IR, MB, I) ->
       E = Y, % E_<6:35> := Y_<6:35>
       ESection1 = bits36(E, 6, 17),
       EOffset1 = bits36(E, 18, 35),
-      indirect_addressing(Core, Mem, IR, I, ESection1, EOffset1, _IsLocal = false);
+      indirect_addressing(Core, Mem, I, ESection1, EOffset1, _IsLocal = false, Cont);
     _ ->
       %% X =/= 0.
       CX = get_ac(Core, X),
       E = CX + Y, % E_<6:35> := C(X)_<6:35> + Y_<6:35>
       ESection1 = bits36(E, 6, 17),
       EOffset1 = bits36(E, 18, 35),
-      indirect_addressing(Core, Mem, IR, I, ESection1, EOffset1, _IsLocal = false)
+      indirect_addressing(Core, Mem, I, ESection1, EOffset1, _IsLocal = false, Cont)
   end.
 
 %% Instruction Dispatch ========================================================
