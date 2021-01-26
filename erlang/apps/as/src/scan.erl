@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% scanner for pdp10-elf as
-%%% Copyright (C) 2013-2020  Mikael Pettersson
+%%% Copyright (C) 2013-2021  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -141,7 +141,7 @@ pushback(Handle, {_Location, _Token} = LocationAndToken) ->
     [] ->
       put(Handle, ScanState#scan_state{tokbuf = LocationAndToken}),
       ok;
-    {_Location, _Token} ->
+    {_Location2, _Token2} ->
       %% deliberately crash on internal logic error
       error({?MODULE, pushback})
   end.
