@@ -1,5 +1,5 @@
 # Makefile for pdp10-tools/erlang
-# Copyright (C) 2018-2020  Mikael Pettersson
+# Copyright (C) 2018-2021  Mikael Pettersson
 #
 # This file is part of pdp10-tools.
 #
@@ -19,7 +19,7 @@
 SHELL=/bin/bash
 REBAR3=$(shell type -p rebar3 || echo ./rebar3)
 REBAR3_GIT=https://github.com/erlang/rebar3.git
-REBAR3_VSN=3.7.5
+REBAR3_VSN=3.16.1
 
 PROGRAMS=8to9 ar as ld nm od readelf sim
 
