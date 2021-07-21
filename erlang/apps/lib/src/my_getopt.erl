@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% getopt for Erlang programs
-%%% Copyright (C) 2018-2020  Mikael Pettersson
+%%% Copyright (C) 2018-2021  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -18,7 +18,9 @@
 %%% You should have received a copy of the GNU General Public License
 %%% along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
 
--module(getopt).
+%% This module was renamed from 'getopt' to 'my_getopt' to work around
+%% a bug in rebar3 <https://github.com/erlang/rebar3/issues/2255>.
+-module(my_getopt).
 -export([parse/3, format_error/1]).
 
 -define(no, no).

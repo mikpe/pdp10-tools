@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% 'as' clone for pdp10-elf
-%%% Copyright (C) 2013-2020  Mikael Pettersson
+%%% Copyright (C) 2013-2021  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -28,9 +28,9 @@ main(Argv) ->
 
 -spec main_([string()]) -> no_return().
 main_(Argv) ->
-  case getopt:parse(Argv, "vo:",
-                    [ {"version", no, version}
-                    ]) of
+  case my_getopt:parse(Argv, "vo:",
+                       [ {"version", no, version}
+                       ]) of
     {ok, {Options, Files}} ->
       OutFile = scan_options(Options),
       case as(Files, OutFile) of

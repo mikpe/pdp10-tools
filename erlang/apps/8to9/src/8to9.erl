@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% 8to9 -- convert octet files to nonet files
-%%% Copyright (C) 2013-2019  Mikael Pettersson
+%%% Copyright (C) 2013-2021  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -27,11 +27,11 @@ main(Argv) ->
   escript_runtime:start(fun main_/1, Argv).
 
 main_(Argv) ->
-  case getopt:parse(Argv, "Vi:o:",
-                    [ {"version", 'no', $V}
-                    , {"infile", 'required', $i}
-                    , {"outfile", 'required', $o}
-                    ]) of
+  case my_getopt:parse(Argv, "Vi:o:",
+                       [ {"version", 'no', $V}
+                       , {"infile", 'required', $i}
+                       , {"outfile", 'required', $o}
+                       ]) of
     {ok, {Options, []}} ->
       Args = scan_options(Options, #args{}),
       OutFile = get_outfile(Args),

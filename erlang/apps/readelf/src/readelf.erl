@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% 'readelf' clone for pdp10-elf
-%%% Copyright (C) 2013-2020  Mikael Pettersson
+%%% Copyright (C) 2013-2021  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -51,38 +51,38 @@ main(Argv) ->
 
 -spec main_([string()]) -> no_return().
 main_(Argv) ->
-  case getopt:parse(Argv, "ahlSgtesnrudVADcIvW",
-                    [
-                      %% long-only options
-                      { "dyn-syms",             no, dyn_syms }
-                    , { "disassemble",          no, disassemble } % extension
-                      %% long aliases for short options
-                    , { "all",                  no, $a }
-                    , { "file-header",          no, $h }
-                    , { "program-headers",      no, $l }
-                    , { "segments",             no, $l }
-                    , { "section-groups",       no, $g }
-                    , { "section-details",      no, $t }
-                    , { "headers",              no, $e }
-                    , { "symbols",              no, $s }
-                    , { "syms",                 no, $s }
-                    , { "notes",                no, $n }
-                    , { "relocs",               no, $r }
-                    , { "unwind",               no, $u }
-                    , { "version-info",         no, $V }
-                    , { "arch-specific",        no, $A }
-                    , { "use-dynamic",          no, $D }
-                    , { "archive-index",        no, $c }
-                    , { "histogram",            no, $I }
-                    , { "version",              no, $v }
-                    , { "wide",                 no, $W }
-                      %% --{hex,string,relocated}-dump: NYI
-                      %% --debug-dump: NYI
-                      %% --dwarf-{depth,start}: NYI
-                      %% --decompress: NYI
-                      %% --help: NYI
-                      %% @file: NYI
-                    ]) of
+  case my_getopt:parse(Argv, "ahlSgtesnrudVADcIvW",
+                       [
+                         %% long-only options
+                         { "dyn-syms",             no, dyn_syms }
+                       , { "disassemble",          no, disassemble } % extension
+                         %% long aliases for short options
+                       , { "all",                  no, $a }
+                       , { "file-header",          no, $h }
+                       , { "program-headers",      no, $l }
+                       , { "segments",             no, $l }
+                       , { "section-groups",       no, $g }
+                       , { "section-details",      no, $t }
+                       , { "headers",              no, $e }
+                       , { "symbols",              no, $s }
+                       , { "syms",                 no, $s }
+                       , { "notes",                no, $n }
+                       , { "relocs",               no, $r }
+                       , { "unwind",               no, $u }
+                       , { "version-info",         no, $V }
+                       , { "arch-specific",        no, $A }
+                       , { "use-dynamic",          no, $D }
+                       , { "archive-index",        no, $c }
+                       , { "histogram",            no, $I }
+                       , { "version",              no, $v }
+                       , { "wide",                 no, $W }
+                         %% --{hex,string,relocated}-dump: NYI
+                         %% --debug-dump: NYI
+                         %% --dwarf-{depth,start}: NYI
+                         %% --decompress: NYI
+                         %% --help: NYI
+                         %% @file: NYI
+                       ]) of
     {ok, {Options, Files}} ->
       Opts = scan_options(Options),
       case Files of

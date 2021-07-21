@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% 'nm' clone for pdp10-elf
-%%% Copyright (C) 2013-2020  Mikael Pettersson
+%%% Copyright (C) 2013-2021  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -55,25 +55,25 @@ main_(Argv) ->
   %% -X 32_64
   %% --help [TODO?]
   %% @file [TODO?]
-  case getopt:parse(Argv, "AoBDf:gnvpPSrt:uV",
-                    [ %% long-only options
-                      {"no-demangle", no, no_demangle}
-                    , {"special-syms", no, special_syms}
-                    , {"defined-only", no, defined_only}
-                      %% long aliases for short options
-                    , {"print-file-name", no, $A}
-                    , {"dynamic", no, $D}
-                    , {"format", required, $f}
-                    , {"extern-only", no, $g}
-                    , {"numeric-sort", no, $n}
-                    , {"no-sort", no, $p}
-                    , {"portability", no, $P}
-                    , {"print-size", no, $S}
-                    , {"reverse-sort", no, $r}
-                    , {"radix", required, $t}
-                    , {"undefined-only", no, $u}
-                    , {"version", no, $V}
-                    ]) of
+  case my_getopt:parse(Argv, "AoBDf:gnvpPSrt:uV",
+                       [ %% long-only options
+                         {"no-demangle", no, no_demangle}
+                       , {"special-syms", no, special_syms}
+                       , {"defined-only", no, defined_only}
+                         %% long aliases for short options
+                       , {"print-file-name", no, $A}
+                       , {"dynamic", no, $D}
+                       , {"format", required, $f}
+                       , {"extern-only", no, $g}
+                       , {"numeric-sort", no, $n}
+                       , {"no-sort", no, $p}
+                       , {"portability", no, $P}
+                       , {"print-size", no, $S}
+                       , {"reverse-sort", no, $r}
+                       , {"radix", required, $t}
+                       , {"undefined-only", no, $u}
+                       , {"version", no, $V}
+                       ]) of
     {ok, {Options, Files}} ->
       nm(scan_options(Options), Files);
     {error, Reason} ->

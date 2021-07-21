@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% simulator for pdp10-elf
-%%% Copyright (C) 2020  Mikael Pettersson
+%%% Copyright (C) 2020-2021  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -66,11 +66,11 @@ main_(Argv) ->
 %%      Outputs the version of the simulator and exits.
 
 sim(Argv) ->
-  case getopt:parse(Argv, "+s:t::v",
-                    [ { "stack-size", required, $s }
-                    , { "trace", optional, $t }
-                    , { "version", no, $v }
-                    ]) of
+  case my_getopt:parse(Argv, "+s:t::v",
+                       [ { "stack-size", required, $s }
+                       , { "trace", optional, $t }
+                       , { "version", no, $v }
+                       ]) of
     {ok, {Opts0, NonOpts0}} ->
       case parse_options(Opts0, NonOpts0) of
         {ok, Options} -> do_sim(Options);

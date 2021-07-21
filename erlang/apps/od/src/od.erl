@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% 'od' clone for files with 9-bit bytes
-%%% Copyright (C) 2013-2020  Mikael Pettersson
+%%% Copyright (C) 2013-2021  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -43,14 +43,14 @@ main(Argv) ->
 
 -spec main_([string()]) -> no_return().
 main_(Argv) ->
-  case getopt:parse(Argv, "VbcdDiloOsxXA:j:N:t:w::",
-                    [ {"version", no, $V}
-                    , {"address-radix", required, $A}
-                    , {"skip-bytes", required, $j}
-                    , {"read-bytes", required, $N}
-                    , {"format", required, $t}
-                    , {"width", optional, $w}
-                    ]) of
+  case my_getopt:parse(Argv, "VbcdDiloOsxXA:j:N:t:w::",
+                       [ {"version", no, $V}
+                       , {"address-radix", required, $A}
+                       , {"skip-bytes", required, $j}
+                       , {"read-bytes", required, $N}
+                       , {"format", required, $t}
+                       , {"width", optional, $w}
+                       ]) of
     {ok, {Options, Files}} ->
       od(scan_options(Options), Files);
     {error, Reason} ->

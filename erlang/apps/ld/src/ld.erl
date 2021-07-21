@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% 'ld' clone for pdp10-elf
-%%% Copyright (C) 2020  Mikael Pettersson
+%%% Copyright (C) 2020-2021  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -182,32 +182,32 @@ ld(Argv) ->
   %% - it takes some single-dash long options, e.g. -nostdlib
   %% - options and non-options must be processed in the order given,
   %%   e.g. due to --start-group <file.o>... --end-group
-  case getopt:parse(Argv, "-b:e:l:L:m:nNo:tvV",
-                    [ %% single-dash long options
-                      { "-EB", no, 'EB' }
-                    , { "-Tbss", required, 'Tbss' }
-                    , { "-Tdata", required, 'Tdata' }
-                    , { "-Trodata-segment", required, 'Trodata' }
-                    , { "-Ttext", required, 'Ttext' }
-                    , { "-Ttext-segment", required, 'Ttext' }
-                      %% long-only options
-                    , { "help", no, help }
-                    , { "no-omagic", no, no_omagic }
-                    , { "oformat", required, oformat }
-                    , { "print-output-format", no, print_output_format }
-                    , { "section-start", required, section_start }
-                    , { "target-help", no, target_help }
-                      %% long aliases for short options
-                    , { "entry", required, $e }
-                    , { "format", required, $b }
-                    , { "library", required, $l }
-                    , { "library-path", required, $L }
-                    , { "nmagic", no, $n }
-                    , { "omagic", no, $N }
-                    , { "output", required, $o }
-                    , { "trace", no, $t }
-                    , { "version", no, $v }
-                    ]) of
+  case my_getopt:parse(Argv, "-b:e:l:L:m:nNo:tvV",
+                       [ %% single-dash long options
+                         { "-EB", no, 'EB' }
+                       , { "-Tbss", required, 'Tbss' }
+                       , { "-Tdata", required, 'Tdata' }
+                       , { "-Trodata-segment", required, 'Trodata' }
+                       , { "-Ttext", required, 'Ttext' }
+                       , { "-Ttext-segment", required, 'Ttext' }
+                         %% long-only options
+                       , { "help", no, help }
+                       , { "no-omagic", no, no_omagic }
+                       , { "oformat", required, oformat }
+                       , { "print-output-format", no, print_output_format }
+                       , { "section-start", required, section_start }
+                       , { "target-help", no, target_help }
+                         %% long aliases for short options
+                       , { "entry", required, $e }
+                       , { "format", required, $b }
+                       , { "library", required, $l }
+                       , { "library-path", required, $L }
+                       , { "nmagic", no, $n }
+                       , { "omagic", no, $N }
+                       , { "output", required, $o }
+                       , { "trace", no, $t }
+                       , { "version", no, $v }
+                       ]) of
     {ok, {Opts, _NonOpts = []}} ->
       case process_options(Opts) of
         {ok, Options} ->
