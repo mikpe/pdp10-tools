@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% simulator for pdp10-elf
-%%% Copyright (C) 2018-2020  Mikael Pettersson
+%%% Copyright (C) 2018-2021  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -276,6 +276,7 @@ dispatch(Core, Mem, IR, EA) ->
     8#121 -> sim_moves:handle_DMOVN(Core, Mem, IR, EA);
     8#124 -> sim_moves:handle_DMOVEM(Core, Mem, IR, EA);
     8#125 -> sim_moves:handle_DMOVNM(Core, Mem, IR, EA);
+    8#133 -> sim_bytepointers:handle_IBP(Core, Mem, IR, EA); % IBP if A is zero, ADJBP otherwise
     8#200 -> sim_moves:handle_MOVE(Core, Mem, IR, EA);
     8#201 -> sim_moves:handle_MOVEI(Core, Mem, IR, EA);
     8#202 -> sim_moves:handle_MOVEM(Core, Mem, IR, EA);
