@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% pdp10_elf36.hrl -- ELF definitions for PDP10
-%%% Copyright (C) 2013-2020  Mikael Pettersson
+%%% Copyright (C) 2013-2021  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -339,7 +339,7 @@
 -define(EM_BA2,         202).   % Beyond BA2 CPU architecture
 -define(EM_XCORE,       203).   % XMOS xCORE processor family
 -define(EM_MCHP_PIC,    204).   % Microchip 8-bit PIC(r) family
--define(EM_INTEL205,    205).   % Reserved by Intel
+-define(EM_INTELGT,     205).   % Intel Graphics Technology
 -define(EM_INTEL206,    206).   % Reserved by Intel
 -define(EM_INTEL207,    207).   % Reserved by Intel
 -define(EM_INTEL208,    208).   % Reserved by Intel
@@ -362,9 +362,21 @@
 %% 225-242: reserved
 -define(EM_RISCV,       243).   % RISC-V
 -define(EM_LANAI,       244).   % Lanai 32-bit processor.
+-define(EM_CEVA,        245).   % CEVA Processor Architecture Family
+-define(EM_CEVA_X2,     246).   % CEVA X2 Processor Family
 -define(EM_BPF,         247).   % Linux BPF - in-kernel virtual machine.
+-define(EM_GRAPHCORE_IPU,248).  % Graphcore Intelligent Processing Unit
+-define(EM_IMG1,        249).   % Imagination Technologies
 -define(EM_NFP,         250).   % Netronome Flow Processor.
+-define(EM_VE,          251).   % NEC Vector Engine
 -define(EM_CSKY,        252).   % C-SKY processor family.
+-define(EM_ARC_COMPACT3_64,253).% Synopsys ARCv2.3 64-bit
+-define(EM_MCS6502,     254).   % MOS Technology MCS 6502 processor
+-define(EM_ARC_COMPACT3,255).   % Synopsys ARCv2.3 32-bit
+-define(EM_KVX,         256).   % Kalray VLIW core of the MPPA processor family
+-define(EM_65816,       257).   % WDC 65816/65C816
+-define(EM_LOONGARCH,   258).   % LoongArch
+-define(EM_KF32,        259).   % ChipON KungFu32
 
 %% If it is necessary to assign new unofficial EM_* values, please pick large
 %% random numbers (16#8523, 16#a7f2, etc.) to minimize the chances of collision
@@ -568,7 +580,7 @@
 
 %%-define(SHF_MASKOS,   16#0F000000).   % OS-specific semantics
 -define(SHF_MASKOS,     16#0FF00000).   % New value, Oct 4, 1999 Draft
--define(SHF_GNU_BUILD_NOTE, (1 bsl 20)).% Section contains GNU BUILD ATTRIBUTE notes.
+-define(SHF_GNU_RETAIN, (1 bsl 21)).    % Section should not be garbage collected by the linker.
 -define(SHF_MASKPROC,   16#F0000000).   % Processor-specific semantics
 
 %% This used to be implemented as a processor specific section flag.
@@ -702,6 +714,7 @@
 
 -define(ELF36_R_SYM(I),         ((I) bsr 8)).
 -define(ELF36_R_TYPE(I),        ((I) band 16#ff)).
+%% TODO: GNU binutils casts (S) below to unsigned
 -define(ELF36_R_INFO(S,T),      (((S) bsl 8) + ((T) band 16#ff))).
 
 %% Processor-specific relocation types.
@@ -773,6 +786,8 @@
                                                 %   note name must be "LINUX".
 -define(NT_X86_XSTATE,          16#202).        % x86 XSAVE extended state
                                                 %   note name must be "LINUX".
+-define(NT_X86_CET,             16#203).        % x86 CET state.
+                                                %   note name must be "LINUX".
 -define(NT_S390_HIGH_GPRS,      16#300).        % S/390 upper halves of GPRs
                                                 %   note name must be "LINUX".
 -define(NT_S390_TIMER,          16#301).        % S390 timer
@@ -812,10 +827,24 @@
                                                 %   note name must be "LINUX".
 -define(NT_ARM_PAC_MASK,        16#406).        % AArch pointer authentication code masks
                                                 %   note name must be "LINUX".
+-define(NT_ARM_TAGGED_ADDR_CTRL,16#409).        % AArch64 tagged address control (prctl())
+                                                %   note name must be "LINUX".
 -define(NT_ARC_V2,              16#600).        % ARC HS accumulator/extra registers.
                                                 %   note name must be "LINUX".
+-define(NT_RISCV_CSR,           16#900).        % RISC-V Control and Status Registers
+                                                %   note name must be "CORE".
 -define(NT_SIGINFO,             16#53494749).   % Fields of siginfo_t.
 -define(NT_FILE,                16#46494c45).   % Description of mapped files.
+
+%% The range 16#ff000000 to 16#ffffffff is set aside for notes that don't
+%% originate from any particular operating system.
+-define(NT_GDB_TDESC,           16#ff000000).   % Contains copy of GDB's target description XML.
+-define(NT_MEMTAG,              16#ff000001).   % Contains a copy of the memory tags.
+
+%% NT_MEMTAG record types.
+
+%% ARM-specific NT_MEMTAG types.
+-define(NT_MEMTAG_TYPE_AARCH_MTE,       16#400).        % MTE memory tags for AArch64.
 
 %% Note segments for core files on dir-style procfs systems.
 
@@ -873,6 +902,7 @@
 
 -define(NT_VERSION,             1).     % Contains a version string.
 -define(NT_ARCH,                2).     % Contains an architecture string.
+-define(NT_GO_BUILDID,          4).     % Contains GO buildid data.
 
 %% Values for notes in non-core files using name "GNU".
 
@@ -905,6 +935,16 @@
 %% Values used in GNU .note.gnu.property notes (NT_GNU_PROPERTY_TYPE_0).
 -define(GNU_PROPERTY_STACK_SIZE,                1).
 -define(GNU_PROPERTY_NO_COPY_ON_PROTECTED,      2).
+
+%% A 4-byte unsigned integer property: A bit is set if it is set in all
+%% relocatable inputs.
+-define(GNU_PROPERTY_UINT32_AND_LO,     16#b0000000).
+-define(GNU_PROPERTY_UINT32_AND_HI,     16#b0007fff).
+
+%% A 4-byte unsigned integer property: A bit is set if it is set in any
+%% relocatable inputs.
+-define(GNU_PROPERTY_UINT32_OR_LO,      16#b0008000).
+-define(GNU_PROPERTY_UINT32_OR_HI,      16#b000ffff).
 
 %% Processor-specific semantics, lo
 -define(GNU_PROPERTY_LOPROC,    16#c0000000).
@@ -955,40 +995,30 @@
 
 -define(GNU_PROPERTY_X86_FEATURE_1_AND, (?GNU_PROPERTY_X86_UINT32_AND_LO + 0)).
 
--define(GNU_PROPERTY_X86_ISA_1_NEEDED, (?GNU_PROPERTY_X86_UINT32_OR_LO + 0)).
+-define(GNU_PROPERTY_X86_ISA_1_NEEDED, (?GNU_PROPERTY_X86_UINT32_OR_LO + 2)).
 -define(GNU_PROPERTY_X86_FEATURE_2_NEEDED, (?GNU_PROPERTY_X86_UINT32_OR_LO + 1)).
 
--define(GNU_PROPERTY_X86_ISA_1_USED, (?GNU_PROPERTY_X86_UINT32_OR_AND_LO + 0)).
+-define(GNU_PROPERTY_X86_ISA_1_USED, (?GNU_PROPERTY_X86_UINT32_OR_AND_LO + 2)).
 -define(GNU_PROPERTY_X86_FEATURE_2_USED, (?GNU_PROPERTY_X86_UINT32_OR_AND_LO + 1)).
+
+%% GNU_PROPERTY_X86_ISA_1_BASELINE: CMOV, CX8 (cmpxchg8b), FPU (fld),
+%% MMX, OSFXSR (fxsave), SCE (syscall), SSE and SSE2.
+-define(GNU_PROPERTY_X86_ISA_1_BASELINE,        (1 bsl 0)).
+%% GNU_PROPERTY_X86_ISA_1_V2: GNU_PROPERTY_X86_ISA_1_BASELINE,
+%% CMPXCHG16B (cmpxchg16b), LAHF-SAHF (lahf), POPCNT (popcnt), SSE3,
+%% SSSE3, SSE4.1 and SSE4.2.
+-define(GNU_PROPERTY_X86_ISA_1_V2,              (1 bsl 1)).
+%% GNU_PROPERTY_X86_ISA_1_V3: GNU_PROPERTY_X86_ISA_1_V2, AVX, AVX2, BMI1,
+%% BMI2, F16C, FMA, LZCNT, MOVBE, XSAVE.
+-define(GNU_PROPERTY_X86_ISA_1_V3,              (1 bsl 2)).
+%% GNU_PROPERTY_X86_ISA_1_V4: GNU_PROPERTY_X86_ISA_1_V3, AVX512F,
+%% AVX512BW, AVX512CD, AVX512DQ and AVX512VL.
+-define(GNU_PROPERTY_X86_ISA_1_V4,              (1 bsl 3)).
 
 -define(GNU_PROPERTY_X86_FEATURE_1_IBT,         (1 bsl 0)).
 -define(GNU_PROPERTY_X86_FEATURE_1_SHSTK,       (1 bsl 1)).
-
--define(GNU_PROPERTY_X86_ISA_1_CMOV,            (1 bsl 0)).
--define(GNU_PROPERTY_X86_ISA_1_SSE,             (1 bsl 1)).
--define(GNU_PROPERTY_X86_ISA_1_SSE2,            (1 bsl 2)).
--define(GNU_PROPERTY_X86_ISA_1_SSE3,            (1 bsl 3)).
--define(GNU_PROPERTY_X86_ISA_1_SSSE3,           (1 bsl 4)).
--define(GNU_PROPERTY_X86_ISA_1_SSE4_1,          (1 bsl 5)).
--define(GNU_PROPERTY_X86_ISA_1_SSE4_2,          (1 bsl 6)).
--define(GNU_PROPERTY_X86_ISA_1_AVX,             (1 bsl 7)).
--define(GNU_PROPERTY_X86_ISA_1_AVX2,            (1 bsl 8)).
--define(GNU_PROPERTY_X86_ISA_1_FMA,             (1 bsl 9)).
--define(GNU_PROPERTY_X86_ISA_1_AVX512F,         (1 bsl 10)).
--define(GNU_PROPERTY_X86_ISA_1_AVX512CD,        (1 bsl 11)).
--define(GNU_PROPERTY_X86_ISA_1_AVX512ER,        (1 bsl 12)).
--define(GNU_PROPERTY_X86_ISA_1_AVX512PF,        (1 bsl 13)).
--define(GNU_PROPERTY_X86_ISA_1_AVX512VL,        (1 bsl 14)).
--define(GNU_PROPERTY_X86_ISA_1_AVX512DQ,        (1 bsl 15)).
--define(GNU_PROPERTY_X86_ISA_1_AVX512BW,        (1 bsl 16)).
--define(GNU_PROPERTY_X86_ISA_1_AVX512_4FMAPS,   (1 bsl 17)).
--define(GNU_PROPERTY_X86_ISA_1_AVX512_4VNNIW,   (1 bsl 18)).
--define(GNU_PROPERTY_X86_ISA_1_AVX512_BITALG,   (1 bsl 19)).
--define(GNU_PROPERTY_X86_ISA_1_AVX512_IFMA,     (1 bsl 20)).
--define(GNU_PROPERTY_X86_ISA_1_AVX512_VBMI,     (1 bsl 21)).
--define(GNU_PROPERTY_X86_ISA_1_AVX512_VBMI2,    (1 bsl 22)).
--define(GNU_PROPERTY_X86_ISA_1_AVX512_VNNI,     (1 bsl 23)).
--define(GNU_PROPERTY_X86_ISA_1_AVX512_BF16,     (1 bsl 24)).
+-define(GNU_PROPERTY_X86_FEATURE_1_LAM_U48,     (1 bsl 2)).
+-define(GNU_PROPERTY_X86_FEATURE_1_LAM_U57,     (1 bsl 3)).
 
 -define(GNU_PROPERTY_X86_FEATURE_2_X86,         (1 bsl 0)).
 -define(GNU_PROPERTY_X86_FEATURE_2_X87,         (1 bsl 1)).
@@ -1000,6 +1030,38 @@
 -define(GNU_PROPERTY_X86_FEATURE_2_XSAVE,       (1 bsl 7)).
 -define(GNU_PROPERTY_X86_FEATURE_2_XSAVEOPT,    (1 bsl 8)).
 -define(GNU_PROPERTY_X86_FEATURE_2_XSAVEC,      (1 bsl 9)).
+-define(GNU_PROPERTY_X86_FEATURE_2_TMM,         (1 bsl 10)).
+-define(GNU_PROPERTY_X86_FEATURE_2_MASK,        (1 bsl 11)).
+
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_NEEDED, (?GNU_PROPERTY_X86_UINT32_OR_LO + 0)).
+
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_USED,   (?GNU_PROPERTY_X86_UINT32_OR_AND_LO + 0)).
+
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_CMOV,           (1 bsl 0)).
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_SSE,            (1 bsl 1)).
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_SSE2,           (1 bsl 2)).
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_SSE3,           (1 bsl 3)).
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_SSSE3,          (1 bsl 4)).
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_SSE4_1,         (1 bsl 5)).
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_SSE4_2,         (1 bsl 6)).
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_AVX,            (1 bsl 7)).
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_AVX2,           (1 bsl 8)).
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_FMA,            (1 bsl 9)).
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_AVX512F,        (1 bsl 10)).
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_AVX512CD,       (1 bsl 11)).
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_AVX512ER,       (1 bsl 12)).
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_AVX512PF,       (1 bsl 13)).
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_AVX512VL,       (1 bsl 14)).
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_AVX512DQ,       (1 bsl 15)).
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_AVX512BW,       (1 bsl 16)).
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_AVX512_4FMAPS,  (1 bsl 17)).
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_AVX512_4VNNIW,  (1 bsl 18)).
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_AVX512_BITALG,  (1 bsl 19)).
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_AVX512_IFMA,    (1 bsl 20)).
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_AVX512_VBMI,    (1 bsl 21)).
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_AVX512_VBMI2,   (1 bsl 22)).
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_AVX512_VNNI,    (1 bsl 23)).
+-define(GNU_PROPERTY_X86_COMPAT_2_ISA_1_AVX512_BF16,    (1 bsl 24)).
 
 %% AArch64 specific GNU PROPERTY.
 -define(GNU_PROPERTY_AARCH64_FEATURE_1_AND,     16#c0000000).
@@ -1020,6 +1082,15 @@
 
 -define(NT_NETBSD_IDENT,        1).
 -define(NT_NETBSD_MARCH,        5).
+
+%% Values for NetBSD .note.netbsd.ident notes.  Note name is "PaX".
+-define(NT_NETBSD_PAX,          3).
+-define(NT_NETBSD_PAX_MPROTECT,         16#01). % Force enable Mprotect.
+-define(NT_NETBSD_PAX_NOMPROTECT,       16#02). % Force disable Mprotect.
+-define(NT_NETBSD_PAX_GUARD,            16#04). % Force enable Segvguard.
+-define(NT_NETBSD_PAX_NOGUARD,          16#08). % Force disable Segvguard.
+-define(NT_NETBSD_PAX_ASLR,             16#10). % Force enable ASLR.
+-define(NT_NETBSD_PAX_NOASLR,           16#20). % Force disable ASLR.
 
 %% Values for OpenBSD .note.openbsd.ident notes.  Note name is "OpenBSD".
 
@@ -1064,6 +1135,11 @@
 -define(PT_GNU_STACK,           (?PT_LOOS + 16#474e551)).       % Stack flags
 -define(PT_GNU_RELRO,           (?PT_LOOS + 16#474e552)).       % Read-only after relocation
 -define(PT_GNU_PROPERTY,        (?PT_LOOS + 16#474e553)).       % GNU property
+
+%% OpenBSD segment types.
+-define(PT_OPENBSD_RANDOMIZE,   (?PT_LOOS + 16#5a3dbe6)).       % Fill with random data.
+-define(PT_OPENBSD_WXNEEDED,    (?PT_LOOS + 16#5a3dbe7)).       % Program does W^X violations.
+-define(PT_OPENBSD_BOOTDATA,    (?PT_LOOS + 16#5a41be6)).       % Section for boot arguments.
 
 %% Mbind segments
 -define(PT_GNU_MBIND_NUM,       4096).
@@ -1142,6 +1218,7 @@
 %% deliberate special case and we maintain it for backwards compatability.
 
 -define(DT_VALRNGLO,    16#6ffffd00).
+-define(DT_GNU_FLAGS_1, 16#6ffffdf4).
 -define(DT_GNU_PRELINKED,16#6ffffdf5).
 -define(DT_GNU_CONFLICTSZ,16#6ffffdf6).
 -define(DT_GNU_LIBLISTSZ,16#6ffffdf7).
@@ -1201,6 +1278,9 @@
 %% Flag values used in the DT_POSFLAG_1 .dynamic entry.
 -define(DF_P1_LAZYLOAD, 16#00000001).
 -define(DF_P1_GROUPPERM,16#00000002).
+
+%% Flag value in the DT_GNU_FLAGS_1 /dynamic entry.
+-define(DF_GNU_1_UNIQUE,16#00000001).
 
 %% Flag value in in the DT_FLAGS_1 .dynamic entry.
 -define(DF_1_NOW,       16#00000001).
@@ -1441,6 +1521,11 @@
 -define(AT_FREEBSD_HWCAP,       25).    % CPU feature flags.
 -define(AT_FREEBSD_HWCAP2,      26).    % CPU feature flags 2.
 -define(AT_FREEBSD_BSDFLAGS,    27).    % ELF BSD Flags.
+-define(AT_FREEBSD_ARGC,        28).    % Argument count.
+-define(AT_FREEBSD_ARGV,        29).    % Argument vector.
+-define(AT_FREEBSD_ENVC,        30).    % Environment count.
+-define(AT_FREEBSD_ENVV,        31).    % Environment vvector.
+-define(AT_FREEBSD_PS_STRINGS,  32).    % struct ps_strings.
 
 -define(AT_SUN_UID,             2000).  % Effective user ID.
 -define(AT_SUN_RUID,            2001).  % Real user ID.
