@@ -31,7 +31,7 @@
 
 %% 2.11 Byte Manipulation ======================================================
 
-%% IBP   - Increment Byte Pointer (A is zero)
+%% IBP - Increment Byte Pointer (A is zero)
 %% ADJBP - Adjust Byte Pointer (A is non-zero)
 
 -spec handle_IBP(#core{}, sim_mem:mem(), IR :: word(), #ea{})
