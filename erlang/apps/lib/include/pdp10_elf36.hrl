@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% pdp10_elf36.hrl -- ELF definitions for PDP10
-%%% Copyright (C) 2013-2021  Mikael Pettersson
+%%% Copyright (C) 2013-2022  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -538,6 +538,7 @@
 -define(SHT_PREINIT_ARRAY,16).          % Array of ptrs to pre-init funcs
 -define(SHT_GROUP,        17).          % Section contains a section group
 -define(SHT_SYMTAB_SHNDX, 18).          % Indices for SHN_XINDEX entries
+-define(SHT_RELR,         19).          % RELR relative relocations
 
 -define(SHT_LOOS,       16#60000000).   % First of OS specific semantics
 -define(SHT_HIOS,       16#6fffffff).   % Last of OS specific semantics
@@ -827,24 +828,37 @@
                                                 %   note name must be "LINUX".
 -define(NT_ARM_PAC_MASK,        16#406).        % AArch pointer authentication code masks
                                                 %   note name must be "LINUX".
+-define(NT_ARM_PACA_KEYS,       16#407).        % ARM pointer authentication address
+                                                % keys
+                                                %   note name must be "LINUX".
+-define(NT_ARM_PACG_KEYS,       16#408).        % ARM pointer authentication generic
+                                                % keys
+                                                %   note name must be "LINUX".
 -define(NT_ARM_TAGGED_ADDR_CTRL,16#409).        % AArch64 tagged address control (prctl())
+                                                %   note name must be "LINUX".
+-define(NT_ARM_PAC_ENABLED_KEYS,16#40a).        % AArch64 pointer authentication
+                                                % enabled keys (prctl())
                                                 %   note name must be "LINUX".
 -define(NT_ARC_V2,              16#600).        % ARC HS accumulator/extra registers.
                                                 %   note name must be "LINUX".
--define(NT_RISCV_CSR,           16#900).        % RISC-V Control and Status Registers
+-define(NT_LARCH_CPUCFG,        16#a00).        % LoongArch CPU config registers
+                                                %   note name must be "LINUX".
+-define(NT_LARCH_CSR,           16#a01).        % LoongArch Control State Registers
+                                                %   note name must be "LINUX".
+-define(NT_LARCH_LSX,           16#a02).        % LoongArch SIMD eXtension registers
+                                                %   note name must be "LINUX".
+-define(NT_LARCH_LASX,          16#a03).        % LoongArch Advanced SIMD eXtension registers
+                                                %   note name must be "LINUX".
+-define(NT_LARCH_LBT,           16#a04).        % LoongArch Binary Translation registers
                                                 %   note name must be "CORE".
+-define(NT_RISCV_CSR,           16#900).        % RISC-V Control and Status Registers
+                                                %   note name must be "LINUX".
 -define(NT_SIGINFO,             16#53494749).   % Fields of siginfo_t.
 -define(NT_FILE,                16#46494c45).   % Description of mapped files.
 
 %% The range 16#ff000000 to 16#ffffffff is set aside for notes that don't
 %% originate from any particular operating system.
 -define(NT_GDB_TDESC,           16#ff000000).   % Contains copy of GDB's target description XML.
--define(NT_MEMTAG,              16#ff000001).   % Contains a copy of the memory tags.
-
-%% NT_MEMTAG record types.
-
-%% ARM-specific NT_MEMTAG types.
--define(NT_MEMTAG_TYPE_AARCH_MTE,       16#400).        % MTE memory tags for AArch64.
 
 %% Note segments for core files on dir-style procfs systems.
 
@@ -892,6 +906,29 @@
 -define(NT_OPENBSD_XFPREGS,     22).
 -define(NT_OPENBSD_WCOOKIE,     23).
 
+
+%% Note segments for core files on Solaris systems.  Note name
+%% must start with "CORE".
+-define(SOLARIS_NT_PRSTATUS,     1).
+-define(SOLARIS_NT_PRFPREG,      2).
+-define(SOLARIS_NT_PRPSINFO,     3).
+-define(SOLARIS_NT_PRXREG,       4).
+-define(SOLARIS_NT_PLATFORM,     5).
+-define(SOLARIS_NT_AUXV,         6).
+-define(SOLARIS_NT_GWINDOWS,     7).
+-define(SOLARIS_NT_ASRS,         8).
+-define(SOLARIS_NT_LDT,          9).
+-define(SOLARIS_NT_PSTATUS,     10).
+-define(SOLARIS_NT_PSINFO,      13).
+-define(SOLARIS_NT_PRCRED,      14).
+-define(SOLARIS_NT_UTSNAME,     15).
+-define(SOLARIS_NT_LWPSTATUS,   16).
+-define(SOLARIS_NT_LWPSINFO,    17).
+-define(SOLARIS_NT_PRPRIV,      18).
+-define(SOLARIS_NT_PRPRIVINFO,  19).
+-define(SOLARIS_NT_CONTENT,     20).
+-define(SOLARIS_NT_ZONENAME,    21).
+-define(SOLARIS_NT_PRCPUXREG,   22).
 
 %% Note segments for core files on SPU systems.  Note name
 %% must start with "SPU/".
@@ -945,6 +982,13 @@
 %% relocatable inputs.
 -define(GNU_PROPERTY_UINT32_OR_LO,      16#b0008000).
 -define(GNU_PROPERTY_UINT32_OR_HI,      16#b000ffff).
+
+%% The needed properties by the object file.
+-define(GNU_PROPERTY_1_NEEDED,          ?GNU_PROPERTY_UINT32_OR_LO).
+
+%% Set if the object file requires canonical function pointers and
+%% cannot be used with copy relocation.
+-define(GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS,   (1 bsl 0)).
 
 %% Processor-specific semantics, lo
 -define(GNU_PROPERTY_LOPROC,    16#c0000000).
@@ -1100,6 +1144,9 @@
 
 -define(NT_FREEBSD_ABI_TAG,     1).
 
+%% Values for FDO .note.package notes as defined on https://systemd.io/COREDUMP_PACKAGE_METADATA/
+-define(FDO_PACKAGING_METADATA, 16#cafe1a7e).
+
 %% Program header
 
 -record(elf36_Phdr,
@@ -1195,10 +1242,13 @@
 -define(DT_FINI_ARRAYSZ,        28).
 -define(DT_RUNPATH,             29).
 -define(DT_FLAGS,               30).
--define(DT_ENCODING,            32).    % odd/even encoding rule starts here
 -define(DT_PREINIT_ARRAY,       32).
 -define(DT_PREINIT_ARRAYSZ,     33).
 -define(DT_SYMTAB_SHNDX,        34).
+-define(DT_RELRSZ,              35).
+-define(DT_RELR,                36).
+-define(DT_RELRENT,             37).
+-define(DT_ENCODING,            38).
 
 %% Note, the Oct 4, 1999 draft of the ELF ABI changed the values
 %% for DT_LOOS and DT_HIOS.  Some implementations however, use
@@ -1526,6 +1576,8 @@
 -define(AT_FREEBSD_ENVC,        30).    % Environment count.
 -define(AT_FREEBSD_ENVV,        31).    % Environment vvector.
 -define(AT_FREEBSD_PS_STRINGS,  32).    % struct ps_strings.
+-define(AT_FREEBSD_FXRNG,       33).    % Pointer to root RNG seed version.
+-define(AT_FREEBSD_KPRELOAD,    34).    % Base of vdso.
 
 -define(AT_SUN_UID,             2000).  % Effective user ID.
 -define(AT_SUN_RUID,            2001).  % Real user ID.
@@ -1538,7 +1590,9 @@
 -define(AT_SUN_PLATFORM,        2008).  % Platform name string.
 -define(AT_SUN_CAP_HW1,         2009).  % Machine dependent hints about
                                         % processor capabilities.
+-ifndef(AT_SUN_HWCAP).
 -define(AT_SUN_HWCAP, ?AT_SUN_CAP_HW1). % For backward compat only.
+-endif.
 -define(AT_SUN_IFLUSH,          2010).  % Should flush icache?
 -define(AT_SUN_CPU,             2011).  % CPU name string.
 -define(AT_SUN_EMUL_ENTRY,      2012).  % COFF entry point address.
