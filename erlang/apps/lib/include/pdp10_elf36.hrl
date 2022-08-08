@@ -105,8 +105,11 @@
 -define(ELFOSABI_CLOUDABI,     17). % Nuxi CloudABI
 -define(ELFOSABI_OPENVOS,      18). % Stratus Technologies OpenVOS
 -define(ELFOSABI_C6000_ELFABI, 64). % Bare-metal TMS320C6000
+-define(ELFOSABI_AMDGPU_HSA,   64). % AMD HSA Runtime
 -define(ELFOSABI_C6000_LINUX,  65). % Linux TMS320C6000
+-define(ELFOSABI_AMDGPU_PAL,   65). % AMD PAL Runtime
 -define(ELFOSABI_ARM_FDPIC,    65). % ARM FDPIC
+-define(ELFOSABI_AMDGPU_MESA3D,66). % AMD Mesa3D Runtime
 -define(ELFOSABI_ARM,          97). % ARM
 -define(ELFOSABI_STANDALONE,  255). % Standalone (embedded) application
 
@@ -377,6 +380,9 @@
 -define(EM_65816,       257).   % WDC 65816/65C816
 -define(EM_LOONGARCH,   258).   % LoongArch
 -define(EM_KF32,        259).   % ChipON KungFu32
+-define(EM_U16_U8CORE,  260).   % LAPIS nX-U16/U8
+-define(EM_TACHYUM,     261).   % Tachyum
+-define(EM_56800EF,     262).   % NXP 56800EF Digital Signal Controller (DSC)
 
 %% If it is necessary to assign new unofficial EM_* values, please pick large
 %% random numbers (16#8523, 16#a7f2, etc.) to minimize the chances of collision
@@ -824,6 +830,8 @@
                                                 %   note name must be "LINUX".
 -define(NT_ARM_HW_WATCH,        16#403).        % AArch hardware watchpoint registers
                                                 %   note name must be "LINUX".
+-define(NT_ARM_SYSTEM_CALL,     16#404).        % AArch ARM system call number
+                                                %   note name must be "LINUX".
 -define(NT_ARM_SVE,             16#405).        % AArch SVE registers.
                                                 %   note name must be "LINUX".
 -define(NT_ARM_PAC_MASK,        16#406).        % AArch pointer authentication code masks
@@ -875,17 +883,18 @@
 %% Note segments for core files on FreeBSD systems.  Note name is
 %% "FreeBSD".
 
--define(NT_FREEBSD_THRMISC,     7).     % Thread miscellaneous info.
--define(NT_FREEBSD_PROCSTAT_PROC,       8).     % Procstat proc data.
--define(NT_FREEBSD_PROCSTAT_FILES,      9).     % Procstat files data.
--define(NT_FREEBSD_PROCSTAT_VMMAP,      10).    % Procstat vmmap data.
--define(NT_FREEBSD_PROCSTAT_GROUPS,     11).    % Procstat groups data.
--define(NT_FREEBSD_PROCSTAT_UMASK,      12).    % Procstat umask data.
--define(NT_FREEBSD_PROCSTAT_RLIMIT,     13).    % Procstat rlimit data.
--define(NT_FREEBSD_PROCSTAT_OSREL,      14).    % Procstat osreldate data.
--define(NT_FREEBSD_PROCSTAT_PSSTRINGS,  15).    % Procstat ps_strings data.
--define(NT_FREEBSD_PROCSTAT_AUXV,       16).    % Procstat auxv data.
--define(NT_FREEBSD_PTLWPINFO,   17).    % Thread ptrace miscellaneous info.
+-define(NT_FREEBSD_THRMISC,             7).      % Thread miscellaneous info.
+-define(NT_FREEBSD_PROCSTAT_PROC,       8).      % Procstat proc data.
+-define(NT_FREEBSD_PROCSTAT_FILES,      9).      % Procstat files data.
+-define(NT_FREEBSD_PROCSTAT_VMMAP,      10).     % Procstat vmmap data.
+-define(NT_FREEBSD_PROCSTAT_GROUPS,     11).     % Procstat groups data.
+-define(NT_FREEBSD_PROCSTAT_UMASK,      12).     % Procstat umask data.
+-define(NT_FREEBSD_PROCSTAT_RLIMIT,     13).     % Procstat rlimit data.
+-define(NT_FREEBSD_PROCSTAT_OSREL,      14).     % Procstat osreldate data.
+-define(NT_FREEBSD_PROCSTAT_PSSTRINGS,  15).     % Procstat ps_strings data.
+-define(NT_FREEBSD_PROCSTAT_AUXV,       16).     % Procstat auxv data.
+-define(NT_FREEBSD_PTLWPINFO,           17).     % Thread ptrace miscellaneous info.
+-define(NT_FREEBSD_X86_SEGBASES,        16#200). % x86 segment base registers
 
 %% Note segments for core files on NetBSD systems.  Note name
 %% must start with "NetBSD-CORE".
