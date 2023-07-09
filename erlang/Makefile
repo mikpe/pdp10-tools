@@ -19,7 +19,7 @@
 SHELL=/bin/bash
 REBAR3=$(shell type -p rebar3 || echo ./rebar3)
 REBAR3_GIT=https://github.com/erlang/rebar3.git
-REBAR3_VSN=3.20.0
+REBAR3_VSN=3.22.0
 
 PROGRAMS=8to9 ar as ld nm od readelf sim
 
