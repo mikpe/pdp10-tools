@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% 8to9 -- convert octet files to nonet files
-%%% Copyright (C) 2013-2021  Mikael Pettersson
+%%% Copyright (C) 2013-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -23,10 +23,8 @@
 
 -record(args, {infile, outfile}).
 
+-spec main([string()]) -> no_return().
 main(Argv) ->
-  escript_runtime:start(fun main_/1, Argv).
-
-main_(Argv) ->
   case my_getopt:parse(Argv, "Vi:o:",
                        [ {"version", 'no', $V}
                        , {"infile", 'required', $i}
@@ -37,7 +35,8 @@ main_(Argv) ->
       OutFile = get_outfile(Args),
       InFile = get_infile(Args),
       copy(InFile, OutFile),
-      pdp10_stdio:fclose(OutFile);
+      pdp10_stdio:fclose(OutFile),
+      halt(0);
     {ok, {_Options, [X | _]}} ->
       escript_runtime:errmsg("non-option parameter: ~s\n", [X]),
       usage();

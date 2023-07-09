@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% 'nm' clone for pdp10-elf
-%%% Copyright (C) 2013-2021  Mikael Pettersson
+%%% Copyright (C) 2013-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -39,11 +39,8 @@
 
 %% Command-line interface ======================================================
 
+-spec main([string()]) -> no_return().
 main(Argv) ->
-  escript_runtime:start(fun main_/1, Argv).
-
--spec main_([string()]) -> no_return().
-main_(Argv) ->
   %% NYI options:
   %% -a / --debug-syms
   %% --demangle

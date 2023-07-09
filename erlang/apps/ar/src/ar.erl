@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% 'ar' clone for PDP10
-%%% Copyright (C) 2013-2020  Mikael Pettersson
+%%% Copyright (C) 2013-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -94,11 +94,8 @@
 
 %% Command-line interface ======================================================
 
+-spec main([string()]) -> no_return().
 main(Argv) ->
-  escript_runtime:start(fun main_/1, Argv).
-
--spec main_([string()]) -> no_return().
-main_(Argv) ->
   case parse_argv(Argv) of
     {ok, {Opts, ArchiveFile, Files}} ->
       ar(Opts, ArchiveFile, Files),

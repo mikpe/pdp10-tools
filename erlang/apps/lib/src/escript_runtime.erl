@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% Runtime support for stand-alone programs started as escripts.
-%%% Copyright (C) 2018-2020  Mikael Pettersson
+%%% Copyright (C) 2018-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -24,20 +24,7 @@
         , fatal/2
         , fmterr/2
         , progname/0
-        , start/2
         ]).
-
-%% TODO: remove when we're on OTP >= 24
-%% escript logs unhandled exceptions to standard output, but we want them to
-%% end up on standard error
--spec start(fun(([string()]) -> any()), [string()]) -> any().
-start(Main, Argv) ->
-  try
-    Main(Argv)
-  catch Class:Reason:Stacktrace ->
-    fmterr("~s: Unhandled exception ~p:~p\n~p\n", [progname(), Class, Reason, Stacktrace]),
-    halt(1)
-  end.
 
 -spec fatal(io:format(), [term()]) -> no_return().
 fatal(Fmt, Args) ->

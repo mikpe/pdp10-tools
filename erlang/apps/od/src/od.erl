@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% 'od' clone for files with 9-bit bytes
-%%% Copyright (C) 2013-2021  Mikael Pettersson
+%%% Copyright (C) 2013-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -38,11 +38,8 @@
 
 %% Command-line interface ======================================================
 
+-spec main([string()]) -> no_return().
 main(Argv) ->
-  escript_runtime:start(fun main_/1, Argv).
-
--spec main_([string()]) -> no_return().
-main_(Argv) ->
   case my_getopt:parse(Argv, "VbcdDiloOsxXA:j:N:t:w::",
                        [ {"version", no, $V}
                        , {"address-radix", required, $A}
