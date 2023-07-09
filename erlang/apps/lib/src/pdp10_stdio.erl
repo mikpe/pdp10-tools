@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% stdio clone for I/O with 9-bit bytes
-%%% Copyright (C) 2013-2020  Mikael Pettersson
+%%% Copyright (C) 2013-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -87,6 +87,10 @@
         ]).
 
 -record(file, {pid :: pid()}).
+-type file() :: #file{}.
+
+-export_type([ file/0
+             ]).
 
 -record(state,
         { iodev            :: file:fd() | standard_io
@@ -103,7 +107,7 @@
 %% API -------------------------------------------------------------------------
 
 -spec fopen(file:name_all(), [file:mode()])
-       -> {ok, #file{}} | {error, {module(), term()}}.
+       -> {ok, file()} | {error, {module(), term()}}.
 fopen(Path, Modes) ->
   do_open({fopen, Path, Modes}).
 
@@ -114,40 +118,40 @@ do_open(What) ->
     {error, _Reason} = Error -> Error
   end.
 
--spec fclose(#file{}) -> ok | {error, {module(), term()}}.
+-spec fclose(file()) -> ok | {error, {module(), term()}}.
 fclose(#file{pid = Pid}) ->
   gen_server:call(Pid, fclose, infinity).
 
--spec fgetc(#file{}) -> {ok, nonet()} | eof | {error, {module(), term()}}.
+-spec fgetc(file()) -> {ok, nonet()} | eof | {error, {module(), term()}}.
 fgetc(#file{pid = Pid}) ->
   gen_server:call(Pid, fgetc, infinity).
 
--spec fread(non_neg_integer(), non_neg_integer(), #file{})
+-spec fread(non_neg_integer(), non_neg_integer(), file())
         -> {ok, [nonet()]} | eof | {error, {module(), term()}}.
 fread(Size, NMemb, #file{pid = Pid}) ->
   gen_server:call(Pid, {fread, Size, NMemb}, infinity).
 
--spec fputc(nonet(), #file{}) -> ok | {error, {module(), term()}}.
+-spec fputc(nonet(), file()) -> ok | {error, {module(), term()}}.
 fputc(Nonet, #file{pid = Pid}) ->
   gen_server:call(Pid, {fputc, Nonet}, infinity).
 
--spec fputs([nonet()], #file{}) -> ok | {error, {module(), term()}}.
+-spec fputs([nonet()], file()) -> ok | {error, {module(), term()}}.
 fputs(Nonets, #file{pid = Pid}) ->
   gen_server:call(Pid, {fputs, Nonets}, infinity).
 
--spec fseek(#file{}, file:location()) -> ok | {error, {module(), term()}}.
+-spec fseek(file(), file:location()) -> ok | {error, {module(), term()}}.
 fseek(#file{pid = Pid}, Location) ->
   gen_server:call(Pid, {fseek, Location}, infinity).
 
--spec ftell(#file{}) -> non_neg_integer().
+-spec ftell(file()) -> non_neg_integer().
 ftell(#file{pid = Pid}) ->
   gen_server:call(Pid, ftell, infinity).
 
--spec stdin() -> {ok, #file{}}.
+-spec stdin() -> {ok, file()}.
 stdin() ->
   do_open(stdin).
 
--spec stdout() -> {ok, #file{}}.
+-spec stdout() -> {ok, file()}.
 stdout() ->
   do_open(stdout).
 
