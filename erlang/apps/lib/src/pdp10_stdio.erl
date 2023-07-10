@@ -89,7 +89,16 @@
 -record(file, {pid :: pid()}).
 -type file() :: #file{}.
 
+%% The file module defines but doesn't export the location/0 type. Starting with
+%% OTP-26 dialyzer considers references to unknown types as errors by default,
+%% causing the build to fail. This is a verbatim copy of the type from OTP-26.
+%% See https://github.com/erlang/otp/issues/7485.
+-type location()  :: integer() | {'bof', Offset :: integer()}
+                   | {'cur', Offset :: integer()}
+                   | {'eof', Offset :: integer()} | 'bof' | 'cur' | 'eof'.
+
 -export_type([ file/0
+             , location/0
              ]).
 
 -record(state,
@@ -139,7 +148,7 @@ fputc(Nonet, #file{pid = Pid}) ->
 fputs(Nonets, #file{pid = Pid}) ->
   gen_server:call(Pid, {fputs, Nonets}, infinity).
 
--spec fseek(file(), file:location()) -> ok | {error, {module(), term()}}.
+-spec fseek(file(), location()) -> ok | {error, {module(), term()}}.
 fseek(#file{pid = Pid}, Location) ->
   gen_server:call(Pid, {fseek, Location}, infinity).
 
