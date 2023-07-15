@@ -21,10 +21,15 @@
 -module(pdp10_elf36).
 
 -export([ read_Ehdr/1
+        , read_Ehdr/3
         , read_PhTab/2
+        , read_PhTab/4
         , read_RelaTab/2
+        , read_RelaTab/4
         , read_ShTab/2
+        , read_ShTab/4
         , read_SymTab/2
+        , read_SymTab/4
         , read_uint36/1
         , make_Ehdr/0
         , write_Ehdr/2
@@ -50,10 +55,23 @@
 -spec read_Ehdr(pdp10_stdio:file())
       -> {ok, #elf36_Ehdr{}} | {error, {module(), term()}}.
 read_Ehdr(FP) ->
-  case read_record(FP, elf36_Ehdr_desc()) of
-    {ok, Ehdr} = Result ->
-      case check_Ehdr(Ehdr) of
-        ok -> Result;
+  read_Ehdr(FP, _Base = 0, _Limit = false).
+
+-spec read_Ehdr(pdp10_stdio:file(), non_neg_integer(), false | non_neg_integer())
+      -> {ok, #elf36_Ehdr{}} | {error, {module(), term()}}.
+read_Ehdr(FP, Base, Limit) ->
+  case pdp10_stdio:fseek(FP, {bof, Base}) of
+    ok ->
+      case read_record(FP, elf36_Ehdr_desc()) of
+        {ok, Ehdr} = Result ->
+          case (Limit =:= false) orelse (pdp10_stdio:ftell(FP) =< Limit) of
+            true ->
+              case check_Ehdr(Ehdr) of
+                ok -> Result;
+                {error, _Reason} = Error -> Error
+              end;
+            false -> {error, {?MODULE, {limit, "Ehdr"}}}
+          end;
         {error, _Reason} = Error -> Error
       end;
     {error, _Reason} = Error -> Error
@@ -284,6 +302,11 @@ check_Ehdr_e_shentsize(Ehdr) ->
 -spec read_PhTab(pdp10_stdio:file(), #elf36_Ehdr{})
       -> {ok, [#elf36_Phdr{}]} | {error, {module(), term()}}.
 read_PhTab(FP, Ehdr) ->
+  read_PhTab(FP, _Base = 0, _Limit = false, Ehdr).
+
+-spec read_PhTab(pdp10_stdio:file(), non_neg_integer(), false | non_neg_integer(), #elf36_Ehdr{})
+      -> {ok, [#elf36_Phdr{}]} | {error, {module(), term()}}.
+read_PhTab(FP, Base, Limit, Ehdr) ->
   #elf36_Ehdr{ e_phoff = PhOff
              , e_phentsize = PhEntSize
              , e_phnum = PhNum } = Ehdr,
@@ -292,8 +315,16 @@ read_PhTab(FP, Ehdr) ->
      true ->
        true = PhEntSize =:= ?ELF36_PHDR_SIZEOF, % assert
        %% FIXME: if PhNum = ?PN_XNUM the real PhNum is stored in Shdr0.sh_info
-       case pdp10_stdio:fseek(FP, {bof, PhOff}) of
-         ok -> read_PhTab(FP, PhNum, []);
+       case pdp10_stdio:fseek(FP, {bof, Base + PhOff}) of
+         ok ->
+           case read_PhTab(FP, PhNum, []) of
+             {ok, _PhTab} = Result ->
+               case (Limit =:= false) orelse (pdp10_stdio:ftell(FP) =< Limit) of
+                 true -> Result;
+                 false -> {error, {?MODULE, {limit, "PhTab"}}}
+               end;
+             {error, _Reason} = Error -> Error
+           end;
          {error, _Reason} = Error -> Error
        end
   end.
@@ -310,6 +341,11 @@ read_PhTab(FP, PhNum, Phdrs) ->
 -spec read_RelaTab(pdp10_stdio:file(), #elf36_Shdr{})
       -> {ok, [#elf36_Rela{}]} | {error, {module(), term()}}.
 read_RelaTab(FP, Shdr) ->
+  read_RelaTab(FP, _Base = 0, _Limit = false, Shdr).
+
+-spec read_RelaTab(pdp10_stdio:file(), non_neg_integer(), false | non_neg_integer(), #elf36_Shdr{})
+      -> {ok, [#elf36_Rela{}]} | {error, {module(), term()}}.
+read_RelaTab(FP, Base, Limit, Shdr) ->
   #elf36_Shdr{ sh_type = ShType
              , sh_size = ShSize
              , sh_offset = ShOffset
@@ -325,8 +361,16 @@ read_RelaTab(FP, Shdr) ->
               case RelaNum of
                 0 -> {ok, []};
                 _ ->
-                  case pdp10_stdio:fseek(FP, {bof, ShOffset}) of
-                    ok -> read_RelaTab(FP, RelaNum, []);
+                  case pdp10_stdio:fseek(FP, {bof, Base + ShOffset}) of
+                    ok ->
+                      case read_RelaTab(FP, RelaNum, []) of
+                        {ok, _RelaTab} = Result ->
+                          case (Limit =:= false) orelse (pdp10_stdio:ftell(FP) =< Limit) of
+                            true -> Result;
+                            false -> {error, {?MODULE, {limit, "RelaTab"}}}
+                          end;
+                        {error, _Reason} = Error -> Error
+                      end;
                     {error, _Reason} = Error -> Error
                   end
               end;
@@ -349,22 +393,31 @@ read_RelaTab(FP, RelaNum, Relas) when RelaNum > 0 ->
 -spec read_ShTab(pdp10_stdio:file(), #elf36_Ehdr{})
       -> {ok, [#elf36_Shdr{}]} | {error, {module(), term()}}.
 read_ShTab(FP, Ehdr) ->
+  read_ShTab(FP, _Base = 0, _Limit = false, Ehdr).
+
+-spec read_ShTab(pdp10_stdio:file(), non_neg_integer(), false | non_neg_integer(), #elf36_Ehdr{})
+      -> {ok, [#elf36_Shdr{}]} | {error, {module(), term()}}.
+read_ShTab(FP, Base, Limit, Ehdr) ->
   #elf36_Ehdr{ e_shoff = ShOff
              , e_shnum = ShNum0
              , e_shstrndx = ShStrNdx } = Ehdr,
   case ShOff of
     0 -> {ok, []};
     _ ->
-      case pdp10_stdio:fseek(FP, {bof, ShOff}) of
+      case pdp10_stdio:fseek(FP, {bof, Base + ShOff}) of
         ok ->
           case read_Shdr(FP) of
             {ok, Shdr0} ->
               ShNum = actual_ShNum(ShNum0, Shdr0),
               case read_ShTab(FP, ShNum - 1, [Shdr0]) of
                 {ok, ShTab} ->
-                  case read_ShStrTab(FP, ShTab, ShStrNdx, Shdr0) of
-                    {ok, ShStrTab} -> read_ShTab_names(ShTab, ShStrTab);
-                    {error, _Reason} = Error -> Error
+                  case (Limit =:= false) orelse (pdp10_stdio:ftell(FP) =< Limit) of
+                    true ->
+                      case read_ShStrTab(FP, Base, Limit, ShTab, ShStrNdx, Shdr0) of
+                        {ok, ShStrTab} -> read_ShTab_names(ShTab, ShStrTab);
+                        {error, _Reason} = Error -> Error
+                      end;
+                    false -> {error, {?MODULE, {limit, "ShTab"}}}
                   end;
                 {error, _Reason} = Error -> Error
               end;
@@ -402,16 +455,16 @@ read_Shdr_name(Shdr = #elf36_Shdr{sh_name = ShName}, ShStrTab) ->
 
 %% I/O of ShStrTab =============================================================
 
-read_ShStrTab(FP, ShTab, ShStrNdx, Shdr0) ->
+read_ShStrTab(FP, Base, Limit, ShTab, ShStrNdx, Shdr0) ->
   case ShStrNdx of
     ?SHN_UNDEF -> {ok, []};
-    ?SHN_XINDEX -> read_StrTab(FP, ShTab, Shdr0#elf36_Shdr.sh_link);
-    _ -> read_StrTab(FP, ShTab, ShStrNdx)
+    ?SHN_XINDEX -> read_StrTab(FP, Base, Limit, ShTab, Shdr0#elf36_Shdr.sh_link);
+    _ -> read_StrTab(FP, Base, Limit, ShTab, ShStrNdx)
   end.
 
 %% I/O of StrTab ===============================================================
 
-read_StrTab(FP, ShTab, Index) ->
+read_StrTab(FP, Base, Limit, ShTab, Index) ->
   ShNum = length(ShTab),
   case Index > 0 andalso Index < ShNum of
     true ->
@@ -421,11 +474,16 @@ read_StrTab(FP, ShTab, Index) ->
                  } = lists:nth(Index + 1, ShTab),
       case Type of
         ?SHT_STRTAB ->
-          case pdp10_stdio:fseek(FP, {bof, Offset}) of
+          case pdp10_stdio:fseek(FP, {bof, Base + Offset}) of
             ok ->
               case pdp10_stdio:fread(1, Size, FP) of
+                {ok, _StrTab} = Result ->
+                  case (Limit =:= false) orelse (pdp10_stdio:ftell(FP) =< Limit) of
+                    true -> Result;
+                    false -> {error, {?MODULE, {limit, "StrTab"}}}
+                  end;
                 eof -> {error, {?MODULE, {eof_in_strtab, Index}}};
-                Other -> Other % {ok, _StrTab} or {error, _Reason}
+                {error, _Reason} = Error -> Error
               end;
             {error, _Reason} = Error -> Error
           end;
@@ -453,6 +511,11 @@ get_name(_C, [], _Acc) -> {error, {?MODULE, strtab_not_nul_terminated}}.
 -spec read_SymTab(pdp10_stdio:file(), [#elf36_Shdr{}])
       -> {ok, {[#elf36_Sym{}],non_neg_integer()}} | {error, {module(), term()}}.
 read_SymTab(FP, ShTab) ->
+  read_SymTab(FP, _Base = 0, _Limit = false, ShTab).
+
+-spec read_SymTab(pdp10_stdio:file(), non_neg_integer(), false | non_neg_integer(), [#elf36_Shdr{}])
+      -> {ok, {[#elf36_Sym{}],non_neg_integer()}} | {error, {module(), term()}}.
+read_SymTab(FP, Base, Limit, ShTab) ->
   case find_SymTab(ShTab) of
     false -> {ok, {[], ?SHN_UNDEF}};
     {ok, {Shdr, ShNdx}} ->
@@ -466,19 +529,23 @@ read_SymTab(FP, ShTab) ->
          (ShSize rem ?ELF36_SYM_SIZEOF) =/= 0 ->
            {error, {?MODULE, {wrong_symtab_sh_size, ShSize}}};
          true ->
-           case read_StrTab(FP, ShTab, ShLink) of
+           case read_StrTab(FP, Base, Limit, ShTab, ShLink) of
              {ok, StrTab} ->
                SymNum = ShSize div ?ELF36_SYM_SIZEOF,
                case SymNum of
                  0 -> {ok, {[], ShNdx}};
                  _ ->
-                   case pdp10_stdio:fseek(FP, {bof, ShOffset}) of
+                   case pdp10_stdio:fseek(FP, {bof, Base + ShOffset}) of
                      ok ->
                        case read_SymTab(FP, SymNum, []) of
                          {ok, SymTab} ->
-                           case read_SymTab_names(SymTab, StrTab) of
-                             {ok, NewSymTab} -> {ok, {NewSymTab, ShNdx}};
-                             {error, _Reason} = Error -> Error
+                           case (Limit =:= false) orelse (pdp10_stdio:ftell(FP) =< Limit) of
+                             true ->
+                               case read_SymTab_names(SymTab, StrTab) of
+                                 {ok, NewSymTab} -> {ok, {NewSymTab, ShNdx}};
+                                 {error, _Reason} = Error -> Error
+                               end;
+                             false -> {error, {?MODULE, {limit, "SymTab"}}}
                            end;
                          {error, _Reason} = Error -> Error
                        end;
@@ -729,6 +796,8 @@ format_error(Reason) ->
       io_lib:format("out of range index ~p in string table", [Index]);
     strtab_not_nul_terminated ->
       "string table not NUL-terminated";
+    {limit, What} ->
+      io_lib:format("~s extends beyond limit of embedded file", [What]);
     _ ->
       io_lib:format("~p", [Reason])
   end.
