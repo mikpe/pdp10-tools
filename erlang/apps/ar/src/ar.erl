@@ -1,6 +1,6 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
-%%% 'ar' clone for PDP10
+%%% 'ar' clone for pdp10-elf
 %%% Copyright (C) 2013-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
@@ -209,7 +209,7 @@ read_output_archive(ArchiveFile) ->
   case read_archive_file(ArchiveFile) of
     {ok, {_FP, _Archive}} = Result -> Result;
     {error, enoent} ->
-      FP = [],
+      FP = false,
       Archive = make_archive(symtab_none(), _Members = []),
       {ok, {FP, Archive}};
     {error, _Reason} = Error -> Error
@@ -221,7 +221,7 @@ ar_dqr(Opts, ArchiveFile, OldFP, Archive, Files) ->
     write_tmp_archive(ArchiveFile, OldFP, NewArchive)
   after
     case OldFP of
-      [] -> ok;
+      false -> ok;
       _ -> pdp10_stdio:fclose(OldFP)
     end
   end.
@@ -397,10 +397,10 @@ ar_tx_fileset_to_list(FileSet) -> fileset_to_list(FileSet).
 ar_tx_fileset_is_none(false) -> true;
 ar_tx_fileset_is_none(_FileSet) -> false.
 
-fileset_delete(File, FileSet) -> gb_sets:delete(File, FileSet).
-fileset_from_list(Files) -> gb_sets:from_list(Files).
-fileset_is_element(File, FileSet) -> gb_sets:is_element(File, FileSet).
-fileset_to_list(FileSet) -> gb_sets:to_list(FileSet).
+fileset_delete(File, FileSet) -> maps:remove(File, FileSet).
+fileset_from_list(Files) -> maps:from_keys(Files, []).
+fileset_is_element(File, FileSet) -> maps:is_key(File, FileSet).
+fileset_to_list(FileSet) -> maps:keys(FileSet).
 
 %% ar t ========================================================================
 
@@ -496,7 +496,7 @@ write_tmp_archive(ArchiveFile, OldFP, Archive) ->
 
 archive_strtabify(Archive) ->
   {NewArchive, {_Offset, StrTabRev}} =
-    archive_members_mapfoldl(Archive, {0, []}, fun member_strtabify/2),
+    archive_members_mapfoldl(Archive, {0, ""}, fun member_strtabify/2),
   {lists:reverse(StrTabRev), NewArchive}.
 
 member_strtabify(Member, Acc = {Offset, StrTabRev}) ->
@@ -985,10 +985,10 @@ strtab_lookup(StrTab, Offset) when StrTab =/= [] ->
 -type write_tail() :: fun((pdp10_stdio:file()) -> ok | {error, term()}).
 
 -record(record_desc,
-          { tag :: atom()
-          , fields :: [{read_field(), write_field()}]
-          , tail :: {read_tail(), write_tail()}
-          }).
+        { tag :: atom()
+        , fields :: [{read_field(), write_field()}]
+        , tail :: {read_tail(), write_tail()}
+        }).
 
 read_record(FP, #record_desc{tag = Tag, fields = Fields, tail = Tail}) ->
   read_record(FP, Fields, Tail, [Tag]).
