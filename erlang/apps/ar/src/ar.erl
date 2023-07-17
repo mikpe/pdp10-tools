@@ -676,11 +676,11 @@ read_archive_strtab(FP, SymTab) ->
 read_archive_strtab(FP, SymTab, ArHdr) ->
   case ArHdr#arhdr.ar_name of
     "//" ->
-      case read_strtab(FP, ArHdr) of
+      case read_strtab(FP, ArHdr#arhdr.ar_size) of
         {ok, StrTab} -> read_archive_members(FP, SymTab, StrTab, []);
         {error, _Reason} = Error -> Error
       end;
-    _ -> read_archive_members(FP, SymTab, strtab_none(), [], ArHdr)
+    _ -> read_archive_members(FP, SymTab, strtab_empty(), [], ArHdr)
   end.
 
 read_archive_members(FP, SymTab, StrTab, Members) ->
@@ -714,8 +714,8 @@ read_archive_members(FP, SymTab, StrTab, Members, ArHdr) ->
 finalise_ar_name(_StrTab, Name) when is_list(Name) -> {ok, Name};
 finalise_ar_name(StrTab, Offset) when is_integer(Offset) ->
   case strtab_lookup(StrTab, Offset) of
-    {ok, _Name} = Result -> Result;
-    false -> {error, invalid_strtab_offset}
+    false -> {error, invalid_strtab_offset};
+    Name -> {ok, Name}
   end.
 
 %% Unfortunately fseek() and file:position/2 allow seeking past the end of
@@ -933,19 +933,28 @@ read_word_be(FP, N, Acc) ->
   end.
 
 %% string table ================================================================
+%%
+%% The string table is stored as a sequence of strings each terminated by "/\n".
+%% It's referenced from ar_names on the form "/<offset>" where <offset> is the
+%% offset in the string table for the start of the corresponding <name>. Offsets
+%% may not refer to interior points in strings. (TODO: check this)
+%%
+%% During input we read the string table, create a mapping from offsets to names,
+%% and consult that for ar_names that reference the string table.
 
-read_strtab(FP, #arhdr{ar_size = Size}) ->
+read_strtab(FP, Size) ->
   case read_string(FP, Size) of
     {ok, String} ->
       case read_padding(FP, Size) of
         ok -> scan_strtab(String);
-        eof -> {ok, strtab_none()};
+        eof -> {ok, strtab_empty()};
         {error, _Reason} = Error -> Error
       end;
     {error, _Reason} = Error -> Error
   end.
 
-scan_strtab(String) -> scan_strtab(String, 0, strtab_new()).
+scan_strtab(String) ->
+  scan_strtab(String, 0, strtab_empty()).
 
 scan_strtab([], _Offset, StrTab) -> {ok, StrTab};
 scan_strtab([16#0A], _Offset, StrTab) -> {ok, StrTab};
@@ -957,7 +966,8 @@ scan_strtab(String, Offset, StrTab) ->
     {error, _Reason} = Error -> Error
   end.
 
-split_strtab(String) -> split_strtab(String, []).
+split_strtab(String) ->
+  split_strtab(String, []).
 
 split_strtab([16#2F, 16#0A | Rest], First) ->
   {ok, {lists:reverse(First), Rest}};
@@ -968,14 +978,14 @@ split_strtab([16#0A | _Rest], _First) ->
 split_strtab([Ch | Rest], First) ->
   split_strtab(Rest, [Ch | First]).
 
-strtab_none() -> [].
-strtab_new() -> gb_trees:empty().
-strtab_insert(StrTab, Offset, String) -> gb_trees:insert(Offset, String, StrTab).
-strtab_lookup(StrTab, Offset) when StrTab =/= [] ->
-  case gb_trees:lookup(Offset, StrTab) of
-    {value, String} -> {ok, String};
-    none -> false % ar_name doesn't match the start of a strtab entry
-  end.
+strtab_empty() ->
+  maps:new().
+
+strtab_insert(StrTab, Offset, String) ->
+  maps:put(Offset, String, StrTab).
+
+strtab_lookup(StrTab, Offset) ->
+  maps:get(Offset, StrTab, false).
 
 %% descriptor-based record I/O =================================================
 
