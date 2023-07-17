@@ -166,7 +166,7 @@ parse_modifier(C, Opts, OpMods) ->
 
 check_opmods(C, OpMods, Opts) ->
   case lists:member(C, OpMods) of
-    true -> {op, Opts};
+    true -> {ok, Opts};
     false -> {error, io_lib:format("invalid modifier for operation: ~c", [C])}
   end.
 
@@ -208,7 +208,7 @@ ar_dqr(Opts, ArchiveFile, Files) ->
 read_output_archive(ArchiveFile) ->
   case read_archive_file(ArchiveFile) of
     {ok, {_FP, _Archive}} = Result -> Result;
-    {error, enoent} ->
+    {error, {file, enoent}} ->
       FP = false,
       Archive = make_archive(symtab_none(), _Members = []),
       {ok, {FP, Archive}};
@@ -1102,7 +1102,7 @@ read_ar_gid(FP) ->
 read_ar_mag(FP) ->
   case read_string(FP, ?PDP10_SARMAG) of
     {ok, ?PDP10_ARMAG} -> ok;
-    {ok, Str} -> {errror, {invalid_armag, Str}};
+    {ok, Str} -> {error, {invalid_armag, Str}};
     {error, _Reason} = Error -> Error
   end.
 
