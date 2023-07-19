@@ -1,4 +1,4 @@
-%%% Copyright (C) 2018  Mikael Pettersson
+%%% Copyright (C) 2018-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -16,8 +16,8 @@
 %%% along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
 
 {application, '8to9',
- [{description, "Converts octet files to nonet files"},
-  {vsn, "0.1.0"},
+ [{description, "Converts octet files to nonet files and back"},
+  {vsn, "0.2.0"},
   {registered, []},
   {applications, [kernel, stdlib, lib]},
   {env, []},
