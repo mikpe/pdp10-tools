@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
-%%% pdp10_elf36.hrl -- AR definitions for PDP10
-%%% Copyright (C) 2013-2019  Mikael Pettersson
+%%% pdp10_ar.hrl -- AR definitions for pdp10-elf
+%%% Copyright (C) 2013-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
