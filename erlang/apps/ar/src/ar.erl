@@ -74,7 +74,7 @@
 -type label() :: nonempty_list(integer()).
 
 -record(archive,
-        { symtab        % TODO: implement SymTab
+        { symtab        :: #{string() => label()} | false
         , members       :: gb_trees:tree(label(),
                                          {non_neg_integer(), #member{} | []})
         , labelmap      :: #{string() => nonempty_list(label())}
@@ -210,7 +210,7 @@ read_output_archive(ArchiveFile) ->
     {ok, {_FP, _Archive}} = Result -> Result;
     {error, {file, enoent}} ->
       FP = false,
-      Archive = make_archive(symtab_none(), _Members = []),
+      {ok, Archive} = make_archive(_SymTab = [], _Members = []),
       {ok, {FP, Archive}};
     {error, _Reason} = Error -> Error
   end.
@@ -654,14 +654,14 @@ read_archive_symtab(FP) ->
     {ok, ArHdr} ->
       case ArHdr#arhdr.ar_name of
         "/" ->
-          case read_symtab(FP, ArHdr) of
+          case read_symtab(FP, ArHdr#arhdr.ar_size) of
             {ok, SymTab} -> read_archive_strtab(FP, SymTab);
             {error, _Reason} = Error -> Error
           end;
         _ -> read_archive_strtab(FP, symtab_none(), ArHdr)
       end;
     {error, eof} ->
-      {ok, make_archive(symtab_none(), _Members = [])};
+      make_archive(_SymTab = [], _Members = []);
     {error, _Reason} = Error -> Error
   end.
 
@@ -669,7 +669,7 @@ read_archive_strtab(FP, SymTab) ->
   case read_arhdr(FP) of
     {ok, ArHdr} -> read_archive_strtab(FP, SymTab, ArHdr);
     {error, eof} ->
-      {ok, make_archive(SymTab, _Members = [])};
+      make_archive(_SymTab = [], _Members = []);
     {error, _Reason} = Error -> Error
   end.
 
@@ -688,7 +688,7 @@ read_archive_members(FP, SymTab, StrTab, Members) ->
     {ok, ArHdr} ->
       read_archive_members(FP, SymTab, StrTab, Members, ArHdr);
     {error, eof} ->
-      {ok, make_archive(SymTab, lists:reverse(Members))};
+      make_archive(SymTab, lists:reverse(Members));
     {error, _Reason} = Error ->
       Error
   end.
@@ -704,7 +704,7 @@ read_archive_members(FP, SymTab, StrTab, Members, ArHdr) ->
         ok ->
           read_archive_members(FP, SymTab, StrTab, NewMembers);
         eof ->
-          {ok, make_archive(SymTab, lists:reverse(NewMembers))};
+          make_archive(SymTab, lists:reverse(NewMembers));
         {error, _Reason} = Error ->
           Error
       end;
@@ -749,13 +749,38 @@ read_padding(FP, Size) ->
 
 %% cooked archives =============================================================
 
-make_archive(SymTab, Members) ->
+make_archive(PreSymTab, Members) ->
   {LabelledMembers, LabelMap} = make_archive(Members),
-  #archive{ symtab = SymTab
-          , members = gb_trees:from_orddict(lists:reverse(LabelledMembers))
-          , labelmap = maps:map(fun(_Name, Labels) -> lists:reverse(Labels) end,
-                                LabelMap)
-          }.
+  case make_symtab(PreSymTab, LabelledMembers) of
+    {ok, SymTab} ->
+      Archive =
+        #archive{ symtab = SymTab
+                , members = gb_trees:from_orddict(lists:reverse(LabelledMembers))
+                , labelmap = maps:map(fun(_Name, Labels) -> lists:reverse(Labels) end,
+                                      LabelMap)
+                },
+      {ok, Archive};
+    {error, _Reason} = Error -> Error
+  end.
+
+make_symtab(PreSymTab, LabelledMembers) ->
+  case PreSymTab =:= symtab_none() of
+    true -> {ok, symtab_none()};
+    false ->
+      OffsetToLabelMap =
+        lists:foldl(
+          fun({Label, {_NrRight, #member{data = Offset}}}, Map) when is_integer(Offset) ->
+            maps:put(Offset, Label, Map)
+          end, maps:new(), LabelledMembers),
+      make_symtab(PreSymTab, OffsetToLabelMap, symtab_empty())
+  end.
+
+make_symtab([], _OffsetToLabelMap, SymTab) -> {ok, SymTab};
+make_symtab([{Offset, Name} | PreSymTab], OffsetToLabelMap, SymTab) ->
+  case maps:get(Offset + ?PDP10_ARHDR_SIZEOF, OffsetToLabelMap, false) of
+    false -> {error, invalid_symbol_table};
+    Label -> make_symtab(PreSymTab, OffsetToLabelMap, symtab_insert(SymTab, Name, Label))
+  end.
 
 make_archive(Members) ->
   make_archive(Members, 1, [{[0], {0, []}}], maps:new()).
@@ -841,34 +866,31 @@ archive_members_mapfoldl(Archive, Init, Fun) ->
 
 -define(WORDSIZE, 4).
 
-read_symtab(FP, #arhdr{ar_size = Size}) ->
-  true = Size >= ?WORDSIZE, % assert
+read_symtab(FP, Size) when Size >= ?WORDSIZE ->
   case read_word_be(FP) of
-    {ok, NrSymbols} ->
-      true = Size >= (NrSymbols + 1) * ?WORDSIZE, % assert
+    {ok, NrSymbols} when Size >= (NrSymbols + 1) * ?WORDSIZE ->
       case read_words_be(FP, NrSymbols) of
         {ok, Offsets} ->
           case read_string(FP, Size - (NrSymbols + 1) * ?WORDSIZE) of
-           {ok, StrBuf} ->
-             case read_padding(FP, Size) of
-               {error, _Reason} = Error -> Error;
-               _ -> make_symtab(Offsets, StrBuf) % ok or eof
-             end;
-           {error, _Reason} = Error -> Error
+            {ok, StrBuf} ->
+              case read_padding(FP, Size) of
+                {error, _Reason} = Error -> Error;
+                _ -> make_pre_symtab(Offsets, StrBuf) % ok or eof
+              end;
+            {error, _Reason} = Error -> Error
           end;
         {error, _Reason} = Error -> Error
       end;
+    {ok, _NrSymbols} -> {error, invalid_symbol_table};
     {error, _Reason} = Error -> Error
-  end.
+  end;
+read_symtab(_FP, _Size) -> {error, invalid_symbol_table}.
 
-make_symtab(Offsets, StrBuf) ->
+make_pre_symtab(Offsets, StrBuf) ->
   case split_strbuf(StrBuf) of
     {ok, Names} ->
       case safe_zip(Offsets, Names) of
-        {ok, OffsetNamePairs} ->
-          {ok, lists:foldl(fun({Offset, Name}, SymTab) ->
-                             symtab_insert(SymTab, Name, Offset)
-                           end, symtab_new(), OffsetNamePairs)};
+        {ok, _PreSymTab} = Result -> Result;
         {error, _Reason} -> {error, invalid_symbol_table}
       end;
     {error, _Reason} = Error -> Error
@@ -897,15 +919,18 @@ safe_zip(As, Bs) ->
     error:Reason -> {error, Reason}
   end.
 
-symtab_none() -> [].
-symtab_new() -> gb_trees:empty().
-symtab_insert(SymTab, Name, Offset) -> gb_trees:insert(Name, Offset, SymTab).
+symtab_none() ->
+  false.
+
+symtab_empty() ->
+  maps:new().
+
+symtab_insert(SymTab, Name, Offset) ->
+  maps:put(Name, Offset, SymTab).
+
 -ifdef(notdef).
-symtab_lookup(SymTab, Name) when SymTab =/= [] ->
-  case gb_trees:lookup(SymTab, Name) of
-    {value, Offset} -> {ok, Offset};
-    none -> false
-  end.
+symtab_lookup(SymTab, Name) ->
+  maps:get(Name, SymTab, false).
 -endif.
 
 read_words_be(FP, NrWords) -> read_words_be(FP, NrWords, []).
@@ -917,18 +942,18 @@ read_words_be(FP, N, Words) ->
     {error, _Reason} = Error -> Error
   end.
 
-%% FIXME: functionally equivalent to nm:pdp10_elf36_read_uint36/1
+%% FIXME: functionally equivalent to pdp10_elf36:read_uint36/1
 read_word_be(FP) -> read_word_be(FP, ?WORDSIZE, []).
 
 read_word_be(_FP, 0, [B4, B3, B2, B1]) ->
   {ok, ((B1 band 16#1FF) bsl 27) bor
-       ((B2 band 16#1FF) bsl 19) bor
+       ((B2 band 16#1FF) bsl 18) bor
        ((B3 band 16#1FF) bsl  9) bor
         (B4 band 16#1FF)};
 read_word_be(FP, N, Acc) ->
   case pdp10_stdio:fgetc(FP) of
     {ok, Byte} -> read_word_be(FP, N - 1, [Byte | Acc]);
-    eof -> {error, invalid_symbol_table};
+    eof -> {error, premature_eof};
     {error, _Reason} = Error -> Error
   end.
 
