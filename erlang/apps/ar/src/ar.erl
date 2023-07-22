@@ -515,15 +515,22 @@ member_strtabify(Member, Acc = {Offset, StrTabRev}) ->
   end.
 
 write_archive(DstFP, StrTab, RawArchive, OldFP) ->
-  %% FIXME: handle SymTab
+  SymTab = symtab_empty(), % FIXME
+  write_archive(DstFP, SymTab, StrTab, RawArchive, OldFP).
+
+write_archive(DstFP, SymTab, StrTab, RawArchive, OldFP) ->
   case write_ar_mag(DstFP) of
     {error, _Reason} = Error -> Error;
     ok ->
-      case write_strtab(DstFP, StrTab) of
+      case write_symtab(DstFP, SymTab, StrTab, RawArchive) of
         {error, _Reason} = Error -> Error;
         ok ->
-          Members = archive_members_iterator(RawArchive),
-          write_members(DstFP, Members, OldFP)
+          case write_strtab(DstFP, StrTab) of
+            {error, _Reason} = Error -> Error;
+            ok ->
+              Members = archive_members_iterator(RawArchive),
+              write_members(DstFP, Members, OldFP)
+          end
       end
   end.
 
@@ -863,6 +870,23 @@ archive_members_mapfoldl(Archive, Init, Fun) ->
   {Archive#archive{members = NewMembers}, Result}.
 
 %% symbol table ================================================================
+%%
+%% The symbol table is stored as a sequence of three pieces of data:
+%% 1. The COUNT of symbols in the table, as a 4-byte big-endian integer.
+%% 2. A sequence of COUNT offsets to the AR headers for the members defining
+%%    those symbols. Each offset is a 4-byte big-endian integer.
+%% 3. A sequence of COUNT NUL-terminated names for those symbols.
+%%
+%% On input the symbol table is first a list of {Offset, Name} pairs (PreSymTab).
+%% Once the members are known and have been labelled, PreSymTab is converted to
+%% a map from each symbol's NAME to the LABEL for its defining member.
+%%
+%% On output the symbol table is first recomputed, unless it is still valid.
+%% Any change to the archive's members invalidates the internal symbol table.
+%%
+%% Once the symbol table is known its size is computed and the offsets of the
+%% members in the output archive are computed and recorded in a map. This map
+%% is consulted during output to convert member labels to member offsets.
 
 -define(WORDSIZE, 4).
 
@@ -928,6 +952,9 @@ symtab_empty() ->
 symtab_insert(SymTab, Name, Offset) ->
   maps:put(Name, Offset, SymTab).
 
+symtab_fold(Fun, Init, SymTab) ->
+  maps:fold(Fun, Init, SymTab).
+
 -ifdef(notdef).
 symtab_lookup(SymTab, Name) ->
   maps:get(Name, SymTab, false).
@@ -939,6 +966,66 @@ read_words_be(_FP, 0, Words) -> {ok, lists:reverse(Words)};
 read_words_be(FP, N, Words) ->
   case read_word_be(FP) of
     {ok, Word} -> read_words_be(FP, N - 1, [Word | Words]);
+    {error, _Reason} = Error -> Error
+  end.
+
+write_symtab(FP, SymTab, StrTab, RawArchive) ->
+  case symtab_fold(fun write_symtab_foldf/3, {[], []}, SymTab) of
+    {[], []} -> ok;
+    {Labels, Strings} ->
+      NrSymbols = length(Labels),
+      SymTabSize = ?WORDSIZE * (1 + NrSymbols) + length(Strings),
+      InitialOffset =
+        ?PDP10_SARMAG + special_member_size(SymTabSize) + special_member_size(length(StrTab)),
+      LabelToOffsetMap = make_label_to_offset_map(RawArchive, InitialOffset),
+      ArHdr = #arhdr{ ar_name = "/"
+                    , ar_date = 0
+                    , ar_uid = 0
+                    , ar_gid = 0
+                    , ar_mode = 0
+                    , ar_size = SymTabSize
+                    },
+      case write_arhdr(FP, ArHdr) of
+        ok ->
+          case write_word_be(FP, NrSymbols) of
+            ok ->
+              case write_offsets(FP, Labels, LabelToOffsetMap) of
+                ok ->
+                  case fputs(Strings, FP) of
+                    ok -> write_padding(FP, SymTabSize);
+                    {error, _Reason} = Error -> Error
+                  end;
+                {error, _Reason} = Error -> Error
+              end
+          end;
+        {error, _Reason} = Error -> Error
+      end
+  end.
+
+make_label_to_offset_map(RawArchive, InitialOffset) ->
+  make_label_to_offset_map(archive_members_iterator(RawArchive), InitialOffset, maps:new()).
+
+make_label_to_offset_map(Members, Offset, Map) ->
+  case members_iterator_next(Members) of
+    none -> Map;
+    {Label, Member, RestMembers} ->
+      Size = ?PDP10_ARHDR_SIZEOF + pad_size(Member#member.arhdr#arhdr.ar_size),
+      make_label_to_offset_map(RestMembers, Offset + Size, maps:put(Label, Offset, Map))
+  end.
+
+special_member_size(0) -> 0;
+special_member_size(Size) -> ?PDP10_ARHDR_SIZEOF + pad_size(Size).
+
+pad_size(Size) ->
+  Size + (Size band 1).
+
+write_symtab_foldf(String, Offset, {Offsets, Strings}) ->
+  {[Offset | Offsets], String ++ [16#00] ++ Strings}.
+
+write_offsets(_FP, [], _LabelToOffsetMap) -> ok;
+write_offsets(FP, [Label | Labels], LabelToOffsetMap) ->
+  case write_word_be(FP, maps:get(Label, LabelToOffsetMap)) of
+    ok -> write_offsets(FP, Labels, LabelToOffsetMap);
     {error, _Reason} = Error -> Error
   end.
 
@@ -956,6 +1043,13 @@ read_word_be(FP, N, Acc) ->
     eof -> {error, premature_eof};
     {error, _Reason} = Error -> Error
   end.
+
+write_word_be(FP, Word) ->
+  B1 = (Word bsr 27) band 16#1FF,
+  B2 = (Word bsr 18) band 16#1FF,
+  B3 = (Word bsr  9) band 16#1FF,
+  B4 = Word band 16#1FF,
+  fputs([B1, B2, B3, B4], FP).
 
 %% string table ================================================================
 %%
