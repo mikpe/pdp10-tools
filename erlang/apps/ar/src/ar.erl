@@ -54,6 +54,7 @@
 
 -include_lib("kernel/include/file.hrl").
 -include_lib("ar/include/pdp10_ar.hrl").
+-include_lib("lib/include/pdp10_elf36.hrl").
 
 %% in-core version of the ar header
 -record(arhdr,
@@ -515,10 +516,7 @@ member_strtabify(Member, Acc = {Offset, StrTabRev}) ->
   end.
 
 write_archive(DstFP, StrTab, RawArchive, OldFP) ->
-  SymTab = symtab_empty(), % FIXME
-  write_archive(DstFP, SymTab, StrTab, RawArchive, OldFP).
-
-write_archive(DstFP, SymTab, StrTab, RawArchive, OldFP) ->
+  SymTab = archive_symtab(RawArchive, OldFP),
   case write_ar_mag(DstFP) of
     {error, _Reason} = Error -> Error;
     ok ->
@@ -869,6 +867,79 @@ archive_members_mapfoldl(Archive, Init, Fun) ->
   NewMembers = gb_trees:from_orddict([HiddenMember | UpdatedMembers]),
   {Archive#archive{members = NewMembers}, Result}.
 
+%% assemble symbol table =======================================================
+
+archive_symtab(Archive = #archive{symtab = SymTab}, ArchiveFP) ->
+  case SymTab =:= symtab_none() of
+    true -> archive_symtab(archive_members_iterator(Archive), ArchiveFP, symtab_empty());
+    false -> SymTab
+  end.
+
+archive_symtab(Members, ArchiveFP, SymTab) ->
+  case members_iterator_next(Members) of
+    none -> SymTab;
+    {Label, Member, RestMembers} ->
+      archive_symtab(RestMembers, ArchiveFP, archive_symtab(Label, Member, ArchiveFP, SymTab))
+  end.
+
+archive_symtab(Label, Member, ArchiveFP, SymTab) ->
+  case read_member_symtab(ArchiveFP, Member) of
+    false -> SymTab;
+    Symbols ->
+      lists:foldl(
+        fun(Symbol, Acc) ->
+          case symtab_lookup(Acc, Symbol) of
+            false -> symtab_insert(Acc, Symbol, Label);
+            _ -> Acc % defined by earlier member
+          end
+        end, SymTab, Symbols)
+  end.
+
+%% member symbol table =========================================================
+%%
+%% Read the symbol table of a member. For now this only recognizes pdp10-elf.
+
+read_member_symtab(ArchiveFP, Member) ->
+  #member{arhdr = ArHdr, data = Data} = Member,
+  case Data of
+    Offset when is_integer(Offset) -> % member in the initial input archive
+      read_member_symtab(ArchiveFP, Offset, ArHdr#arhdr.ar_size);
+    File when is_list(File) -> % file added to the output archive
+      case pdp10_stdio:fopen(File, [raw, read]) of
+        {ok, MemberFP} ->
+          try
+            read_member_symtab(MemberFP, _Base = 0, _Limit = false)
+          after
+            pdp10_stdio:fclose(MemberFP)
+          end;
+        {error, _Reason} -> false
+      end
+  end.
+
+read_member_symtab(FP, Base, Limit) ->
+  case pdp10_elf36:read_Ehdr(FP, Base, Limit) of
+    {ok, Ehdr} ->
+      case pdp10_elf36:read_ShTab(FP, Base, Limit, Ehdr) of
+        {ok, ShTab} ->
+          case pdp10_elf36:read_SymTab(FP, Base, Limit, ShTab) of
+            {ok, {SymTab, _ShNdx}} -> filter_member_symtab(SymTab);
+            {error, _Reason} -> false
+          end;
+        {error, _Reason} -> false
+      end;
+    {error, _Reason} -> false
+  end.
+
+filter_member_symtab(SymTab) ->
+  lists:filtermap(
+    fun(#elf36_Sym{st_info = Info, st_shndx = ShNdx, st_name = Name}) ->
+      case ?ELF36_ST_BIND(Info) of
+        ?STB_GLOBAL when ShNdx =/= ?SHN_UNDEF -> {true, Name};
+        ?STB_WEAK -> {true, Name}; % FIXME: does a later non-weak definition override this one?
+        _ -> false
+      end
+    end, SymTab).
+
 %% symbol table ================================================================
 %%
 %% The symbol table is stored as a sequence of three pieces of data:
@@ -955,10 +1026,8 @@ symtab_insert(SymTab, Name, Offset) ->
 symtab_fold(Fun, Init, SymTab) ->
   maps:fold(Fun, Init, SymTab).
 
--ifdef(notdef).
 symtab_lookup(SymTab, Name) ->
   maps:get(Name, SymTab, false).
--endif.
 
 read_words_be(FP, NrWords) -> read_words_be(FP, NrWords, []).
 
