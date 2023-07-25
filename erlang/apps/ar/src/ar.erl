@@ -89,6 +89,7 @@
         , mod_D = false % true iff D modifier present
         , mod_o = false % true iff o modifier present
         , mod_O = false % true iff O modifier present
+        , mod_S = false % true iff S modifier present
         }).
 
 -type file() :: pdp10_stdio:file().
@@ -108,7 +109,7 @@ main(Argv) ->
 
 usage() ->
   escript_runtime:fmterr(
-    "Usage: ~s [-][dqrstx][csuvV] <archive> <member..>\n",
+    "Usage: ~s [-][dqrstx][csSuvV] <archive> <member..>\n",
     [escript_runtime:progname()]),
   halt(1).
 
@@ -151,7 +152,6 @@ parse_modifier(C, Opts, OpMods) ->
   %% N - NYI
   %% f - NYI
   %% P - NYI
-  %% S - NYI - TODO
   %% T - NYI
   case C of
     $c -> {ok, Opts#options{mod_c = true}};
@@ -159,7 +159,8 @@ parse_modifier(C, Opts, OpMods) ->
     $U -> {ok, Opts#options{mod_D = false}};
     $o -> check_opmods($o, OpMods, Opts#options{mod_o = true});
     $O -> check_opmods($O, OpMods, Opts#options{mod_O = true});
-    $s -> {ok, Opts}; % default, no effect until (capital) S is supported
+    $s -> {ok, Opts#options{mod_S = false}};
+    $S -> {ok, Opts#options{mod_S = true}};
     $u -> check_opmods($u, OpMods, Opts#options{mod_u = true});
     $v -> {ok, Opts#options{mod_v = true}};
     $V -> version();
@@ -219,7 +220,7 @@ read_output_archive(ArchiveFile) ->
 ar_dqrs(Opts, ArchiveFile, OldFP, Archive, Files) ->
   try
     {ok, NewArchive} = ar_dqrs_dispatch(Opts, Archive, Files),
-    write_tmp_archive(ArchiveFile, OldFP, NewArchive)
+    write_tmp_archive(Opts, ArchiveFile, OldFP, NewArchive)
   after
     case OldFP of
       false -> ok;
@@ -484,12 +485,12 @@ ar_x_member(Opts, ArchiveFP, Member) ->
 
 %% archive output ==============================================================
 
-write_tmp_archive(ArchiveFile, OldFP, Archive) ->
+write_tmp_archive(Opts, ArchiveFile, OldFP, Archive) ->
   {StrTab, RawArchive} = archive_strtabify(Archive),
   case mkstemp(filename:dirname(ArchiveFile), ".artmp") of
     {ok, {TmpFile, TmpFP}} ->
       try
-        case write_archive(TmpFP, StrTab, RawArchive, OldFP) of
+        case write_archive(Opts, TmpFP, StrTab, RawArchive, OldFP) of
           ok -> {ok, TmpFile};
           {error, _Reason} = Error -> Error
         end
@@ -519,8 +520,12 @@ member_strtabify(Member, Acc = {Offset, StrTabRev}) ->
       {NewMember, {NewOffset, NewStrTabRev}}
   end.
 
-write_archive(DstFP, StrTab, RawArchive, OldFP) ->
-  SymTab = archive_symtab(RawArchive, OldFP),
+write_archive(Opts, DstFP, StrTab, RawArchive, OldFP) ->
+  SymTab =
+    case Opts#options.mod_S of
+      true -> symtab_empty();
+      false -> archive_symtab(RawArchive, OldFP)
+    end,
   case write_ar_mag(DstFP) of
     {error, _Reason} = Error -> Error;
     ok ->
