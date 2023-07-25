@@ -82,7 +82,7 @@
         }).
 
 -record(options,
-        { operation     % d, q, r, t, or x
+        { operation     % d, q, r, s, t, or x
         , mod_c = false % true iff c modifier present
         , mod_u = false % true iff u modifier present
         , mod_v = false % true iff v modifier present
@@ -108,7 +108,7 @@ main(Argv) ->
 
 usage() ->
   escript_runtime:fmterr(
-    "Usage: ~s [-]{d,q,r,t,x}[cuvV] <archive> <member..>\n",
+    "Usage: ~s [-][dqrstx][csuvV] <archive> <member..>\n",
     [escript_runtime:progname()]),
   halt(1).
 
@@ -119,11 +119,11 @@ parse_argv([]) -> {error, "no operation specified"}.
 parse_operation(Arg, Argv) ->
   %% m - NYI
   %% p - NYI
-  %% s - NYI - TODO
   case Arg of
     [$d | Mod] -> parse_modifiers(Mod, Argv, $d, []);
     [$q | Mod] -> parse_modifiers(Mod, Argv, $q, []); % TODO: f
     [$r | Mod] -> parse_modifiers(Mod, Argv, $r, [$u]); % TODO: a, b/i, f
+    [$s | Mod] -> parse_modifiers(Mod, Argv, $s, []);
     [$t | Mod] -> parse_modifiers(Mod, Argv, $t, [$O]);
     [$x | Mod] -> parse_modifiers(Mod, Argv, $x, [$o]);
     [$V | _] -> version();
@@ -151,7 +151,6 @@ parse_modifier(C, Opts, OpMods) ->
   %% N - NYI
   %% f - NYI
   %% P - NYI
-  %% s - NYI - TODO
   %% S - NYI - TODO
   %% T - NYI
   case C of
@@ -160,6 +159,7 @@ parse_modifier(C, Opts, OpMods) ->
     $U -> {ok, Opts#options{mod_D = false}};
     $o -> check_opmods($o, OpMods, Opts#options{mod_o = true});
     $O -> check_opmods($O, OpMods, Opts#options{mod_O = true});
+    $s -> {ok, Opts}; % default, no effect until (capital) S is supported
     $u -> check_opmods($u, OpMods, Opts#options{mod_u = true});
     $v -> {ok, Opts#options{mod_v = true}};
     $V -> version();
@@ -187,18 +187,18 @@ parse_archive(Argv, Opts) ->
 
 ar(Opts, ArchiveFile, Files) ->
   case Opts#options.operation of
-    Op when Op =:= $d; Op =:= $q; Op =:= $r ->
-      ar_dqr(Opts, ArchiveFile, Files);
+    Op when Op =:= $d; Op =:= $q; Op =:= $r; Op =:= $s ->
+      ar_dqrs(Opts, ArchiveFile, Files);
     Op when Op =:= $t; Op =:= $x ->
       ar_tx(Opts, ArchiveFile, Files)
   end.
 
-%% ar d/q/r code ===============================================================
+%% ar d/q/r/s code =============================================================
 
-ar_dqr(Opts, ArchiveFile, Files) ->
+ar_dqrs(Opts, ArchiveFile, Files) ->
   case read_output_archive(ArchiveFile) of
     {ok, {FP, Archive}} ->
-      case ar_dqr(Opts, ArchiveFile, FP, Archive, Files) of
+      case ar_dqrs(Opts, ArchiveFile, FP, Archive, Files) of
         {ok, TmpFile} -> file:rename(TmpFile, ArchiveFile);
         {error, Reason} -> escript_runtime:fatal("~p\n", [Reason])
       end;
@@ -216,9 +216,9 @@ read_output_archive(ArchiveFile) ->
     {error, _Reason} = Error -> Error
   end.
 
-ar_dqr(Opts, ArchiveFile, OldFP, Archive, Files) ->
+ar_dqrs(Opts, ArchiveFile, OldFP, Archive, Files) ->
   try
-    {ok, NewArchive} = ar_dqr_dispatch(Opts, Archive, Files),
+    {ok, NewArchive} = ar_dqrs_dispatch(Opts, Archive, Files),
     write_tmp_archive(ArchiveFile, OldFP, NewArchive)
   after
     case OldFP of
@@ -227,11 +227,12 @@ ar_dqr(Opts, ArchiveFile, OldFP, Archive, Files) ->
     end
   end.
 
-ar_dqr_dispatch(Opts, Archive, Files) ->
+ar_dqrs_dispatch(Opts, Archive, Files) ->
   case Opts#options.operation of
     $d -> ar_d(Opts, Archive, Files);
     $q -> ar_q(Opts, Archive, Files);
-    $r -> ar_r(Opts, Archive, Files)
+    $r -> ar_r(Opts, Archive, Files);
+    $s -> ar_s(Opts, Archive, Files)
   end.
 
 ar_d(Opts, Archive, Files) ->
@@ -331,6 +332,9 @@ ar_r_1(Opts, Archive, LastLabel, File) ->
     {error, Reason} ->
       escript_runtime:fatal("~s: ~s~n", [File, file:format_error(Reason)])
   end.
+
+ar_s(_Opts, Archive, _Files) ->
+  {ok, archive_invalidate_symtab(Archive)}.
 
 %% ar t/x code =================================================================
 
@@ -866,6 +870,9 @@ archive_members_mapfoldl(Archive, Init, Fun) ->
                    end, Init, OrigMembers),
   NewMembers = gb_trees:from_orddict([HiddenMember | UpdatedMembers]),
   {Archive#archive{members = NewMembers}, Result}.
+
+archive_invalidate_symtab(Archive) ->
+  Archive#archive{symtab = symtab_none()}.
 
 %% assemble symbol table =======================================================
 
