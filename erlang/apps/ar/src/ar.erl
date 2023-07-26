@@ -82,14 +82,14 @@
         }).
 
 -record(options,
-        { operation     % d, q, r, s, t, or x
-        , mod_c = false % true iff c modifier present
-        , mod_u = false % true iff u modifier present
-        , mod_v = false % true iff v modifier present
-        , mod_D = false % true iff D modifier present
-        , mod_o = false % true iff o modifier present
-        , mod_O = false % true iff O modifier present
-        , mod_S = false % true iff S modifier present
+        { operation     :: $d | $q | $r | $s | $t | $x | print_armap
+        , mod_c = false :: boolean() % c modifier present
+        , mod_u = false :: boolean() % u modifier present
+        , mod_v = false :: boolean() % v modifier present
+        , mod_D = false :: boolean() % D modifier present
+        , mod_o = false :: boolean() % o modifier present
+        , mod_O = false :: boolean() % O modifier present
+        , mod_S = false :: boolean() % S modifier present
         }).
 
 -type file() :: pdp10_stdio:file().
@@ -108,11 +108,14 @@ main(Argv) ->
   end.
 
 usage() ->
+  Progname = escript_runtime:progname(),
   escript_runtime:fmterr(
-    "Usage: ~s [-][dqrstx][csSuvV] <archive> <member..>\n",
-    [escript_runtime:progname()]),
+    "Usage: ~s [-][dqrstx][csSuvV] <archive> <member..>\n"
+    "       ~s --print-armap <archive>\n",
+    [Progname, Progname]),
   halt(1).
 
+parse_argv(["--print-armap" | Argv]) -> parse_archive(Argv, #options{operation = print_armap});
 parse_argv([[$- | Arg] | Argv]) -> parse_operation(Arg, Argv);
 parse_argv([Arg | Argv]) -> parse_operation(Arg, Argv);
 parse_argv([]) -> {error, "no operation specified"}.
@@ -191,7 +194,9 @@ ar(Opts, ArchiveFile, Files) ->
     Op when Op =:= $d; Op =:= $q; Op =:= $r; Op =:= $s ->
       ar_dqrs(Opts, ArchiveFile, Files);
     Op when Op =:= $t; Op =:= $x ->
-      ar_tx(Opts, ArchiveFile, Files)
+      ar_tx(Opts, ArchiveFile, Files);
+    print_armap ->
+      ar_print_armap(ArchiveFile)
   end.
 
 %% ar d/q/r/s code =============================================================
@@ -482,6 +487,46 @@ ar_x_member(Opts, ArchiveFP, Member) ->
       end;
     {error, _Reason} = Error -> Error
   end.
+
+%% ar --print-armap code =======================================================
+
+ar_print_armap(ArchiveFile) ->
+  case read_archive_file(ArchiveFile) of
+    {ok, {FP, Archive}} ->
+      try
+        ar_print_armap_1(Archive)
+      after
+        pdp10_stdio:fclose(FP)
+      end;
+    {error, Reason} ->
+      escript_runtime:fatal("failed to read ~s: ~p\n", [ArchiveFile, Reason])
+  end.
+
+ar_print_armap_1(Archive) ->
+  #archive{symtab = SymTab, members = Members} = Archive,
+  case SymTab of
+    false ->
+      io:format(standard_io, "No archive index\n", []);
+    _ ->
+      io:format(standard_io, "Archive index:\n", []),
+      symtab_foreach(
+         fun(String, Label) ->
+           ar_print_armap(String, Label, Members)
+         end, SymTab)
+  end.
+
+ar_print_armap(Symbol, Label, Members) ->
+  {Name, Data} =
+    case gb_trees:lookup(Label, Members) of
+      none -> {"<unknown>", undefined};
+      {value, {_NrRight, Member}} -> {Member#member.arhdr#arhdr.ar_name, Member#member.data}
+    end,
+  Offset =
+    case Data of
+      _ when is_integer(Data) -> Data - ?PDP10_ARHDR_SIZEOF;
+      _ -> Data
+    end,
+  io:format(standard_io, "~s in ~s at ~p\n", [Symbol, Name, Offset]).
 
 %% archive output ==============================================================
 
@@ -1037,6 +1082,9 @@ symtab_insert(SymTab, Name, Offset) ->
 
 symtab_fold(Fun, Init, SymTab) ->
   maps:fold(Fun, Init, SymTab).
+
+symtab_foreach(Fun, SymTab) ->
+  maps:foreach(Fun, SymTab).
 
 symtab_lookup(SymTab, Name) ->
   maps:get(Name, SymTab, false).
