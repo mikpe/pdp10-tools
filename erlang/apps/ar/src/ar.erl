@@ -29,21 +29,20 @@
 %%%
 %%% Recall that Erlang orders lists lexicographically.
 %%%
-%%% Define a label to be a non-empty list of integers.
+%%% A label is a pair of integers {I, J}.
 %%%
-%%% Members in the pre-existing archive are labelled with their positions I in
-%%% the archive, as singleton lists [I].
+%%% A member in the pre-existing archive is labelled by its position I in
+%%% the archive, as the pair {I, 0}.
 %%%
-%%% Members appended after some pre-existing member are labelled [I,J+1], where
-%%% [I] is the label of the pre-existing member, and J is the number of newly
-%%% appended members after [I].
+%%% A member appended after some pre-existing member with label {I, 0} is
+%%% labelled {I, J+1}, where J is the number of members appended after {I, 0}.
 %%%
-%%% Members inserted before a pre-existing member with label [I] are treated as
-%%% if appended after a member with label [I-1].
+%%% A member inserted before a pre-existing member with label {I, 0} is treated
+%%% is if appended after the member with label {I-1, 0}.
 %%%
 %%% Members appended at the end of the archive are treated as if appended after
-%%% the pre-existing archive's last member, with label [N].  For an empty
-%%% archive the label of the imaginary last member is defined to be [0].
+%%% the pre-existing archive's last member.  For an empty archive the label of
+%%% the imaginary last member is defined to be {0, 0}.
 %%%
 %%% The in-core version of an archive stores the members in a gb_tree with their
 %%% labels as keys.  A separate structure maps each member name to an ordered
@@ -73,7 +72,7 @@
         , nrafter       :: non_neg_integer() % nr of members inserted after this one
         }).
 
--type label() :: nonempty_list(integer()).
+-type label() :: {non_neg_integer(), non_neg_integer()}.
 
 -record(archive,
         { symtab        :: #{string() => label()} | false
@@ -844,27 +843,27 @@ make_symtab([{Offset, Name} | PreSymTab], OffsetToLabelMap, SymTab) ->
 make_archive(Members) ->
   HiddenArHdr = #arhdr{ar_name = "", ar_date = 0, ar_uid = 0, ar_gid = 0, ar_mode = 0, ar_size = 0},
   HiddenMember = #member{arhdr = HiddenArHdr, data = 0, nrafter = 0},
-  make_archive(Members, 1, [{[0], HiddenMember}], maps:new()).
+  make_archive(Members, 1, [{{0, 0}, HiddenMember}], maps:new()).
 
 make_archive([], _Index, LabelledMembers, LabelMap) ->
   {LabelledMembers, LabelMap};
 make_archive([Member | Members], Index, LabelledMembers, LabelMap) ->
   Name = Member#member.arhdr#arhdr.ar_name,
-  Label = [Index],
+  Label = {Index, 0},
   NameLabels = maps:get(Name, LabelMap, []),
   NewLabelMap = maps:put(Name, [Label | NameLabels], LabelMap),
   NewLabelledMembers = [{Label, Member} | LabelledMembers],
   make_archive(Members, Index + 1, NewLabelledMembers, NewLabelMap).
 
 archive_members_iterator(#archive{members = Members}) ->
-  {[0], _Member, Iterator} = gb_trees:next(gb_trees:iterator(Members)),
+  {{0, 0}, _Member, Iterator} = gb_trees:next(gb_trees:iterator(Members)),
   Iterator.
 
 members_iterator_next(Iterator) ->
   gb_trees:next(Iterator).
 
 archive_last_label(#archive{members = Members}) ->
-  {LastLabel, _Member} = gb_trees:largest(Members),
+  {LastLabel = {_I, 0}, _Member} = gb_trees:largest(Members),
   LastLabel.
 
 archive_lookup_label(Archive, Name) ->
@@ -891,7 +890,8 @@ archive_insert_member_after(Archive, AfterLabel, Member) ->
   #archive{members = Members, labelmap = LabelMap} = Archive,
   Name = Member#member.arhdr#arhdr.ar_name,
   #member{nrafter = NrAfter} = AfterMember = gb_trees:get(AfterLabel, Members),
-  NewLabel = AfterLabel ++ [NrAfter + 1],
+  {AfterI, 0} = AfterLabel,
+  NewLabel = {AfterI, NrAfter + 1},
   NameLabels = maps:get(Name, LabelMap, []),
   NewNameLabels = ordsets:add_element(NewLabel, NameLabels),
   NewLabelMap = maps:put(Name, NewNameLabels, LabelMap),
@@ -909,7 +909,7 @@ archive_update_member(Archive, Label, Member) ->
   Archive#archive{symtab = symtab_none(), members = NewMembers}.
 
 archive_members_mapfoldl(Archive, Init, Fun) ->
-  [HiddenMember = {[0], _Member} | OrigMembers] =
+  [HiddenMember = {{0, 0}, _Member} | OrigMembers] =
     gb_trees:to_list(Archive#archive.members),
   {UpdatedMembers, Result} =
     lists:mapfoldl(fun({Label, Member}, Acc) ->
