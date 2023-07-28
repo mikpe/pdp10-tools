@@ -77,7 +77,7 @@
 -record(archive,
         { symtab        :: #{string() => label()} | false
         , members       :: gb_trees:tree(label(),
-                                         {non_neg_integer(), #member{} | []})
+                                         {non_neg_integer(), #member{}})
         , labelmap      :: #{string() => nonempty_list(label())}
         }).
 
@@ -842,7 +842,9 @@ make_symtab([{Offset, Name} | PreSymTab], OffsetToLabelMap, SymTab) ->
   end.
 
 make_archive(Members) ->
-  make_archive(Members, 1, [{[0], {0, []}}], maps:new()).
+  HiddenArHdr = #arhdr{ar_name = "", ar_date = 0, ar_uid = 0, ar_gid = 0, ar_mode = 0, ar_size = 0},
+  HiddenMember = #member{arhdr = HiddenArHdr, data = 0},
+  make_archive(Members, 1, [{[0], {0, HiddenMember}}], maps:new()).
 
 make_archive([], _Index, LabelledMembers, LabelMap) ->
   {LabelledMembers, LabelMap};
@@ -855,7 +857,7 @@ make_archive([Member | Members], Index, LabelledMembers, LabelMap) ->
   make_archive(Members, Index + 1, NewLabelledMembers, NewLabelMap).
 
 archive_members_iterator(#archive{members = Members}) ->
-  {[0], {_NrRight, []}, Iterator} = gb_trees:next(gb_trees:iterator(Members)),
+  {[0], {_NrRight, _Member}, Iterator} = gb_trees:next(gb_trees:iterator(Members)),
   Iterator.
 
 members_iterator_next(Iterator) ->
@@ -911,7 +913,7 @@ archive_update_member(Archive, Label, Member) ->
   Archive#archive{symtab = symtab_none(), members = NewMembers}.
 
 archive_members_mapfoldl(Archive, Init, Fun) ->
-  [HiddenMember = {[0], {_, []}} | OrigMembers] =
+  [HiddenMember = {[0], {_NrRight, _Member}} | OrigMembers] =
     gb_trees:to_list(Archive#archive.members),
   {UpdatedMembers, Result} =
     lists:mapfoldl(fun({Label, {NrRight, Member}}, Acc) ->
