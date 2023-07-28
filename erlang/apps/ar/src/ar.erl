@@ -70,14 +70,14 @@
         { arhdr         :: #arhdr{}
         , data          :: non_neg_integer() % at this offset in old archive
                          | string()          % in this external file
+        , nrafter       :: non_neg_integer() % nr of members inserted after this one
         }).
 
 -type label() :: nonempty_list(integer()).
 
 -record(archive,
         { symtab        :: #{string() => label()} | false
-        , members       :: gb_trees:tree(label(),
-                                         {non_neg_integer(), #member{}})
+        , members       :: gb_trees:tree(label(), #member{})
         , labelmap      :: #{string() => nonempty_list(label())}
         }).
 
@@ -286,7 +286,7 @@ ar_q_1(Opts, Archive, LastLabel, File) ->
                     , ar_mode = Mode
                     , ar_size = NonetSize
                     },
-      Member = #member{arhdr = ArHdr, data = File},
+      Member = #member{arhdr = ArHdr, data = File, nrafter = 0},
       case Opts#options.mod_v of
         true -> io:format(standard_io, "a - ~s~n", [File]);
         false -> ok
@@ -319,7 +319,7 @@ ar_r_1(Opts, Archive, LastLabel, File) ->
                     , ar_mode = Mode
                     , ar_size = NonetSize
                     },
-      Member = #member{arhdr = ArHdr, data = File},
+      Member = #member{arhdr = ArHdr, data = File, nrafter = 0},
       %% FIXME: this doesn't match GNU ar when duplicate Names occur
       case archive_lookup_label(Archive, Name) of
         false ->
@@ -519,7 +519,7 @@ ar_print_armap(Symbol, Label, Members) ->
   {Name, Data} =
     case gb_trees:lookup(Label, Members) of
       none -> {"<unknown>", undefined};
-      {value, {_NrRight, Member}} -> {Member#member.arhdr#arhdr.ar_name, Member#member.data}
+      {value, Member} -> {Member#member.arhdr#arhdr.ar_name, Member#member.data}
     end,
   Offset =
     case Data of
@@ -757,7 +757,7 @@ read_archive_members(FP, SymTab, StrTab, Members, ArHdr) ->
     {ok, Name} ->
       SrcOffset = pdp10_stdio:ftell(FP),
       Member = #member{arhdr = ArHdr#arhdr{ar_name = Name},
-                       data = SrcOffset},
+                       data = SrcOffset, nrafter = 0},
       NewMembers = [Member | Members],
       case skip_member(FP, ArHdr#arhdr.ar_size) of
         ok ->
@@ -828,7 +828,7 @@ make_symtab(PreSymTab, LabelledMembers) ->
     false ->
       OffsetToLabelMap =
         lists:foldl(
-          fun({Label, {_NrRight, #member{data = Offset}}}, Map) when is_integer(Offset) ->
+          fun({Label, #member{data = Offset}}, Map) when is_integer(Offset) ->
             maps:put(Offset, Label, Map)
           end, maps:new(), LabelledMembers),
       make_symtab(PreSymTab, OffsetToLabelMap, symtab_empty())
@@ -843,8 +843,8 @@ make_symtab([{Offset, Name} | PreSymTab], OffsetToLabelMap, SymTab) ->
 
 make_archive(Members) ->
   HiddenArHdr = #arhdr{ar_name = "", ar_date = 0, ar_uid = 0, ar_gid = 0, ar_mode = 0, ar_size = 0},
-  HiddenMember = #member{arhdr = HiddenArHdr, data = 0},
-  make_archive(Members, 1, [{[0], {0, HiddenMember}}], maps:new()).
+  HiddenMember = #member{arhdr = HiddenArHdr, data = 0, nrafter = 0},
+  make_archive(Members, 1, [{[0], HiddenMember}], maps:new()).
 
 make_archive([], _Index, LabelledMembers, LabelMap) ->
   {LabelledMembers, LabelMap};
@@ -853,21 +853,18 @@ make_archive([Member | Members], Index, LabelledMembers, LabelMap) ->
   Label = [Index],
   NameLabels = maps:get(Name, LabelMap, []),
   NewLabelMap = maps:put(Name, [Label | NameLabels], LabelMap),
-  NewLabelledMembers = [{Label, {0, Member}} | LabelledMembers],
+  NewLabelledMembers = [{Label, Member} | LabelledMembers],
   make_archive(Members, Index + 1, NewLabelledMembers, NewLabelMap).
 
 archive_members_iterator(#archive{members = Members}) ->
-  {[0], {_NrRight, _Member}, Iterator} = gb_trees:next(gb_trees:iterator(Members)),
+  {[0], _Member, Iterator} = gb_trees:next(gb_trees:iterator(Members)),
   Iterator.
 
 members_iterator_next(Iterator) ->
-  case gb_trees:next(Iterator) of
-    none -> none;
-    {Label, {_NrRight, Member}, NewIterator} -> {Label, Member, NewIterator}
-  end.
+  gb_trees:next(Iterator).
 
 archive_last_label(#archive{members = Members}) ->
-  {LastLabel, {_NrRight, _Member}} = gb_trees:largest(Members),
+  {LastLabel, _Member} = gb_trees:largest(Members),
   LastLabel.
 
 archive_lookup_label(Archive, Name) ->
@@ -893,15 +890,14 @@ archive_delete_member(Archive, Name, Label) ->
 archive_insert_member_after(Archive, AfterLabel, Member) ->
   #archive{members = Members, labelmap = LabelMap} = Archive,
   Name = Member#member.arhdr#arhdr.ar_name,
-  {NrRight, AfterMember} = gb_trees:get(AfterLabel, Members),
-  NewLabel = AfterLabel ++ [NrRight + 1],
+  #member{nrafter = NrAfter} = AfterMember = gb_trees:get(AfterLabel, Members),
+  NewLabel = AfterLabel ++ [NrAfter + 1],
   NameLabels = maps:get(Name, LabelMap, []),
   NewNameLabels = ordsets:add_element(NewLabel, NameLabels),
   NewLabelMap = maps:put(Name, NewNameLabels, LabelMap),
-  NewMembers = gb_trees:insert(NewLabel, {0, Member},
-                               gb_trees:update(AfterLabel,
-                                               {NrRight + 1, AfterMember},
-                                               Members)),
+  NewAfterMember = AfterMember#member{nrafter = NrAfter + 1},
+  NewMembers = gb_trees:insert(NewLabel, Member,
+                               gb_trees:update(AfterLabel, NewAfterMember, Members)),
   Archive#archive{ symtab = symtab_none()
                  , members = NewMembers
                  , labelmap = NewLabelMap
@@ -913,12 +909,12 @@ archive_update_member(Archive, Label, Member) ->
   Archive#archive{symtab = symtab_none(), members = NewMembers}.
 
 archive_members_mapfoldl(Archive, Init, Fun) ->
-  [HiddenMember = {[0], {_NrRight, _Member}} | OrigMembers] =
+  [HiddenMember = {[0], _Member} | OrigMembers] =
     gb_trees:to_list(Archive#archive.members),
   {UpdatedMembers, Result} =
-    lists:mapfoldl(fun({Label, {NrRight, Member}}, Acc) ->
+    lists:mapfoldl(fun({Label, Member}, Acc) ->
                      {NewMember, NewAcc} = Fun(Member, Acc),
-                     {{Label, {NrRight, NewMember}}, NewAcc}
+                     {{Label, NewMember}, NewAcc}
                    end, Init, OrigMembers),
   NewMembers = gb_trees:from_orddict([HiddenMember | UpdatedMembers]),
   {Archive#archive{members = NewMembers}, Result}.
