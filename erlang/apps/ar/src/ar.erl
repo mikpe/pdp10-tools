@@ -1313,6 +1313,7 @@ write_ar_name(FP, Name0) ->
   Name =
     case Name0 of
       _ when is_integer(Name0) -> "/" ++ integer_to_list(Name0, 10);
+      _ when Name0 =:= "/"; Name0 =:= "//" -> Name0;
       _ when is_list(Name0) -> Name0 ++ "/"
     end,
   write_string(FP, Name, 16).
