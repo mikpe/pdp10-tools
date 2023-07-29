@@ -23,19 +23,20 @@
 
 -include_lib("lib/include/pdp10_elf36.hrl").
 
--record(options, {
-            print_file_name = false     % -A, -o, --print-file-name
-          , dynamic = false             % -D, --dynamic
-          , format = $b                 % -B, -P, --portability, -f [bsd|sysv|posix], --format=[bsd|sysv|posix]
-          , extern_only = false         % -g, --extern-only
-          , numeric_sort = false        % -n, -v, --numeric-sort
-          , no_sort = false             % -p, --no-sort
-          , print_size = false          % -S, --print-size
-          , reverse_sort = false        % -r, --reverse-sort
-          , radix = $x                  % -t [dox], --radix=[dox]
-          , undefined_only = false      % -u, --undefined-only
-          , defined_only = false        % --defined-only
-         }).
+-record(options,
+        { print_file_name = false     % -A, -o, --print-file-name
+        , dynamic = false             % -D, --dynamic
+        , format = $b                 % -B, -P, --portability, -f [bsd|sysv|posix], --format=[bsd|sysv|posix]
+        , extern_only = false         % -g, --extern-only
+        , numeric_sort = false        % -n, -v, --numeric-sort
+        , no_sort = false             % -p, --no-sort
+        , print_size = false          % -S, --print-size
+        , reverse_sort = false        % -r, --reverse-sort
+        , radix = $x                  % -t [dox], --radix=[dox]
+        , undefined_only = false      % -u, --undefined-only
+        , defined_only = false        % --defined-only
+        , print_file = false          % internal, synthesized
+        }).
 
 %% Command-line interface ======================================================
 
@@ -142,30 +143,31 @@ parse_radix(String) ->
 
 %% Nm ==========================================================================
 
-nm(Opts, Files0) ->
+nm(Opts0, Files0) ->
   {Files, PrintFile} =
     case Files0 of
       [] -> {["a.out"], false};
       [_] -> {Files0, false};
       [_,_|_] -> {Files0, true}
     end,
-  [nm1(Opts, PrintFile, File) || File <- Files],
+  Opts = Opts0#options{print_file = PrintFile},
+  [nm1(Opts, File) || File <- Files],
   halt(0).
 
-nm1(Opts, PrintFile, File) ->
+nm1(Opts, File) ->
   case pdp10_stdio:fopen(File, [read]) of
     {ok, FP} ->
-      nm1(Opts, PrintFile, File, FP),
+      nm1(Opts, File, FP),
       pdp10_stdio:fclose(FP);
     {error, Reason} ->
       escript_runtime:fatal("failed to open ~s: ~p\n", [File, Reason])
   end.
 
-nm1(Opts, PrintFile, File, FP) ->
+nm1(Opts, File, FP) ->
   Ehdr = read_ehdr(File, FP),
   ShTab = read_shtab(File, FP, Ehdr),
   SymTab = read_symtab(File, FP, ShTab),
-  print_symtab(Opts, PrintFile, File, ShTab, SymTab).
+  print_symtab(Opts, File, ShTab, SymTab).
 
 read_ehdr(File, FP) ->
   case pdp10_elf36:read_Ehdr(FP) of
@@ -192,8 +194,8 @@ read_symtab(File, FP, ShTab) ->
                             [File, error:format(Reason)])
   end.
 
-print_symtab(Opts, PrintFile, File, ShTab, SymTab) ->
-  case PrintFile of
+print_symtab(Opts, File, ShTab, SymTab) ->
+  case Opts#options.print_file of
     true -> io:format("\n~s:\n", [File]);
     false -> ok
   end,
