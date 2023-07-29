@@ -157,42 +157,41 @@ nm(Opts0, Files0) ->
 nm1(Opts, File) ->
   case pdp10_stdio:fopen(File, [read]) of
     {ok, FP} ->
-      nm1(Opts, File, FP),
-      pdp10_stdio:fclose(FP);
+      try
+        nm1(Opts, File, FP)
+      after
+        pdp10_stdio:fclose(FP)
+      end;
     {error, Reason} ->
       escript_runtime:fatal("failed to open ~s: ~p\n", [File, Reason])
   end.
 
 nm1(Opts, File, FP) ->
-  Ehdr = read_ehdr(File, FP),
-  ShTab = read_shtab(File, FP, Ehdr),
-  SymTab = read_symtab(File, FP, ShTab),
-  print_symtab(Opts, File, ShTab, SymTab).
-
-read_ehdr(File, FP) ->
-  case pdp10_elf36:read_Ehdr(FP) of
-    {ok, Ehdr} ->
-      Ehdr;
+  case read_elf_symtab(FP) of
+    {ok, {ShTab, SymTab}} ->
+      print_symtab(Opts, File, ShTab, SymTab);
     {error, Reason} ->
       escript_runtime:fatal("invalid PDP10 ELF36 file ~s: ~s\n",
                             [File, error:format(Reason)])
   end.
 
-read_shtab(File, FP, Ehdr) ->
-  case pdp10_elf36:read_ShTab(FP, Ehdr) of
-    {ok, ShTab} -> ShTab;
-    {error, Reason} ->
-      escript_runtime:fatal("failed to read section header table in ~s: ~s\n",
-                            [File, error:format(Reason)])
+%% read ELF symtab =============================================================
+
+read_elf_symtab(FP) ->
+  case pdp10_elf36:read_Ehdr(FP) of
+    {ok, Ehdr} ->
+      case pdp10_elf36:read_ShTab(FP, Ehdr) of
+        {ok, ShTab} ->
+          case pdp10_elf36:read_SymTab(FP, ShTab) of
+            {ok, {SymTab, _ShNdx}} -> {ok, {ShTab, SymTab}};
+            {error, _Reason} = Error -> Error
+          end;
+        {error, _Reason} = Error -> Error
+      end;
+    {error, _Reason} = Error -> Error
   end.
 
-read_symtab(File, FP, ShTab) ->
-  case pdp10_elf36:read_SymTab(FP, ShTab) of
-    {ok, {SymTab, _ShNdx}} -> SymTab;
-    {error, Reason} ->
-      escript_runtime:fatal("failed to read symbol table table in ~s: ~s\n",
-                            [File, error:format(Reason)])
-  end.
+%% output ELF symtab ===========================================================
 
 print_symtab(Opts, File, ShTab, SymTab) ->
   case Opts#options.print_file of
