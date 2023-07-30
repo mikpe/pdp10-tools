@@ -17,36 +17,6 @@
 %%%
 %%% You should have received a copy of the GNU General Public License
 %%% along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
-%%%
-%%%=============================================================================
-%%%
-%%% Requirements:
-%%%
-%%% - members are ordered as stored in the archive
-%%% - members can be appended at the end of the archive, inserted before or
-%%%   after another named member, updated in place, or deleted
-%%% - there can be multiple members with the same name
-%%%
-%%% Recall that Erlang orders lists lexicographically.
-%%%
-%%% A label is a pair of integers {I, J}.
-%%%
-%%% A member in the pre-existing archive is labelled by its position I in
-%%% the archive, as the pair {I, 0}.
-%%%
-%%% A member appended after some pre-existing member with label {I, 0} is
-%%% labelled {I, J+1}, where J is the number of members appended after {I, 0}.
-%%%
-%%% A member inserted before a pre-existing member with label {I, 0} is treated
-%%% is if appended after the member with label {I-1, 0}.
-%%%
-%%% Members appended at the end of the archive are treated as if appended after
-%%% the pre-existing archive's last member.  For an empty archive the label of
-%%% the imaginary last member is defined to be {0, 0}.
-%%%
-%%% The in-core version of an archive stores the members in a gb_tree with their
-%%% labels as keys.  A separate structure maps each member name to an ordered
-%%% list of the labels of its occurrences in the archive.
 
 -module(ar).
 -export([main/1]).
@@ -65,19 +35,17 @@
         , ar_size       :: non_neg_integer()
         }).
 
+-type offset() :: non_neg_integer(). % offset of ar header in archive file
+
 -record(member,
         { arhdr         :: #arhdr{}
-        , data          :: non_neg_integer() % at this offset in old archive
+        , location      :: offset()          % at this offset in old archive
                          | string()          % in this external file
-        , nrafter       :: non_neg_integer() % nr of members inserted after this one
         }).
 
--type label() :: {non_neg_integer(), non_neg_integer()}.
-
 -record(archive,
-        { symtab        :: #{string() => label()} | false
-        , members       :: gb_trees:tree(label(), #member{})
-        , labelmap      :: #{string() => nonempty_list(label())}
+        { symtab        :: [{string(), offset()}] | false
+        , members       :: [#member{}] % sorted by offset in output archive
         }).
 
 -record(options,
@@ -241,38 +209,39 @@ ar_dqrs_dispatch(Opts, Archive, Files) ->
   end.
 
 ar_d(Opts, Archive, Files) ->
-  NewArchive =
-    lists:foldl(fun(File, Archive0) ->
-                  ar_d_1(Opts, Archive0, File)
-                end, Archive, Files),
-  {ok, NewArchive}.
+  LabelledArchive = to_labelled_archive(Archive),
+  NewLabelledArchive =
+    lists:foldl(fun(File, LabelledArchive0) ->
+                  ar_d_1(Opts, LabelledArchive0, File)
+                end, LabelledArchive, Files),
+  {ok, from_labelled_archive(NewLabelledArchive)}.
 
-ar_d_1(Opts, Archive, File) ->
+ar_d_1(Opts, LabelledArchive, File) ->
   Name = filename:basename(File),
-  case archive_lookup_label(Archive, Name) of
+  case lookup_label(LabelledArchive, Name) of
     false ->
       case Opts#options.mod_v of
         true -> io:format(standard_io, "No member named ~s~n", [File]);
         false -> ok
       end,
-      Archive;
+      LabelledArchive;
     Label ->
       case Opts#options.mod_v of
         true -> io:format(standard_io, "d - ~s~n", [File]);
         false -> ok
       end,
-      archive_delete_member(Archive, Name, Label)
+      delete_labelled_member(LabelledArchive, Name, Label)
   end.
 
 ar_q(Opts, Archive, Files) ->
-  LastLabel = archive_last_label(Archive),
-  NewArchive =
-    lists:foldl(fun(File, Archive0) ->
-                   ar_q_1(Opts, Archive0, LastLabel, File)
-                end, Archive, Files),
-  {ok, NewArchive}.
+  LabelledArchive = to_labelled_archive(Archive),
+  NewLabelledArchive =
+    lists:foldl(fun(File, LabelledArchive0) ->
+                   ar_q_1(Opts, LabelledArchive0, File)
+                end, LabelledArchive, Files),
+  {ok, from_labelled_archive(NewLabelledArchive)}.
 
-ar_q_1(Opts, Archive, LastLabel, File) ->
+ar_q_1(Opts, LabelledArchive, File) ->
   case file:read_file_info(File, [{time, posix}]) of
     {ok, #file_info{mtime = Date, uid = Uid, gid = Gid, mode = Mode,
                     size = OctetSize}} ->
@@ -285,27 +254,27 @@ ar_q_1(Opts, Archive, LastLabel, File) ->
                     , ar_mode = Mode
                     , ar_size = NonetSize
                     },
-      Member = #member{arhdr = ArHdr, data = File, nrafter = 0},
+      Member = #member{arhdr = ArHdr, location = File},
       case Opts#options.mod_v of
         true -> io:format(standard_io, "a - ~s~n", [File]);
         false -> ok
       end,
       %% FIXME: this differs from GNU ar which treats 'ar qs' as 'ar r',
       %% i.e. performing in-place replacement of existing members
-      archive_insert_member_after(Archive, LastLabel, Member);
+      append_labelled_member(LabelledArchive, Member);
     {error, Reason} ->
       escript_runtime:fatal("~s: ~s~n", [File, file:format_error(Reason)])
   end.
 
 ar_r(Opts, Archive, Files) ->
-  LastLabel = archive_last_label(Archive),
-  NewArchive =
-    lists:foldl(fun(File, Archive0) ->
-                   ar_r_1(Opts, Archive0, LastLabel, File)
-                end, Archive, Files),
-  {ok, NewArchive}.
+  LabelledArchive = to_labelled_archive(Archive),
+  NewLabelledArchive =
+    lists:foldl(fun(File, LabelledArchive0) ->
+                   ar_r_1(Opts, LabelledArchive0, File)
+                end, LabelledArchive, Files),
+  {ok, from_labelled_archive(NewLabelledArchive)}.
 
-ar_r_1(Opts, Archive, LastLabel, File) ->
+ar_r_1(Opts, LabelledArchive, File) ->
   case file:read_file_info(File, [{time, posix}]) of
     {ok, #file_info{mtime = Date, uid = Uid, gid = Gid, mode = Mode,
                     size = OctetSize}} ->
@@ -318,28 +287,28 @@ ar_r_1(Opts, Archive, LastLabel, File) ->
                     , ar_mode = Mode
                     , ar_size = NonetSize
                     },
-      Member = #member{arhdr = ArHdr, data = File, nrafter = 0},
+      Member = #member{arhdr = ArHdr, location = File},
       %% FIXME: this doesn't match GNU ar when duplicate Names occur
-      case archive_lookup_label(Archive, Name) of
+      case lookup_label(LabelledArchive, Name) of
         false ->
           case Opts#options.mod_v of
             true -> io:format(standard_io, "a - ~s~n", [File]);
             false -> ok
           end,
-          archive_insert_member_after(Archive, LastLabel, Member);
+          append_labelled_member(LabelledArchive, Member);
         Label ->
           case Opts#options.mod_v of
             true -> io:format(standard_io, "r - ~s~n", [File]);
             false -> ok
           end,
-          archive_update_member(Archive, Label, Member)
+          update_labelled_member(LabelledArchive, Label, Member)
       end;
     {error, Reason} ->
       escript_runtime:fatal("~s: ~s~n", [File, file:format_error(Reason)])
   end.
 
 ar_s(_Opts, Archive, _Files) ->
-  {ok, archive_invalidate_symtab(Archive)}.
+  {ok, Archive#archive{symtab = false}}.
 
 %% ar t/x code =================================================================
 
@@ -348,7 +317,7 @@ ar_tx(Opts, ArchiveFile, Files) ->
   case read_archive_file(ArchiveFile) of
     {ok, {FP, Archive}} ->
       try
-        case ar_tx_loop(Opts, FP, archive_members_iterator(Archive), FileSet) of
+        case ar_tx_loop(Opts, FP, Archive#archive.members, FileSet) of
           {ok, []} ->
             ok;
           {ok, RestFiles} ->
@@ -366,10 +335,10 @@ ar_tx(Opts, ArchiveFile, Files) ->
   end.
 
 ar_tx_loop(Opts, FP, Members, FileSet) ->
-  case members_iterator_next(Members) of
-    none ->
+  case Members of
+    [] ->
       {ok, ar_tx_fileset_to_list(FileSet)};
-    {_Label, Member, RestMembers} ->
+    [Member | RestMembers] ->
       case ar_tx_should_process_member(Member, FileSet) of
         {true, RestFileSet} ->
           Status =
@@ -470,8 +439,9 @@ unixtime_to_localtime(SecondsSinceEpoch) ->
 
 ar_x_member(Opts, ArchiveFP, Member) ->
   #member{ arhdr = #arhdr{ar_name = Name, ar_size = Size, ar_mode = Mode}
-         , data = SrcOffset
+         , location = HdrOffset
          } = Member,
+  SrcOffset = HdrOffset + ?PDP10_ARHDR_SIZEOF,
   case Opts#options.mod_v of
     true -> io:format(standard_io, "x - ~s~n", [Name]);
     false -> ok
@@ -508,23 +478,20 @@ ar_print_armap_1(Archive) ->
       io:format(standard_io, "No archive index\n", []);
     _ ->
       io:format(standard_io, "Archive index:\n", []),
-      symtab_foreach(
-         fun(String, Label) ->
-           ar_print_armap(String, Label, Members)
-         end, SymTab)
+      OffsetToNameMap =
+        maps:from_list(
+          lists:map(
+            fun(#member{location = Offset, arhdr = #arhdr{ar_name = Name}}) ->
+              {Offset, Name}
+            end, Members)),
+      lists:foreach(
+        fun({Symbol, Offset}) ->
+          ar_print_armap(Symbol, Offset, OffsetToNameMap)
+        end, SymTab)
   end.
 
-ar_print_armap(Symbol, Label, Members) ->
-  {Name, Data} =
-    case gb_trees:lookup(Label, Members) of
-      none -> {"<unknown>", undefined};
-      {value, Member} -> {Member#member.arhdr#arhdr.ar_name, Member#member.data}
-    end,
-  Offset =
-    case Data of
-      _ when is_integer(Data) -> Data - ?PDP10_ARHDR_SIZEOF;
-      _ -> Data
-    end,
+ar_print_armap(Symbol, Offset, OffsetToNameMap) ->
+  Name = maps:get(Offset, OffsetToNameMap, "<unknown>"),
   io:format(standard_io, "~s in ~s at ~p\n", [Symbol, Name, Offset]).
 
 %% archive output ==============================================================
@@ -545,8 +512,10 @@ write_tmp_archive(Opts, ArchiveFile, OldFP, Archive) ->
   end.
 
 archive_strtabify(Archive) ->
-  {NewArchive, {_Offset, StrTabRev}} =
-    archive_members_mapfoldl(Archive, {0, ""}, fun member_strtabify/2),
+  #archive{members = Members} = Archive,
+  {NewMembers, {_Offset, StrTabRev}} =
+    lists:mapfoldl(fun member_strtabify/2, {0, ""}, Members),
+  NewArchive = Archive#archive{members = NewMembers},
   {lists:reverse(StrTabRev), NewArchive}.
 
 member_strtabify(Member, Acc = {Offset, StrTabRev}) ->
@@ -567,19 +536,19 @@ member_strtabify(Member, Acc = {Offset, StrTabRev}) ->
 write_archive(Opts, DstFP, StrTab, RawArchive, OldFP) ->
   SymTab =
     case Opts#options.mod_S of
-      true -> symtab_empty();
+      true -> maps:new();
       false -> archive_symtab(RawArchive, OldFP)
     end,
   case write_ar_mag(DstFP) of
     {error, _Reason} = Error -> Error;
     ok ->
-      case write_symtab(DstFP, SymTab, StrTab, RawArchive) of
+      case write_symtab(DstFP, SymTab, StrTab) of
         {error, _Reason} = Error -> Error;
         ok ->
           case write_strtab(DstFP, StrTab) of
             {error, _Reason} = Error -> Error;
             ok ->
-              Members = archive_members_iterator(RawArchive),
+              #archive{members = Members} = RawArchive,
               write_members(DstFP, Members, OldFP)
           end
       end
@@ -605,9 +574,9 @@ write_strtab(FP, StrTab) ->
   end.
 
 write_members(DstFP, Members, OldFP) ->
-  case members_iterator_next(Members) of
-    none -> ok;
-    {_Label, Member, RestMembers} ->
+  case Members of
+    [] -> ok;
+    [Member | RestMembers] ->
       case write_member(DstFP, Member, OldFP) of
         {error, _Reason} = Error -> Error;
         ok -> write_members(DstFP, RestMembers, OldFP)
@@ -615,18 +584,19 @@ write_members(DstFP, Members, OldFP) ->
   end.
 
 write_member(DstFP, Member, OldFP) ->
-  #member{arhdr = ArHdr, data = SrcData} = Member,
+  #member{arhdr = ArHdr, location = Location} = Member,
   #arhdr{ar_size = Size} = ArHdr,
   case write_arhdr(DstFP, ArHdr) of
     {error, _Reason} = Error -> Error;
     ok ->
-      case write_member_data(DstFP, Size, SrcData, OldFP) of
+      case write_member_data(DstFP, Size, Location, OldFP) of
         {error, _Reason} = Error -> Error;
         ok -> write_padding(DstFP, Size)
       end
   end.
 
-write_member_data(DstFP, Size, SrcOffset, OldFP) when is_integer(SrcOffset) ->
+write_member_data(DstFP, Size, HdrOffset, OldFP) when is_integer(HdrOffset) ->
+  SrcOffset = HdrOffset + ?PDP10_ARHDR_SIZEOF,
   iocpy(DstFP, OldFP, SrcOffset, Size);
 write_member_data(DstFP, Size, SrcFile, _OldFP) ->
   case pdp10_stdio:fopen(SrcFile, [raw, read]) of
@@ -716,7 +686,7 @@ read_archive_symtab(FP) ->
             {ok, SymTab} -> read_archive_strtab(FP, SymTab);
             {error, _Reason} = Error -> Error
           end;
-        _ -> read_archive_strtab(FP, symtab_none(), ArHdr)
+        _ -> read_archive_strtab(FP, _SymTab = false, ArHdr)
       end;
     {error, eof} ->
       make_archive(_SymTab = [], _Members = []);
@@ -755,8 +725,9 @@ read_archive_members(FP, SymTab, StrTab, Members, ArHdr) ->
   case finalise_ar_name(StrTab, ArHdr#arhdr.ar_name) of
     {ok, Name} ->
       SrcOffset = pdp10_stdio:ftell(FP),
+      HdrOffset = SrcOffset - ?PDP10_ARHDR_SIZEOF,
       Member = #member{arhdr = ArHdr#arhdr{ar_name = Name},
-                       data = SrcOffset, nrafter = 0},
+                       location = HdrOffset},
       NewMembers = [Member | Members],
       case skip_member(FP, ArHdr#arhdr.ar_size) of
         ok ->
@@ -767,6 +738,26 @@ read_archive_members(FP, SymTab, StrTab, Members, ArHdr) ->
           Error
       end;
     {error, _Reason} = Error -> Error
+  end.
+
+make_archive(SymTab, Members) ->
+  case check_symtab(SymTab, Members) of
+    ok -> {ok, #archive{symtab = SymTab, members = Members}};
+    {error, _Reason} = Error -> Error
+  end.
+
+check_symtab(_SymTab = false, _Members) -> ok;
+check_symtab(SymTab, Members) ->
+  Offsets =
+    lists:foldl(
+      fun(#member{location = Offset}, AccOffsets) when is_integer(Offset) ->
+        maps:put(Offset, [], AccOffsets)
+      end, maps:new(), Members),
+  case lists:search(fun({_Name, Offset}) when is_integer(Offset) ->
+                      not maps:is_key(Offset, Offsets)
+                    end, SymTab) of
+    false -> ok;
+    {value, {Name, Offset}} -> {error, {invalid_symtab, Name, Offset}}
   end.
 
 finalise_ar_name(_StrTab, Name) when is_list(Name) -> {ok, Name};
@@ -805,147 +796,137 @@ read_padding(FP, Size) ->
       end
   end.
 
-%% cooked archives =============================================================
+%% labelled archives ===========================================================
+%%
+%% - members are ordered as stored in the archive
+%% - members can be appended at the end of the archive, inserted before or
+%%   after another named member, updated in place, or deleted
+%% - there can be multiple members with the same name
+%%
+%% To support this we use a structure, labelled archives, that uses symbolic
+%% labels to address and order members.
+%%
+%% A label is a pair of integers {I, J}.
+%%
+%% A member in the pre-existing archive is labelled by its position I in
+%% the archive, as the pair {I, 0}.
+%%
+%% A member appended after some pre-existing member with label {I, 0} is
+%% labelled {I, J+1}, where J is the number of members appended after {I, 0}.
+%%
+%% A member inserted before a pre-existing member with label {I, 0} is treated
+%% is if appended after the member with label {I-1, 0}.
+%%
+%% Members appended at the end of the archive are treated as if appended after
+%% the pre-existing archive's last member.  For an empty archive the label of
+%% the imaginary last member is defined to be {0, 0}.
+%%
+%% In all cases Erlang orders the labels as we require, so ordering the members
+%% by their labels yields a correctly ordered archive.
+%%
+%% A separate structure, name_to_labels, maps each member name to an ordered
+%% list of the labels of its occurrences in the archive. This supports having
+%% multiple members with the same name, and the "N count" modifier.
 
-make_archive(PreSymTab, Members) ->
-  {LabelledMembers, LabelMap} = make_archive(Members),
-  case make_symtab(PreSymTab, LabelledMembers) of
-    {ok, SymTab} ->
-      Archive =
-        #archive{ symtab = SymTab
-                , members = gb_trees:from_orddict(lists:reverse(LabelledMembers))
-                , labelmap = maps:map(fun(_Name, Labels) -> lists:reverse(Labels) end,
-                                      LabelMap)
-                },
-      {ok, Archive};
-    {error, _Reason} = Error -> Error
-  end.
+-type label() :: {non_neg_integer(), non_neg_integer()}.
 
-make_symtab(PreSymTab, LabelledMembers) ->
-  case PreSymTab =:= symtab_none() of
-    true -> {ok, symtab_none()};
-    false ->
-      OffsetToLabelMap =
-        lists:foldl(
-          fun({Label, #member{data = Offset}}, Map) when is_integer(Offset) ->
-            maps:put(Offset, Label, Map)
-          end, maps:new(), LabelledMembers),
-      make_symtab(PreSymTab, OffsetToLabelMap, symtab_empty())
-  end.
+-record(labelled_archive,
+        { name_to_labels :: #{string() => nonempty_list(label())}
+        , last_label :: label()
+        , members :: gb_trees:tree(label(), {non_neg_integer(), [] | #member{}})
+        }).
 
-make_symtab([], _OffsetToLabelMap, SymTab) -> {ok, SymTab};
-make_symtab([{Offset, Name} | PreSymTab], OffsetToLabelMap, SymTab) ->
-  case maps:get(Offset + ?PDP10_ARHDR_SIZEOF, OffsetToLabelMap, false) of
-    false -> {error, invalid_symbol_table};
-    Label -> make_symtab(PreSymTab, OffsetToLabelMap, symtab_insert(SymTab, Name, Label))
-  end.
+to_labelled_archive(#archive{members = Members}) ->
+  HeadLabel = {0, 0},
+  HeadMember = {_NrAfter = 0, _Member = []},
+  Head = {HeadLabel, HeadMember},
+  Init =
+    { _PrevIndex = 0
+    , _NameToLabels = maps:new()
+    , _LabelledMembers = [Head]
+    },
+  {LastIndex, NameToLabels, LabelledMembers} = lists:foldl(fun to_labelled_member/2, Init, Members),
+  #labelled_archive
+    { name_to_labels = NameToLabels
+    , last_label = {LastIndex, 0}
+    , members = gb_trees:from_orddict(lists:reverse(LabelledMembers))
+    }.
 
-make_archive(Members) ->
-  HiddenArHdr = #arhdr{ar_name = "", ar_date = 0, ar_uid = 0, ar_gid = 0, ar_mode = 0, ar_size = 0},
-  HiddenMember = #member{arhdr = HiddenArHdr, data = 0, nrafter = 0},
-  make_archive(Members, 1, [{{0, 0}, HiddenMember}], maps:new()).
-
-make_archive([], _Index, LabelledMembers, LabelMap) ->
-  {LabelledMembers, LabelMap};
-make_archive([Member | Members], Index, LabelledMembers, LabelMap) ->
+to_labelled_member(Member, {PrevIndex, NameToLabels, LabelledMembers}) ->
   Name = Member#member.arhdr#arhdr.ar_name,
+  Index = PrevIndex + 1,
   Label = {Index, 0},
-  NameLabels = maps:get(Name, LabelMap, []),
-  NewLabelMap = maps:put(Name, [Label | NameLabels], LabelMap),
-  NewLabelledMembers = [{Label, Member} | LabelledMembers],
-  make_archive(Members, Index + 1, NewLabelledMembers, NewLabelMap).
+  NameLabels = maps:get(Name, NameToLabels, []),
+  NewNameToLabels = maps:put(Name, [Label | NameLabels], NameToLabels),
+  NewLabelledMembers = [{Label, {_NrAfter = 0, Member}} | LabelledMembers],
+  {Index, NewNameToLabels, NewLabelledMembers}.
 
-archive_members_iterator(#archive{members = Members}) ->
-  {{0, 0}, _Member, Iterator} = gb_trees:next(gb_trees:iterator(Members)),
-  Iterator.
+from_labelled_archive(#labelled_archive{members = Members}) ->
+  [{{0, 0}, {_NrAfter, []}} | ActualMembers] = gb_trees:to_list(Members),
+  #archive{symtab = false, members = lists:map(fun from_labelled_member/1, ActualMembers)}.
 
-members_iterator_next(Iterator) ->
-  gb_trees:next(Iterator).
+from_labelled_member({_Label, {_NrAfter, Member}}) -> Member.
 
-archive_last_label(#archive{members = Members}) ->
-  {LastLabel = {_I, 0}, _Member} = gb_trees:largest(Members),
-  LastLabel.
-
-archive_lookup_label(Archive, Name) ->
-  #archive{labelmap = LabelMap} = Archive,
-  case maps:find(Name, LabelMap) of
-    {ok, [Label | _Labels]} -> Label; % TODO: handle "N count"
-    error -> false
+lookup_label(LabelledArchive, Name) ->
+  #labelled_archive{name_to_labels = NameToLabels} = LabelledArchive,
+  case maps:get(Name, NameToLabels, []) of
+    [Label | _Labels] -> Label; % TODO: handle "N count"
+    [] -> false
   end.
 
-archive_delete_member(Archive, Name, Label) ->
-  #archive{members = Members, labelmap = LabelMap} = Archive,
+delete_labelled_member(LabelledArchive, Name, Label) ->
+  #labelled_archive{name_to_labels = NameToLabels, members = Members} = LabelledArchive,
   NewMembers = gb_trees:delete(Label, Members),
-  NewLabelMap =
-    case maps:get(Name, LabelMap) -- [Label] of
-      [] -> maps:remove(Name, LabelMap);
-      Labels -> maps:put(Name, Labels, LabelMap)
+  NewNameToLabels =
+    case maps:get(Name, NameToLabels) -- [Label] of
+      [] -> maps:remove(Name, NameToLabels);
+      Labels -> maps:put(Name, Labels, NameToLabels)
     end,
-  Archive#archive{ symtab = symtab_none()
-                 , members = NewMembers
-                 , labelmap = NewLabelMap
-                 }.
+  LabelledArchive#labelled_archive{name_to_labels = NewNameToLabels, members = NewMembers}.
 
-archive_insert_member_after(Archive, AfterLabel, Member) ->
-  #archive{members = Members, labelmap = LabelMap} = Archive,
-  Name = Member#member.arhdr#arhdr.ar_name,
-  #member{nrafter = NrAfter} = AfterMember = gb_trees:get(AfterLabel, Members),
+append_labelled_member(LabelledArchive, Member) ->
+  #labelled_archive{name_to_labels = NameToLabels, last_label = AfterLabel, members = Members} = LabelledArchive,
+  #member{arhdr = #arhdr{ar_name = Name}} = Member,
+  {NrAfter, AfterMember} = gb_trees:get(AfterLabel, Members),
   {AfterI, 0} = AfterLabel,
   NewLabel = {AfterI, NrAfter + 1},
-  NameLabels = maps:get(Name, LabelMap, []),
+  NameLabels = maps:get(Name, NameToLabels, []),
   NewNameLabels = ordsets:add_element(NewLabel, NameLabels),
-  NewLabelMap = maps:put(Name, NewNameLabels, LabelMap),
-  NewAfterMember = AfterMember#member{nrafter = NrAfter + 1},
-  NewMembers = gb_trees:insert(NewLabel, Member,
-                               gb_trees:update(AfterLabel, NewAfterMember, Members)),
-  Archive#archive{ symtab = symtab_none()
-                 , members = NewMembers
-                 , labelmap = NewLabelMap
-                 }.
+  NewNameToLabels = maps:put(Name, NewNameLabels, NameToLabels),
+  NewMembers1 = gb_trees:update(AfterLabel, {NrAfter + 1, AfterMember}, Members),
+  NewMembers2 = gb_trees:insert(NewLabel, {0, Member}, NewMembers1),
+  LabelledArchive#labelled_archive{name_to_labels = NewNameToLabels, members = NewMembers2}.
 
-archive_update_member(Archive, Label, Member) ->
-  #archive{members = Members} = Archive,
-  NewMembers = gb_trees:update(Label, Member, Members),
-  Archive#archive{symtab = symtab_none(), members = NewMembers}.
-
-archive_members_mapfoldl(Archive, Init, Fun) ->
-  [HiddenMember = {{0, 0}, _Member} | OrigMembers] =
-    gb_trees:to_list(Archive#archive.members),
-  {UpdatedMembers, Result} =
-    lists:mapfoldl(fun({Label, Member}, Acc) ->
-                     {NewMember, NewAcc} = Fun(Member, Acc),
-                     {{Label, NewMember}, NewAcc}
-                   end, Init, OrigMembers),
-  NewMembers = gb_trees:from_orddict([HiddenMember | UpdatedMembers]),
-  {Archive#archive{members = NewMembers}, Result}.
-
-archive_invalidate_symtab(Archive) ->
-  Archive#archive{symtab = symtab_none()}.
+update_labelled_member(LabelledArchive, Label, Member) ->
+  #labelled_archive{members = Members} = LabelledArchive,
+  {NrAfter, _OldMember} = gb_trees:get(Label, Members),
+  NewMembers = gb_trees:update(Label, {NrAfter, Member}, Members),
+  LabelledArchive#labelled_archive{members = NewMembers}.
 
 %% assemble symbol table =======================================================
 
-archive_symtab(Archive = #archive{symtab = SymTab}, ArchiveFP) ->
-  case SymTab =:= symtab_none() of
-    true -> archive_symtab(archive_members_iterator(Archive), ArchiveFP, symtab_empty());
-    false -> SymTab
-  end.
+archive_symtab(#archive{members = Members}, ArchiveFP) ->
+  {_Offset, SymTab} =
+    lists:foldl(fun(Member, Acc) ->
+                  archive_symtab(Member, Acc, ArchiveFP)
+                end, {0, maps:new()}, Members),
+  maps:to_list(SymTab).
 
-archive_symtab(Members, ArchiveFP, SymTab) ->
-  case members_iterator_next(Members) of
-    none -> SymTab;
-    {Label, Member, RestMembers} ->
-      archive_symtab(RestMembers, ArchiveFP, archive_symtab(Label, Member, ArchiveFP, SymTab))
-  end.
+archive_symtab(Member, {Offset, SymTab}, ArchiveFP) ->
+  Size = ?PDP10_ARHDR_SIZEOF + pad_size(Member#member.arhdr#arhdr.ar_size),
+  NewOffset = Offset + Size,
+  NewSymTab = archive_symtab(Offset, Member, ArchiveFP, SymTab),
+  {NewOffset, NewSymTab}.
 
-archive_symtab(Label, Member, ArchiveFP, SymTab) ->
+archive_symtab(Offset, Member, ArchiveFP, SymTab) ->
   case read_member_symtab(ArchiveFP, Member) of
     false -> SymTab;
     Symbols ->
       lists:foldl(
         fun(Symbol, Acc) ->
-          case symtab_lookup(Acc, Symbol) of
-            false -> symtab_insert(Acc, Symbol, Label);
-            _ -> Acc % defined by earlier member
+          case maps:is_key(Symbol, Acc) of
+            false -> maps:put(Symbol, Offset, Acc);
+            true -> Acc % defined by earlier member
           end
         end, SymTab, Symbols)
   end.
@@ -955,9 +936,10 @@ archive_symtab(Label, Member, ArchiveFP, SymTab) ->
 %% Read the symbol table of a member. For now this only recognizes pdp10-elf.
 
 read_member_symtab(ArchiveFP, Member) ->
-  #member{arhdr = ArHdr, data = Data} = Member,
-  case Data of
-    Offset when is_integer(Offset) -> % member in the initial input archive
+  #member{arhdr = ArHdr, location = Location} = Member,
+  case Location of
+    HdrOffset when is_integer(HdrOffset) -> % member in the initial input archive
+      Offset = HdrOffset + ?PDP10_ARHDR_SIZEOF,
       Size = ArHdr#arhdr.ar_size,
       read_member_symtab(ArchiveFP, Offset, Offset + Size);
     File when is_list(File) -> % file added to the output archive
@@ -1040,7 +1022,7 @@ read_symtab(_FP, _Size) -> {error, invalid_symbol_table}.
 make_pre_symtab(Offsets, StrBuf) ->
   case split_strbuf(StrBuf) of
     {ok, Names} ->
-      case safe_zip(Offsets, Names) of
+      case safe_zip(Names, Offsets) of
         {ok, _PreSymTab} = Result -> Result;
         {error, _Reason} -> {error, invalid_symbol_table}
       end;
@@ -1070,24 +1052,6 @@ safe_zip(As, Bs) ->
     error:Reason -> {error, Reason}
   end.
 
-symtab_none() ->
-  false.
-
-symtab_empty() ->
-  maps:new().
-
-symtab_insert(SymTab, Name, Offset) ->
-  maps:put(Name, Offset, SymTab).
-
-symtab_fold(Fun, Init, SymTab) ->
-  maps:fold(Fun, Init, SymTab).
-
-symtab_foreach(Fun, SymTab) ->
-  maps:foreach(Fun, SymTab).
-
-symtab_lookup(SymTab, Name) ->
-  maps:get(Name, SymTab, false).
-
 read_words_be(FP, NrWords) -> read_words_be(FP, NrWords, []).
 
 read_words_be(_FP, 0, Words) -> {ok, lists:reverse(Words)};
@@ -1097,15 +1061,14 @@ read_words_be(FP, N, Words) ->
     {error, _Reason} = Error -> Error
   end.
 
-write_symtab(FP, SymTab, StrTab, RawArchive) ->
-  case symtab_fold(fun write_symtab_foldf/3, {[], []}, SymTab) of
+write_symtab(FP, SymTab, StrTab) ->
+  case lists:foldl(fun write_symtab_foldf/2, {[], []}, SymTab) of
     {[], []} -> ok;
-    {Labels, Strings} ->
-      NrSymbols = length(Labels),
+    {Offsets, Strings} ->
+      NrSymbols = length(Offsets),
       SymTabSize = ?WORDSIZE * (1 + NrSymbols) + length(Strings),
       InitialOffset =
         ?PDP10_SARMAG + special_member_size(SymTabSize) + special_member_size(length(StrTab)),
-      LabelToOffsetMap = make_label_to_offset_map(RawArchive, InitialOffset),
       ArHdr = #arhdr{ ar_name = "/"
                     , ar_date = 0
                     , ar_uid = 0
@@ -1117,7 +1080,7 @@ write_symtab(FP, SymTab, StrTab, RawArchive) ->
         ok ->
           case write_word_be(FP, NrSymbols) of
             ok ->
-              case write_offsets(FP, Labels, LabelToOffsetMap) of
+              case write_offsets(FP, Offsets, InitialOffset) of
                 ok ->
                   case fputs(Strings, FP) of
                     ok -> write_padding(FP, SymTabSize);
@@ -1130,30 +1093,19 @@ write_symtab(FP, SymTab, StrTab, RawArchive) ->
       end
   end.
 
-make_label_to_offset_map(RawArchive, InitialOffset) ->
-  make_label_to_offset_map(archive_members_iterator(RawArchive), InitialOffset, maps:new()).
-
-make_label_to_offset_map(Members, Offset, Map) ->
-  case members_iterator_next(Members) of
-    none -> Map;
-    {Label, Member, RestMembers} ->
-      Size = ?PDP10_ARHDR_SIZEOF + pad_size(Member#member.arhdr#arhdr.ar_size),
-      make_label_to_offset_map(RestMembers, Offset + Size, maps:put(Label, Offset, Map))
-  end.
-
 special_member_size(0) -> 0;
 special_member_size(Size) -> ?PDP10_ARHDR_SIZEOF + pad_size(Size).
 
 pad_size(Size) ->
   Size + (Size band 1).
 
-write_symtab_foldf(String, Offset, {Offsets, Strings}) ->
+write_symtab_foldf({String, Offset}, {Offsets, Strings}) ->
   {[Offset | Offsets], String ++ [16#00] ++ Strings}.
 
-write_offsets(_FP, [], _LabelToOffsetMap) -> ok;
-write_offsets(FP, [Label | Labels], LabelToOffsetMap) ->
-  case write_word_be(FP, maps:get(Label, LabelToOffsetMap)) of
-    ok -> write_offsets(FP, Labels, LabelToOffsetMap);
+write_offsets(_FP, [], _InitialOffset) -> ok;
+write_offsets(FP, [Offset | Offsets], InitialOffset) ->
+  case write_word_be(FP, InitialOffset + Offset) of
+    ok -> write_offsets(FP, Offsets, InitialOffset);
     {error, _Reason} = Error -> Error
   end.
 
