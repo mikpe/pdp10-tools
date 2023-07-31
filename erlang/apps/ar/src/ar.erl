@@ -958,7 +958,8 @@ read_member_symtab(ArchiveFP, Member) ->
   #member{arhdr = ArHdr, data = Data} = Member,
   case Data of
     Offset when is_integer(Offset) -> % member in the initial input archive
-      read_member_symtab(ArchiveFP, Offset, ArHdr#arhdr.ar_size);
+      Size = ArHdr#arhdr.ar_size,
+      read_member_symtab(ArchiveFP, Offset, Offset + Size);
     File when is_list(File) -> % file added to the output archive
       case pdp10_stdio:fopen(File, [raw, read]) of
         {ok, MemberFP} ->
