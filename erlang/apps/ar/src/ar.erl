@@ -22,7 +22,7 @@
 -export([main/1]).
 
 -include_lib("kernel/include/file.hrl").
--include_lib("ar/include/pdp10_ar.hrl").
+-include_lib("lib/include/pdp10_ar.hrl").
 -include_lib("lib/include/pdp10_elf36.hrl").
 
 %% in-core version of the ar header
