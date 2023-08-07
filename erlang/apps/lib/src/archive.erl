@@ -22,6 +22,7 @@
 
 -export([ iocpy/4
         , new/0
+        , print_armap/1
         , read/1
         , write/4
         ]).
@@ -37,6 +38,32 @@
 new() ->
   {ok, Archive} = make_archive(_SymTab = [], _Members = []),
   Archive.
+
+%% print the symbol table ======================================================
+
+-spec print_armap(#archive{}) -> ok.
+print_armap(Archive) ->
+  #archive{symtab = SymTab, members = Members} = Archive,
+  case SymTab of
+    false ->
+      io:format(standard_io, "No archive index\n", []);
+    _ ->
+      io:format(standard_io, "Archive index:\n", []),
+      OffsetToNameMap =
+        maps:from_list(
+          lists:map(
+            fun(#member{location = Offset, arhdr = #arhdr{ar_name = Name}}) ->
+              {Offset, Name}
+            end, Members)),
+      lists:foreach(
+        fun({Symbol, Offset}) ->
+          print_armap(Symbol, Offset, OffsetToNameMap)
+        end, SymTab)
+  end.
+
+print_armap(Symbol, Offset, OffsetToNameMap) ->
+  Name = maps:get(Offset, OffsetToNameMap, "<unknown>"),
+  io:format(standard_io, "~s in ~s at ~p\n", [Symbol, Name, Offset]).
 
 %% archive output ==============================================================
 

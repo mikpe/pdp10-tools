@@ -439,36 +439,13 @@ ar_print_armap(ArchiveFile) ->
   case archive:read(ArchiveFile) of
     {ok, {FP, Archive}} ->
       try
-        ar_print_armap_1(Archive)
+        archive:print_armap(Archive)
       after
         pdp10_stdio:fclose(FP)
       end;
     {error, Reason} ->
       escript_runtime:fatal("failed to read ~s: ~p\n", [ArchiveFile, Reason])
   end.
-
-ar_print_armap_1(Archive) ->
-  #archive{symtab = SymTab, members = Members} = Archive,
-  case SymTab of
-    false ->
-      io:format(standard_io, "No archive index\n", []);
-    _ ->
-      io:format(standard_io, "Archive index:\n", []),
-      OffsetToNameMap =
-        maps:from_list(
-          lists:map(
-            fun(#member{location = Offset, arhdr = #arhdr{ar_name = Name}}) ->
-              {Offset, Name}
-            end, Members)),
-      lists:foreach(
-        fun({Symbol, Offset}) ->
-          ar_print_armap(Symbol, Offset, OffsetToNameMap)
-        end, SymTab)
-  end.
-
-ar_print_armap(Symbol, Offset, OffsetToNameMap) ->
-  Name = maps:get(Offset, OffsetToNameMap, "<unknown>"),
-  io:format(standard_io, "~s in ~s at ~p\n", [Symbol, Name, Offset]).
 
 %% labelled archives ===========================================================
 %%
