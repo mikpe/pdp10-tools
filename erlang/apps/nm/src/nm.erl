@@ -32,6 +32,7 @@
         , extern_only = false         % -g, --extern-only
         , numeric_sort = false        % -n, -v, --numeric-sort
         , no_sort = false             % -p, --no-sort
+        , print_armap = false         % -s, --print-armap
         , print_size = false          % -S, --print-size
         , reverse_sort = false        % -r, --reverse-sort
         , radix = $x                  % -t [dox], --radix=[dox]
@@ -50,12 +51,11 @@ main(Argv) ->
   %% --plugin <name>
   %% -l / --line-numbers
   %% --size-sort
-  %% -s / --print-armap [TODO]
   %% --target=<bfdname>
   %% -X 32_64
   %% --help [TODO?]
   %% @file [TODO?]
-  case my_getopt:parse(Argv, "AoBDf:gnvpPSrt:uV",
+  case my_getopt:parse(Argv, "AoBDf:gnvpPsSrt:uV",
                        [ %% long-only options
                          {"no-demangle", no, no_demangle}
                        , {"special-syms", no, special_syms}
@@ -68,6 +68,7 @@ main(Argv) ->
                        , {"numeric-sort", no, $n}
                        , {"no-sort", no, $p}
                        , {"portability", no, $P}
+                       , {"print-armap", no, $s}
                        , {"print-size", no, $S}
                        , {"reverse-sort", no, $r}
                        , {"radix", required, $t}
@@ -117,6 +118,8 @@ scan_option($p, Opts) -> % -p, --no-sort
   Opts#options{no_sort = true};
 scan_option($P, Opts) -> % -P, --portability
   Opts#options{format = $p};
+scan_option($s, Opts) -> % -s, --print-armap
+  Opts#options{print_armap = true};
 scan_option($S, Opts) -> % -S, --print-size
   Opts#options{print_size = true};
 scan_option($r, Opts) -> % -r, --reverse-sort
@@ -177,7 +180,11 @@ nm1(Opts, File) ->
       end
   end.
 
-nm_archive(Opts, FP, #archive{members = Members}) ->
+nm_archive(Opts, FP, Archive = #archive{members = Members}) ->
+  case Opts#options.print_armap of
+    true -> archive:print_armap(Archive);
+    false -> ok
+  end,
   NewOpts = Opts#options{print_file = true},
   lists:foreach(
     fun(#member{arhdr = #arhdr{ar_name = Name, ar_size = Size}, location = HdrOffset}) ->
