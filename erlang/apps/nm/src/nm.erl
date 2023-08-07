@@ -21,6 +21,8 @@
 -module(nm).
 -export([main/1]).
 
+-include_lib("lib/include/pdp10_ar.hrl").
+-include_lib("lib/include/archive.hrl").
 -include_lib("lib/include/pdp10_elf36.hrl").
 
 -record(options,
@@ -155,34 +157,51 @@ nm(Opts0, Files0) ->
   halt(0).
 
 nm1(Opts, File) ->
-  case pdp10_stdio:fopen(File, [read]) of
-    {ok, FP} ->
+  case archive:read(File) of
+    {ok, {FP, Archive}} ->
       try
-        nm1(Opts, File, FP)
+        nm_archive(Opts, FP, Archive)
       after
         pdp10_stdio:fclose(FP)
       end;
-    {error, Reason} ->
-      escript_runtime:fatal("failed to open ~s: ~p\n", [File, Reason])
+    {error, _} ->
+      case pdp10_stdio:fopen(File, [read]) of
+        {ok, FP} ->
+          try
+            nm1(Opts, File, FP, _Base = 0, _Limit = false)
+          after
+            pdp10_stdio:fclose(FP)
+          end;
+        {error, Reason} ->
+          escript_runtime:errmsg("failed to open ~s: ~p\n", [File, error:format(Reason)])
+      end
   end.
 
-nm1(Opts, File, FP) ->
-  case read_elf_symtab(FP) of
+nm_archive(Opts, FP, #archive{members = Members}) ->
+  NewOpts = Opts#options{print_file = true},
+  lists:foreach(
+    fun(#member{arhdr = #arhdr{ar_name = Name, ar_size = Size}, location = HdrOffset}) ->
+      SrcOffset = HdrOffset + ?PDP10_ARHDR_SIZEOF,
+      %% Like GNU binutils' nm, this does not recognize members that are archives.
+      nm1(NewOpts, Name, FP, SrcOffset, SrcOffset + Size)
+    end, Members).
+
+nm1(Opts, File, FP, Base, Limit) ->
+  case read_elf_symtab(FP, Base, Limit) of
     {ok, {ShTab, SymTab}} ->
       print_symtab(Opts, File, ShTab, SymTab);
     {error, Reason} ->
-      escript_runtime:fatal("invalid PDP10 ELF36 file ~s: ~s\n",
-                            [File, error:format(Reason)])
+      escript_runtime:errmsg("invalid PDP10 ELF36 file ~s: ~s\n", [File, error:format(Reason)])
   end.
 
 %% read ELF symtab =============================================================
 
-read_elf_symtab(FP) ->
-  case pdp10_elf36:read_Ehdr(FP) of
+read_elf_symtab(FP, Base, Limit) ->
+  case pdp10_elf36:read_Ehdr(FP, Base, Limit) of
     {ok, Ehdr} ->
-      case pdp10_elf36:read_ShTab(FP, Ehdr) of
+      case pdp10_elf36:read_ShTab(FP, Base, Limit, Ehdr) of
         {ok, ShTab} ->
-          case pdp10_elf36:read_SymTab(FP, ShTab) of
+          case pdp10_elf36:read_SymTab(FP, Base, Limit, ShTab) of
             {ok, {SymTab, _ShNdx}} -> {ok, {ShTab, SymTab}};
             {error, _Reason} = Error -> Error
           end;
