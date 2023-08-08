@@ -49,6 +49,45 @@ main(Argv) ->
   end.
 
 ld(Argv) ->
+  case getopt(Argv) of
+    {ok, {Opts, _NonOpts = []}} -> ld_options(Opts);
+    {error, _Reason} = Error -> Error
+  end.
+
+ld_options(Opts) ->
+  case process_options(Opts) of
+    {ok, Options} -> ld_input(Options);
+     {error, _Reason} = Error -> Error
+  end.
+
+ld_input(Options) ->
+  case input(Options) of
+    {ok, Inputs} -> ld_phase1(Options, Inputs);
+    {error, _Reason} = Error -> Error
+  end.
+
+ld_phase1(Options, Inputs) ->
+  {ok, Sections} = phase1(Options, Inputs),
+  ld_phase2(Options, Inputs, Sections).
+
+ld_phase2(Options, Inputs, Sections) ->
+  {ok, Segments} = phase2(Options, Sections),
+  ld_assign(Options, Inputs, Segments).
+
+ld_assign(Options, Inputs, Segments0) ->
+  Segments = assign(Options, Segments0),
+  ld_symtab(Options, Inputs, Segments).
+
+ld_symtab(Options, Inputs, Segments) ->
+  {GlobalMap, FileMap} = symtab_build(Options, Inputs, Segments),
+  ld_output(Options, Segments, GlobalMap, FileMap).
+
+ld_output(Options, Segments, GlobalMap, FileMap) ->
+  output(Options, Segments, GlobalMap, FileMap).
+
+%% Option Processing ===========================================================
+
+getopt(Argv) ->
   %% NYI options:
   %% @file
   %% -a
@@ -179,52 +218,35 @@ ld(Argv) ->
   %% - it takes some single-dash long options, e.g. -nostdlib
   %% - options and non-options must be processed in the order given,
   %%   e.g. due to --start-group <file.o>... --end-group
-  case my_getopt:parse(Argv, "-b:e:l:L:m:nNo:tvV",
-                       [ %% single-dash long options
-                         { "-EB", no, 'EB' }
-                       , { "-Tbss", required, 'Tbss' }
-                       , { "-Tdata", required, 'Tdata' }
-                       , { "-Trodata-segment", required, 'Trodata' }
-                       , { "-Ttext", required, 'Ttext' }
-                       , { "-Ttext-segment", required, 'Ttext' }
-                         %% long-only options
-                       , { "help", no, help }
-                       , { "no-omagic", no, no_omagic }
-                       , { "oformat", required, oformat }
-                       , { "print-output-format", no, print_output_format }
-                       , { "section-start", required, section_start }
-                       , { "target-help", no, target_help }
-                         %% long aliases for short options
-                       , { "entry", required, $e }
-                       , { "format", required, $b }
-                       , { "library", required, $l }
-                       , { "library-path", required, $L }
-                       , { "nmagic", no, $n }
-                       , { "omagic", no, $N }
-                       , { "output", required, $o }
-                       , { "trace", no, $t }
-                       , { "version", no, $v }
-                       ]) of
-    {ok, {Opts, _NonOpts = []}} ->
-      case process_options(Opts) of
-        {ok, Options} ->
-          case input(Options) of
-            {ok, Inputs} ->
-              %% TODO: receive ok | error
-              {ok, Sections} = phase1(Options, Inputs),
-              %% TODO: receive ok | error
-              {ok, Segments0} = phase2(Options, Sections),
-              Segments = assign(Options, Segments0),
-              {GlobalMap, FileMap} = symtab_build(Options, Inputs, Segments),
-              output(Options, Segments, GlobalMap, FileMap);
-            {error, _Reason} = Error -> Error
-          end;
-        {error, _Reason} = Error -> Error
-      end;
-    {error, _Reason} = Error -> Error
-  end.
+  my_getopt:parse(Argv, "-b:e:l:L:m:nNo:tvV",
+                  [ %% single-dash long options
+                    { "-EB", no, 'EB' }
+                  , { "-Tbss", required, 'Tbss' }
+                  , { "-Tdata", required, 'Tdata' }
+                  , { "-Trodata-segment", required, 'Trodata' }
+                  , { "-Ttext", required, 'Ttext' }
+                  , { "-Ttext-segment", required, 'Ttext' }
+                    %% long-only options
+                  , { "help", no, help }
+                  , { "no-omagic", no, no_omagic }
+                  , { "oformat", required, oformat }
+                  , { "print-output-format", no, print_output_format }
+                  , { "section-start", required, section_start }
+                  , { "target-help", no, target_help }
+                    %% long aliases for short options
+                  , { "entry", required, $e }
+                  , { "format", required, $b }
+                  , { "library", required, $l }
+                  , { "library-path", required, $L }
+                  , { "nmagic", no, $n }
+                  , { "omagic", no, $N }
+                  , { "output", required, $o }
+                  , { "trace", no, $t }
+                  , { "version", no, $v }
+                  ]).
 
-process_options(Opts) -> process_options(Opts, #options{}).
+process_options(Opts) ->
+  process_options(Opts, #options{}).
 
 process_options([Opt | Opts], Options) ->
   case process_option(Opt, Options) of
