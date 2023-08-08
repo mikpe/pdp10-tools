@@ -484,7 +484,7 @@ ar_print_armap(ArchiveFile) ->
 -record(labelled_archive,
         { name_to_labels :: #{string() => nonempty_list(label())}
         , last_label :: label()
-        , members :: gb_trees:tree(label(), {non_neg_integer(), [] | #member{}})
+        , members :: #{label() => {non_neg_integer(), [] | #member{}}}
         }).
 
 to_labelled_archive(#archive{members = Members}) ->
@@ -500,7 +500,7 @@ to_labelled_archive(#archive{members = Members}) ->
   #labelled_archive
     { name_to_labels = NameToLabels
     , last_label = {LastIndex, 0}
-    , members = gb_trees:from_orddict(lists:reverse(LabelledMembers))
+    , members = maps:from_list(LabelledMembers)
     }.
 
 to_labelled_member(Member, {PrevIndex, NameToLabels, LabelledMembers}) ->
@@ -513,7 +513,7 @@ to_labelled_member(Member, {PrevIndex, NameToLabels, LabelledMembers}) ->
   {Index, NewNameToLabels, NewLabelledMembers}.
 
 from_labelled_archive(#labelled_archive{members = Members}) ->
-  [{{0, 0}, {_NrAfter, []}} | ActualMembers] = gb_trees:to_list(Members),
+  [{{0, 0}, {_NrAfter, []}} | ActualMembers] = lists:keysort(1, maps:to_list(Members)),
   #archive{symtab = false, members = lists:map(fun from_labelled_member/1, ActualMembers)}.
 
 from_labelled_member({_Label, {_NrAfter, Member}}) -> Member.
@@ -527,7 +527,7 @@ lookup_label(LabelledArchive, Name) ->
 
 delete_labelled_member(LabelledArchive, Name, Label) ->
   #labelled_archive{name_to_labels = NameToLabels, members = Members} = LabelledArchive,
-  NewMembers = gb_trees:delete(Label, Members),
+  NewMembers = maps:remove(Label, Members),
   NewNameToLabels =
     case maps:get(Name, NameToLabels) -- [Label] of
       [] -> maps:remove(Name, NameToLabels);
@@ -538,18 +538,18 @@ delete_labelled_member(LabelledArchive, Name, Label) ->
 append_labelled_member(LabelledArchive, Member) ->
   #labelled_archive{name_to_labels = NameToLabels, last_label = AfterLabel, members = Members} = LabelledArchive,
   #member{arhdr = #arhdr{ar_name = Name}} = Member,
-  {NrAfter, AfterMember} = gb_trees:get(AfterLabel, Members),
+  {NrAfter, AfterMember} = maps:get(AfterLabel, Members),
   {AfterI, 0} = AfterLabel,
   NewLabel = {AfterI, NrAfter + 1},
   NameLabels = maps:get(Name, NameToLabels, []),
   NewNameLabels = ordsets:add_element(NewLabel, NameLabels),
   NewNameToLabels = maps:put(Name, NewNameLabels, NameToLabels),
-  NewMembers1 = gb_trees:update(AfterLabel, {NrAfter + 1, AfterMember}, Members),
-  NewMembers2 = gb_trees:insert(NewLabel, {0, Member}, NewMembers1),
+  NewMembers1 = maps:update(AfterLabel, {NrAfter + 1, AfterMember}, Members),
+  NewMembers2 = maps:put(NewLabel, {0, Member}, NewMembers1),
   LabelledArchive#labelled_archive{name_to_labels = NewNameToLabels, members = NewMembers2}.
 
 update_labelled_member(LabelledArchive, Label, Member) ->
   #labelled_archive{members = Members} = LabelledArchive,
-  {NrAfter, _OldMember} = gb_trees:get(Label, Members),
-  NewMembers = gb_trees:update(Label, {NrAfter, Member}, Members),
+  {NrAfter, _OldMember} = maps:get(Label, Members),
+  NewMembers = maps:update(Label, {NrAfter, Member}, Members),
   LabelledArchive#labelled_archive{members = NewMembers}.
