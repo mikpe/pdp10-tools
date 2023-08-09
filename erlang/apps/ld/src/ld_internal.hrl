@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% internal declarations for pdp10-elf ld.
-%%% Copyright (C) 2020  Mikael Pettersson
+%%% Copyright (C) 2020-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -23,8 +23,15 @@
 
 -include_lib("lib/include/pdp10_elf36.hrl").
 
+-type ifile() :: string() % explicit input .o-file
+               | { Archive :: string() % archive name
+                 , Name :: string() % member name
+                 , Offset :: non_neg_integer() % member data (not header) at this offset
+                 , Size :: non_neg_integer() % member data size
+                 }.
+
 -record(input,
-        { file    :: string()
+        { file    :: ifile()
         , shtab   :: [#elf36_Shdr{}]
         , symtab  :: [#elf36_Sym{}]
         , stshndx :: non_neg_integer()
