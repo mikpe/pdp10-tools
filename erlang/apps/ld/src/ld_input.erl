@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% input processing for pdp10-elf ld
-%%% Copyright (C) 2020  Mikael Pettersson
+%%% Copyright (C) 2020-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -37,30 +37,72 @@
 
 -spec input([{file, string()}], [string()])
         -> {ok, [#input{}]} | {error, {module(), term()}}.
-input(_Files = [], _UndefSyms) -> {error, {?MODULE, ?noinputfiles}};
+input(_Files = [], _UndefSyms) -> mkerror(?noinputfiles);
 input(Files, UndefSyms) ->
-  UndefMap =
-    lists:foldl(fun(UndefSym, UndefMap0) ->
-                  maps:put(UndefSym, false, UndefMap0)
-                end, maps:new(), UndefSyms),
-  input(Files, maps:new(), UndefMap, []).
+  UndefMap = maps:from_keys(UndefSyms, false),
+  input(Files, _Defmap = maps:new(), UndefMap, _Inputs = []).
 
 input([{file, File} | Files], DefMap, UndefMap, Inputs) ->
-  case read_file(File) of
-    {ok, {ShTab, SymTab, StShNdx}} ->
-      case update_sym_maps(SymTab, File, DefMap, UndefMap) of
-        {ok, {NewDefMap, NewUndefMap}} ->
-          Input = #input{file = File, shtab = ShTab, symtab = SymTab, stshndx = StShNdx},
-          input(Files, NewDefMap, NewUndefMap, [Input | Inputs]);
-        {error, _Reason} = Error -> Error
-      end;
+  case input_file(File, DefMap, UndefMap, Inputs) of
+    {ok, {NewDefMap, NewUndefMap, NewInputs}} ->
+      input(Files, NewDefMap, NewUndefMap, NewInputs);
     {error, _Reason} = Error -> Error
   end;
 input([], _DefMap, UndefMap, Inputs) ->
   case maps:keys(UndefMap) of
     [] -> {ok, lists:reverse(Inputs)};
-    UndefSyms -> {error, {?MODULE, {?undefined_symbols, UndefSyms}}}
+    UndefSyms -> mkerror({?undefined_symbols, UndefSyms})
   end.
+
+input_file(File, DefMap, UndefMap, Inputs) ->
+  case pdp10_stdio:fopen(File, [raw, read]) of
+    {ok, FP} ->
+      try
+        input_elf(File, FP, DefMap, UndefMap, Inputs)
+      after
+        pdp10_stdio:fclose(FP)
+      end;
+    {error, Reason} -> mkerror({?badfile, File, Reason})
+  end.
+
+%% Process input object file ===================================================
+
+input_elf(File, FP, DefMap, UndefMap, Inputs) ->
+  case input_elf(File, FP, _Base = 0, _Limit = false, DefMap, UndefMap) of
+    {ok, {NewDefMap, NewUndefMap, Input}} ->
+      {ok, {NewDefMap, NewUndefMap, [Input | Inputs]}};
+    {error, _Reason} = Error -> Error
+  end.
+
+input_elf(File, FP, Base, Limit, DefMap, UndefMap) ->
+  case read_elf_symtab(FP, Base, Limit) of
+    {ok, {ShTab, SymTab, StShNdx}} ->
+      case update_sym_maps(SymTab, File, DefMap, UndefMap) of
+        {ok, {NewDefMap, NewUndefMap}} ->
+          Input = #input{file = File, shtab = ShTab, symtab = SymTab, stshndx = StShNdx},
+          {ok, {NewDefMap, NewUndefMap, Input}};
+        {error, _Reason} = Error -> Error
+      end;
+    {error, Reason} -> mkerror({?badelf, File, Reason})
+  end.
+
+%% Read ELF symtab =============================================================
+
+read_elf_symtab(FP, Base, Limit) ->
+  case pdp10_elf36:read_Ehdr(FP, Base, Limit) of
+    {ok, Ehdr} ->
+      case pdp10_elf36:read_ShTab(FP, Base, Limit, Ehdr) of
+        {ok, ShTab} ->
+          case pdp10_elf36:read_SymTab(FP, Base, Limit, ShTab) of
+            {ok, {SymTab, ShNdx}} -> {ok, {ShTab, SymTab, ShNdx}};
+            {error, _Reason} = Error -> Error
+          end;
+        {error, _Reason} = Error -> Error
+      end;
+    {error, _Reason} = Error -> Error
+  end.
+
+%% Maintain def/undef symbol maps ==============================================
 
 update_sym_maps([Sym | Syms], File, DefMap, UndefMap) ->
   case do_update_sym_maps(Sym, File, DefMap, UndefMap) of
@@ -87,7 +129,7 @@ do_update_sym_maps(Sym, File, DefMap, UndefMap) ->
     defined ->
       case maps:get(Name, DefMap, false) of
         false -> {ok, {maps:put(Name, File, DefMap), maps:remove(Name, UndefMap)}};
-        File0 -> {error, {?MODULE, {?muldef_symbol, Name, File0, File}}}
+        File0 -> mkerror({?muldef_symbol, Name, File0, File})
       end
   end.
 
@@ -101,33 +143,10 @@ classify_sym(Sym) ->
     _ -> local
   end.
 
-read_file(File) ->
-  case pdp10_stdio:fopen(File, [read]) of
-    {ok, FP} ->
-      try read_file(File, FP)
-      after pdp10_stdio:fclose(FP)
-      end;
-    {error, Reason} -> {error, {?MODULE, {?badfile, File, Reason}}}
-  end.
-
-read_file(File, FP) ->
-  case pdp10_elf36:read_Ehdr(FP) of
-    {ok, Ehdr} ->
-      case pdp10_elf36:read_ShTab(FP, Ehdr) of
-        {ok, ShTab} ->
-          case pdp10_elf36:read_SymTab(FP, ShTab) of
-            {ok, {SymTab, ShNdx}} -> {ok, {ShTab, SymTab, ShNdx}};
-            {error, Reason} -> badelf(File, Reason)
-          end;
-        {error, Reason} -> badelf(File, Reason)
-      end;
-    {error, Reason} -> badelf(File, Reason)
-  end.
-
-badelf(File, Reason) ->
-  {error, {?MODULE, {?badelf, File, Reason}}}.
-
 %% Error Formatting ============================================================
+
+mkerror(Reason) ->
+  {error, {?MODULE, Reason}}.
 
 -spec format_error(term()) -> io_lib:chars().
 format_error(Reason) ->
