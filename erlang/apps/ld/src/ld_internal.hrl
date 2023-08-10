@@ -38,7 +38,7 @@
         }).
 
 -record(sectfrag,
-        { file   :: string()
+        { file   :: ifile()
         , shdr   :: #elf36_Shdr{}
         , shndx  :: non_neg_integer()
         , relocs :: #elf36_Shdr{} | false
