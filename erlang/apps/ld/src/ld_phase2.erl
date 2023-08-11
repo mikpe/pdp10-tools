@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% linking phase 2 for pdp10-elf ld
-%%% Copyright (C) 2020  Mikael Pettersson
+%%% Copyright (C) 2020-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -17,6 +17,34 @@
 %%%
 %%% You should have received a copy of the GNU General Public License
 %%% along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
+%%%
+%%%=============================================================================
+%%%
+%%% Citing The System V Application Binary Interface, Ch. 4 Sections:
+%%% "In the second phase, sections should be assigned to segments or other units
+%%% based on their attribute flags. Sections of each particular unrecognized type
+%%% should be assigned to the same unit unless prevented by incompatible flags,
+%%% and within a unit, sections of the same unrecognized type should be placed
+%%% together if possible."
+%%%
+%%% The output consists of the following segments, each containing the indicated
+%%% sections in that order:
+%%%
+%%% * Text Segment (PT_LOAD, PF_R+PF_X)
+%%%   - .text*
+%%%   - other SHT_PROGBITS, SHF_ALLOC+SHF_EXECINSTR sections
+%%%
+%%% * Rodata Segment (PT_LOAD, PF_R)
+%%%   - .rodata*
+%%%   - other SHT_PROGBITS, SHF_ALLOC sections
+%%%
+%%% * Data Segment (PT_LOAD, PF_R+PR_W)
+%%%   - .data*
+%%%   - other SHT_PROGBITS, SHF_ALLOC+SHF_WRITE sections
+%%%
+%%% * BSS Segment (PT_LOAD, PF_R+PF_W)
+%%%   - .bss*
+%%%   - other SHT_NOBITS, SHF_ALLOC+SHF_WRITE sections
 
 -module(ld_phase2).
 
@@ -25,82 +53,55 @@
 
 -include("ld_internal.hrl").
 
-%% Phase 2 =====================================================================
-%%
-%% Citing The System V Application Binary Interface, Ch. 4 Sections:
-%%  "In the second phase, sections should be assigned to segments or other units
-%% based on their attribute flags. Sections of each particular unrecognized type
-%% should be assigned to the same unit unless prevented by incompatible flags,
-%% and within a unit, sections of the same unrecognized type should be placed
-%% together if possible."
-%%
-%% The output consists of the following segments, each containing the indicated
-%% sections in that order:
-%%
-%% * Text Segment (PT_LOAD, PF_R+PF_X)
-%%   - .text*
-%%   - other SHT_PROGBITS, SHF_ALLOC+SHF_EXECINSTR sections
-%%
-%% * Rodata Segment (PT_LOAD, PF_R)
-%%   - .rodata*
-%%   - other SHT_PROGBITS, SHF_ALLOC sections
-%%
-%% * Data Segment (PT_LOAD, PF_R+PR_W)
-%%   - .data*
-%%   - other SHT_PROGBITS, SHF_ALLOC+SHF_WRITE sections
-%%
-%% * BSS Segment (PT_LOAD, PF_R+PF_W)
-%%   - .bss*
-%%   - other SHT_NOBITS, SHF_ALLOC+SHF_WRITE sections
+-record(pre_segment,
+        { p_flags  :: non_neg_integer()
+        , sections :: [#section{}]
+        }).
+
+-record(pre_segments,
+        { text   :: #pre_segment{}
+        , rodata :: #pre_segment{}
+        , data   :: #pre_segment{}
+        , bss    :: #pre_segment{}
+        }).
+
+%% Linking Phase 2 =============================================================
 
 -spec phase2([#section{}]) -> [#segment{}].
 phase2(Sections) ->
   segments_to_list(
-    lists:foldl(fun segment_add_section/2, segments_new(), Sections)).
-
-%% Segment indices in segments tuple.
--define(SEG_TEXT,   1).
--define(SEG_RODATA, 2).
--define(SEG_DATA,   3).
--define(SEG_BSS,    4).
--define(SEG__MAX,   ?SEG_BSS).
+    lists:foldl(fun segments_add_section/2, segments_new(), Sections)).
 
 segments_new() ->
-  list_to_tuple([segment_new(Index) || Index <- lists:seq(1, ?SEG__MAX)]).
+  #pre_segments
+    { text   = #pre_segment{p_flags = ?PF_R bor ?PF_X, sections = []}
+    , rodata = #pre_segment{p_flags = ?PF_R,           sections = []}
+    , data   = #pre_segment{p_flags = ?PF_R bor ?PF_W, sections = []}
+    , bss    = #pre_segment{p_flags = ?PF_R bor ?PF_W, sections = []}
+    }.
 
-segment_new(Index) ->
-  {segment_props(Index), []}.
+segments_add_section(Section, Segments) ->
+  Index = section_segment_index(Section),
+  #pre_segment{sections = Sections} = PreSegment = element(Index, Segments),
+  setelement(Index, Segments, PreSegment#pre_segment{sections = [Section | Sections]}).
 
-segment_props(Index) ->
-  case Index of
-    ?SEG_TEXT   -> {?PT_LOAD, ?PF_R bor ?PF_X};
-    ?SEG_RODATA -> {?PT_LOAD, ?PF_R};
-    ?SEG_DATA   -> {?PT_LOAD, ?PF_R bor ?PF_W};
-    ?SEG_BSS    -> {?PT_LOAD, ?PF_R bor ?PF_W}
-  end.
-
-segment_add_section(Section, Segments) ->
-  Index = section_index(Section),
-  {Props, Sections} = element(Index, Segments),
-  setelement(Index, Segments, {Props, [Section | Sections]}).
-
-section_index(Section) ->
+section_segment_index(Section) ->
   #section{shdr = #elf36_Shdr{sh_type = Type, sh_flags = Flags}} = Section,
   case {Type, Flags} of
-    {?SHT_PROGBITS, ?SHF_ALLOC bor ?SHF_EXECINSTR} -> ?SEG_TEXT;
-    {?SHT_PROGBITS, ?SHF_ALLOC bor ?SHF_WRITE} -> ?SEG_DATA;
-    {?SHT_PROGBITS, ?SHF_ALLOC} -> ?SEG_RODATA;
-    {?SHT_NOBITS, ?SHF_ALLOC bor ?SHF_WRITE} -> ?SEG_BSS
+    {?SHT_PROGBITS, ?SHF_ALLOC bor ?SHF_EXECINSTR} -> #pre_segments.text;
+    {?SHT_PROGBITS, ?SHF_ALLOC bor ?SHF_WRITE} -> #pre_segments.data;
+    {?SHT_PROGBITS, ?SHF_ALLOC} -> #pre_segments.rodata;
+    {?SHT_NOBITS, ?SHF_ALLOC bor ?SHF_WRITE} -> #pre_segments.bss
   end.
 
-segments_to_list(Segments) ->
-  lists:append([segment_to_list(Segment) || Segment <- tuple_to_list(Segments)]).
+segments_to_list(#pre_segments{text = Text, rodata = Rodata, data = Data, bss = Bss}) ->
+  lists:append([segment_to_list(Segment) || Segment <- [Text, Rodata, Data, Bss]]).
 
-segment_to_list({_Props, _Sections = []}) -> [];
-segment_to_list({{Type, Flags}, Sections0}) ->
+segment_to_list(#pre_segment{sections = []}) -> [];
+segment_to_list(#pre_segment{p_flags = Flags, sections = Sections0}) ->
   Sections1 = lists:sort(fun sections_le/2, Sections0),
   {Sections, FileSz, MemSz, Align} = sections_layout(Sections1),
-  Phdr = #elf36_Phdr{ p_type = Type
+  Phdr = #elf36_Phdr{ p_type = ?PT_LOAD
                     , p_offset = 0
                     , p_vaddr = 0
                     , p_paddr = 0
@@ -131,6 +132,12 @@ name_known(Name) ->
     ".bss"    ++ _ -> true;
     _              -> false
   end.
+
+%% Compute final layout of the sections in a segment ===========================
+%%
+%% Given a sequence of sections that make up a segment, taking into account their
+%% sizes and alignment, compute their offsets in the segment. Also compute the
+%% segment's final filesz, memsz, and alignment.
 
 sections_layout(Sections0) ->
   Init = {_Sections = [], _FileSz = 0, _MemSz = 0, _Align = 1},
