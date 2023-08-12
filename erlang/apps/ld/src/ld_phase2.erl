@@ -99,7 +99,7 @@ segments_to_list(#pre_segments{text = Text, rodata = Rodata, data = Data, bss = 
 
 segment_to_list(#pre_segment{sections = []}) -> [];
 segment_to_list(#pre_segment{p_flags = Flags, sections = Sections0}) ->
-  Sections1 = lists:sort(fun sections_le/2, Sections0),
+  Sections1 = order_sections(Sections0),
   {Sections, FileSz, MemSz, Align} = sections_layout(Sections1),
   Phdr = #elf36_Phdr{ p_type = ?PT_LOAD
                     , p_offset = 0
@@ -112,14 +112,50 @@ segment_to_list(#pre_segment{p_flags = Flags, sections = Sections0}) ->
                     },
   [#segment{phdr = Phdr, sections = Sections}].
 
-sections_le(Section1, Section2) ->
+%% Order sections within their segment =========================================
+%%
+%% Sections are mapped to segments based on their sh_type and sh_flags. This is
+%% implemented by section_segment_index/1.
+%%
+%% Within a segment, sections are ordered by:
+%% 1. section name, if the name is recognized (".text*" etc)
+%% 2. input order
+%%
+%% To implement this we need a stable sort. Unfortunately Erlang doesn't provide
+%% a usable one:
+%% - lists:sort/2 takes an ordering function, but isn't stable
+%% - lists:keysort/2 is stable, but doesn't take an ordering function
+%%
+%% To work around this we annotate each input section with its index in the
+%% input. We then use lists:sort/2 with an ordering function which compares
+%% these indices when the primary criteria are equal.
+
+order_sections(RevSections) ->
+  IndexedSections = index_sections(RevSections),
+  OrderedIndexedSections = lists:sort(fun sections_le/2, IndexedSections),
+  lists:map(fun unindex_section/1, OrderedIndexedSections).
+
+index_sections(RevSections) ->
+  {_Index, IndexedSections} = lists:foldl(fun index_section/2, {-1, []}, RevSections),
+  IndexedSections.
+
+index_section(Section, {Index, IndexedSections}) ->
+  %% The input is processed from last to first, so the index is decrementing.
+  {Index - 1, [{Index, Section} | IndexedSections]}.
+
+unindex_section({_Index, Section}) -> Section.
+
+sections_le({Index1, Section1}, {Index2, Section2}) ->
   Name1 = section_name(Section1),
   Name2 = section_name(Section2),
-  case {name_known(Name1), name_known(Name2)} of
-    {true, true}   -> Name1 =< Name2;
-    {true, false}  -> true;
-    {false, true}  -> false;
-    {false, false} -> Name1 =< Name2
+  case Name1 =:= Name2 of
+    true -> Index1 =< Index2;
+    false ->
+      case {name_known(Name1), name_known(Name2)} of
+        {true, false} -> true;
+        {false, true} -> false;
+        {_, _}        -> Name1 < Name2
+      end
   end.
 
 section_name(#section{shdr = #elf36_Shdr{sh_name = Name}}) -> Name.
