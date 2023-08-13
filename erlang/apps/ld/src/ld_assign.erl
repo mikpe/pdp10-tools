@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
-%%% Assigning addresses for pdp10-elf-ld
-%%% Copyright (C) 2020  Mikael Pettersson
+%%% Assigning addresses for pdp10-elf ld
+%%% Copyright (C) 2020-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -17,6 +17,11 @@
 %%%
 %%% You should have received a copy of the GNU General Public License
 %%% along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
+%%%
+%%%=============================================================================
+%%%
+%%% Finalize the Phdrs for the PT_LOAD segments by assigning virtual addresses
+%%% and segment offsets.
 
 -module(ld_assign).
 
@@ -25,24 +30,27 @@
 
 -include("ld_internal.hrl").
 
-%% Output ======================================================================
+%% Assign addresses and offsets to PT_LOAD segments ============================
 
 -spec assign([#segment{}]) -> [#segment{}].
 assign(Segments) ->
-  %% TODO: assumes KL10B-compatible "small" code model output
-  VAddr = 8#00001001000 bsl 2, % section 1, page 1
   PhNum = length(Segments),
   true = PhNum < ?PN_XNUM, % assert; TODO: otherwise store PhNum in Shdr0.sh_info
+  %% TODO: assumes KL10B-compatible "small" code model output
+  VAddr = 8#00001001000 bsl 2, % section 1, page 1, word address to byte address
   Offset = ?ELF36_EHDR_SIZEOF + ?ELF36_PHDR_SIZEOF * PhNum,
-  assign(Segments, Offset, VAddr, []).
+  {_Offset, _VAddr, NewSegments} = lists:foldl(fun assign/2, {Offset, VAddr, []}, Segments),
+  lists:reverse(NewSegments).
 
-assign(_Segments = [], _Offset, _VAddr, NewSegments) -> lists:reverse(NewSegments);
-assign([Segment | Segments], Offset, VAddr, NewSegments) ->
+assign(Segment, {Offset, VAddr, NewSegments}) ->
   #segment{phdr = Phdr} = Segment,
   #elf36_Phdr{p_filesz = FileSz, p_memsz = MemSz, p_align = Align} = Phdr,
   SegAlign = max(4096, Align), % align to page boundary; TODO: target-specific
-  SegOffset = (Offset + (SegAlign - 1)) band bnot (SegAlign - 1),
-  SegVAddr = (VAddr + (SegAlign - 1)) band bnot (SegAlign - 1),
+  SegOffset = align(Offset, SegAlign),
+  SegVAddr = align(VAddr, SegAlign),
   NewPhdr = Phdr#elf36_Phdr{p_offset = SegOffset, p_vaddr = SegVAddr, p_align = SegAlign},
   NewSegment = Segment#segment{phdr = NewPhdr},
-  assign(Segments, SegOffset + FileSz, SegVAddr + MemSz, [NewSegment | NewSegments]).
+  {SegOffset + FileSz, SegVAddr + MemSz, [NewSegment | NewSegments]}.
+
+align(Offset, Alignment) ->
+  (Offset + (Alignment - 1)) band bnot (Alignment - 1).
