@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
-%%% symbol table for pdp10-elf-ld
-%%% Copyright (C) 2020  Mikael Pettersson
+%%% Build symbol tables for pdp10-elf ld
+%%% Copyright (C) 2020-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -17,6 +17,12 @@
 %%%
 %%% You should have received a copy of the GNU General Public License
 %%% along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
+%%%
+%%%=============================================================================
+%%%
+%%% The segments have now been assigned load addresses. Scan the inputs and:
+%%% - build a GlobalMap mapping each global symbol to its value
+%%% - build a FileMap mapping each input file to its local symbol table
 
 -module(ld_symtab).
 
@@ -25,33 +31,15 @@
 
 -include("ld_internal.hrl").
 
+-type frag() :: {ifile(), ShNdx :: non_neg_integer()}.
+-type fragmap() :: #{frag() => non_neg_integer()}.
+
 %% Build Symbol Tables =========================================================
 
 -spec build([#input{}], [#segment{}]) -> {global(), filemap()}.
 build(Inputs, Segments) ->
-  FragMap = scan_segments(Segments),
+  FragMap = build_fragmap(Segments),
   scan_inputs(Inputs, FragMap).
-
-%% Scan all segments, which now have load addresses assigned, and record
-%% the load address for every included fragment (file and section).
-scan_segments(Segments) ->
-  lists:foldl(fun scan_segment/2, _FragMap = maps:new(), Segments).
-
-scan_segment(#segment{phdr = Phdr, sections = Sections}, FragMap0) ->
-  #elf36_Phdr{p_vaddr = SegmentBase} = Phdr,
-  lists:foldl(fun(Section, FragMap) ->
-                scan_section(Section, FragMap, SegmentBase)
-               end, FragMap0, Sections).
-
-scan_section(#section{shdr = Shdr, frags = Frags}, FragMap0, SegmentBase) ->
-  #elf36_Shdr{sh_offset = SectionOffset} = Shdr,
-  SectionBase = SegmentBase + SectionOffset,
-  lists:foldl(fun(Frag, FragMap) ->
-                scan_frag(Frag, FragMap, SectionBase)
-              end, FragMap0, Frags).
-
-scan_frag(#sectfrag{file = File, shndx = ShNdx, offset = SectionOffset}, FragMap, SectionBase) ->
-  maps:put({File, ShNdx}, SectionBase + SectionOffset, FragMap).
 
 %% Scan all input files, whose segments now have load addresses in FragMap,
 %% build a symbol table for each file, and update the global symbol table.
@@ -62,16 +50,19 @@ scan_inputs(Inputs, FragMap) ->
 
 scan_input(Input, GlobalMap0, FileMap, FragMap) ->
   #input{file = File, symtab = Syms} = Input,
-  {GlobalMap, SymTab} = scan_syms(Syms, _ShNdx = 0, File, FragMap, GlobalMap0, _SymTab = maps:new()),
-  {GlobalMap, maps:put(File, SymTab, FileMap)}.
+  {GlobalMap, LocalSymTab} = scan_syms(Syms, File, FragMap, GlobalMap0),
+  {GlobalMap, maps:put(File, LocalSymTab, FileMap)}.
 
-scan_syms([], _SymNdx, _File, _FragMap, GlobalMap, SymTab) ->
-  {GlobalMap, SymTab};
-scan_syms([Sym | Syms], SymNdx, File, FragMap, GlobalMap, SymTab) ->
-  {NewGlobalMap, NewSymTab} = scan_sym(Sym, SymNdx, File, FragMap, GlobalMap, SymTab),
-  scan_syms(Syms, SymNdx + 1, File, FragMap, NewGlobalMap, NewSymTab).
+scan_syms(Syms, File, FragMap, GlobalMap) ->
+  {_LocalSymNdx, NewGlobalMap, LocalSymTab} =
+    lists:foldl(
+      fun(Sym, {SymNdx1, GlobalMap1, SymTab1}) ->
+        {GlobalMap2, SymTab2} = enter_sym(Sym, SymNdx1, File, FragMap, GlobalMap1, SymTab1),
+        {SymNdx1 + 1, GlobalMap2, SymTab2}
+      end, {_SymNdx = 0, GlobalMap, _SymTab = maps:new()}, Syms),
+  {NewGlobalMap, LocalSymTab}.
 
-scan_sym(Sym, SymNdx, File, FragMap, GlobalMap0, SymTab0) ->
+enter_sym(Sym, SymNdx, File, FragMap, GlobalMap0, SymTab0) ->
   #elf36_Sym{st_name = Name, st_value = Value, st_info = Info, st_shndx = ShNdx} = Sym,
   true = is_list(Name), % assert in-core name is string()
   SymVal =
@@ -90,8 +81,31 @@ scan_sym(Sym, SymNdx, File, FragMap, GlobalMap0, SymTab0) ->
   SymTab = maps:put(SymNdx, SymVal, SymTab0),
   GlobalMap =
     case ?ELF36_ST_BIND(Info) of
-      ?STB_GLOBAL when ShNdx =/= ?SHN_UNDEF -> maps:put(Name, SymVal, GlobalMap0);
-      ?STB_GLOBAL -> GlobalMap0;
-      ?STB_LOCAL -> GlobalMap0
+      ?STB_LOCAL -> GlobalMap0;
+      ?STB_GLOBAL when ShNdx =:= ?SHN_UNDEF -> GlobalMap0;
+      ?STB_GLOBAL -> maps:put(Name, SymVal, GlobalMap0)
     end,
   {GlobalMap, SymTab}.
+
+%% Build fragment map ==========================================================
+%%
+%% Scan all segments, which now have load addresses assigned, and record
+%% the load address for every included fragment (file and section).
+
+-spec build_fragmap([#segment{}]) -> fragmap().
+build_fragmap(Segments) ->
+  lists:foldl(fun scan_segment/2, _FragMap = maps:new(), Segments).
+
+scan_segment(#segment{phdr = #elf36_Phdr{p_vaddr = SegmentBase}, sections = Sections}, FragMap0) ->
+  lists:foldl(fun(Section, FragMap) ->
+                scan_section(Section, FragMap, SegmentBase)
+               end, FragMap0, Sections).
+
+scan_section(#section{shdr = #elf36_Shdr{sh_offset = SectionOffset}, frags = Frags}, FragMap0, SegmentBase) ->
+  SectionBase = SegmentBase + SectionOffset,
+  lists:foldl(fun(Frag, FragMap) ->
+                enter_frag(Frag, FragMap, SectionBase)
+              end, FragMap0, Frags).
+
+enter_frag(#sectfrag{file = File, shndx = ShNdx, offset = SectionOffset}, FragMap, SectionBase) ->
+  maps:put({File, ShNdx}, SectionBase + SectionOffset, FragMap).
