@@ -61,7 +61,7 @@
 %% local symbol table within a given file (if Value is string(), consult global table)
 -type local() :: #{SymNdx :: non_neg_integer() => Value :: non_neg_integer() | string()}.
 
-%% map from file names to their local symbol tables
--type filemap() :: #{File :: string() => Local :: local()}.
+%% map from input files to their local symbol tables
+-type filemap() :: #{File :: ifile() => Local :: local()}.
 
 -endif. % LD_INTERNAL_HRL
