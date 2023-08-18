@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
-%%% ELF output for pdp10-elf-ld
-%%% Copyright (C) 2020  Mikael Pettersson
+%%% ELF output for pdp10-elf ld
+%%% Copyright (C) 2020-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -17,6 +17,17 @@
 %%%
 %%% You should have received a copy of the GNU General Public License
 %%% along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
+%%%
+%%%=============================================================================
+%%%
+%%% Generate ELF output for the linked input:
+%%%
+%%% - ELF header
+%%% - Program Header table, one Phdr per segment
+%%% - Segments
+%%%
+%%% Relocations are applied while the image data is copied from input sections
+%%% to output segments.
 
 -module(ld_output).
 
@@ -54,13 +65,6 @@ output([Fun | Funs], Entry, Segments, GlobalMap, FileMap, FP, Offset) ->
   case Fun(Entry, Segments, GlobalMap, FileMap, FP, Offset) of
     {ok, NewOffset} -> output(Funs, Entry, Segments, GlobalMap, FileMap, FP, NewOffset);
     {error, _Reason} = Error -> Error
-  end.
-
-resolve(Value, _GlobalMap) when is_integer(Value) -> {ok, Value};
-resolve(Symbol, GlobalMap) ->
-  case maps:get(Symbol, GlobalMap, false) of
-    Value when is_integer(Value) -> {ok, Value};
-    false -> {error, {?MODULE, {undefined_symbol, Symbol}}}
   end.
 
 output_padding(0, _FP) -> ok;
@@ -114,43 +118,43 @@ output_segments([Segment | Segments], GlobalMap, FileMap, FP, Offset) ->
 
 output_segment(Segment, GlobalMap, FileMap, FP, Offset) ->
   #segment{phdr = Phdr, sections = Sections} = Segment,
-  #elf36_Phdr{p_offset = SegOffset, p_vaddr = SegVAddr} = Phdr,
+  #elf36_Phdr{p_offset = SegOffset} = Phdr,
   case output_padding(SegOffset - Offset, FP) of
-    ok -> output_sections(Sections, GlobalMap, FileMap, FP, SegOffset, SegVAddr);
+    ok -> output_sections(Sections, GlobalMap, FileMap, FP, SegOffset);
     {error, _Reason} = Error -> Error
   end.
 
 %% Sections Output -------------------------------------------------------------
 
-output_sections(Sections, GlobalMap, FileMap, FP, SegOffset, SegVAddr) ->
-  output_sections(Sections, GlobalMap, FileMap, FP, SegOffset, SegVAddr, _Offset = 0).
+output_sections(Sections, GlobalMap, FileMap, FP, SegOffset) ->
+  output_sections(Sections, GlobalMap, FileMap, FP, SegOffset, _Offset = 0).
 
-output_sections(_Sections = [], _GlobalMap, _FileMap, _FP, SegOffset, _SegVAddr, Offset) ->
+output_sections(_Sections = [], _GlobalMap, _FileMap, _FP, SegOffset, Offset) ->
   {ok, SegOffset + Offset};
-output_sections([Section | Sections], GlobalMap, FileMap, FP, SegOffset, SegVAddr, Offset) ->
-  case output_section(Section, GlobalMap, FileMap, FP, SegOffset, SegVAddr, Offset) of
-    {ok, NewOffset} -> output_sections(Sections, GlobalMap, FileMap, FP, SegOffset, SegVAddr, NewOffset);
+output_sections([Section | Sections], GlobalMap, FileMap, FP, SegOffset, Offset) ->
+  case output_section(Section, GlobalMap, FileMap, FP, SegOffset, Offset) of
+    {ok, NewOffset} -> output_sections(Sections, GlobalMap, FileMap, FP, SegOffset, NewOffset);
     {error, _Reason} = Error -> Error
   end.
 
-output_section(Section, GlobalMap, FileMap, FP, SegOffset, SegVAddr, Offset) ->
+output_section(Section, GlobalMap, FileMap, FP, SegOffset, Offset) ->
   #section{shdr = Shdr, frags = Frags} = Section,
   #elf36_Shdr{sh_offset = ShOffset} = Shdr,
   case output_padding(ShOffset - Offset, FP) of
-    ok -> output_frags(Frags, GlobalMap, FileMap, FP, SegOffset + ShOffset, SegVAddr + ShOffset);
+    ok -> output_frags(Frags, GlobalMap, FileMap, FP, SegOffset + ShOffset);
     {error, _Reason} = Error -> Error
   end.
 
 %% Fragments Output ------------------------------------------------------------
 
-output_frags(Frags, GlobalMap, FileMap, FP, SectOffset, SectVAddr) ->
-  output_frags(Frags, GlobalMap, FileMap, FP, SectOffset, SectVAddr, _Offset = 0).
+output_frags(Frags, GlobalMap, FileMap, FP, SectOffset) ->
+  output_frags(Frags, GlobalMap, FileMap, FP, SectOffset, _Offset = 0).
 
-output_frags(_Frags = [], _GlobalMap, _FileMap, _FP, SectOffset, _SectVAddr, Offset) ->
+output_frags(_Frags = [], _GlobalMap, _FileMap, _FP, SectOffset, Offset) ->
   {ok, SectOffset + Offset};
-output_frags([Frag | Frags], GlobalMap, FileMap, FP, SectOffset, SectVAddr, Offset) ->
-  case output_frag(Frag, GlobalMap, FileMap, FP, SectOffset, SectVAddr, Offset) of
-    {ok, NewOffset} -> output_frags(Frags, GlobalMap, FileMap, FP, SectOffset, SectVAddr, NewOffset);
+output_frags([Frag | Frags], GlobalMap, FileMap, FP, SectOffset, Offset) ->
+  case output_frag(Frag, GlobalMap, FileMap, FP, Offset) of
+    {ok, NewOffset} -> output_frags(Frags, GlobalMap, FileMap, FP, SectOffset, NewOffset);
     {error, _Reason} = Error -> Error
   end.
 
@@ -158,156 +162,88 @@ output_frags([Frag | Frags], GlobalMap, FileMap, FP, SectOffset, SectVAddr, Offs
 %%
 %% Copy a section from an input file and append it to the output file.
 %% Simultaneously apply associated relocations.
+%%
+%% The implementation is a state machine with two states:
+%%
+%% - COPY: FragOffset < RelOffset of next reloc, or there is not next reloc
+%%   input bytes are written to the output FP, FragOffset is incremented
+%%
+%% - ACCUM: FragOffset >= RelOffset of next reloc
+%%   input bytes are appended to temporary Buffer, FragOffset is incremented
+%%   if Buffer length equals operand size of next reloc:
+%%      convert Buffer to input word, apply reloc, giving output word
+%%      convert output word to Pushback buffer and push that back to input
+%%      decrement FragOffset by Buffer length, empty Buffer
 
-output_frag(Frag, GlobalMap, FileMap, FP, _SectOffset, _SectVAddr, Offset) ->
+output_frag(Frag, GlobalMap, FileMap, FP, Offset) ->
   case input_init(Frag) of
     {ok, {Input, Relocs}} ->
-      Output = output_init(Frag, GlobalMap, FileMap, FP, Relocs),
-      case output_frag(Input, Output) of
+      SortedRelocs = lists:keysort(#elf36_Rela.r_offset, Relocs),
+      #sectfrag{file = File, shdr = #elf36_Shdr{sh_name = ShName}} = Frag,
+      case output_frag(Input, File, ShName, FP, SortedRelocs, GlobalMap, FileMap) of
         {ok, FragOffset} -> {ok, Offset + FragOffset};
         {error, _Reason} = Error -> Error
       end;
     {error, _Reason} = Error -> Error
   end.
 
-output_frag(Input, Output) ->
-  case input(Input) of
-    {ok, {Byte, NewInput}} ->
-      case output(Output, Byte) of
-        {ok, {Pushback, NewOutput}} ->
-          output_frag(input_pushback(NewInput, Pushback), NewOutput);
-        {ok, NewOutput} -> output_frag(NewInput, NewOutput);
-        {error, _Reason} = Error -> Error
-      end;
-    eof ->
+output_frag(Input, File, ShName, FP, Relocs, GlobalMap, FileMap) ->
+  case output_frag(Input, Relocs, File, GlobalMap, FileMap, FP, _FragOffset = 0, _Buffer = []) of
+    {ok, {_Relocs = [], FragOffset}} ->
       input_fini(Input),
-      output_fini(Output);
+      {ok, FragOffset};
+    {ok, {_Relocs, _FragOffset2}} ->
+      {error, {?MODULE, {unresolved_relocs, File, ShName}}};
     {error, _Reason} = Error -> Error
   end.
 
--record(frag_input, {fp, file, sh_name, size, pushback}).
-
-input_init(Frag) ->
-  #sectfrag{file = File, shdr = Shdr, relocs = RelocShdr} = Frag,
-  case pdp10_stdio:fopen(File, [raw, read]) of
-    {ok, FP} ->
-      case input_relocs(FP, RelocShdr) of
-        {ok, Relocs} ->
-          #elf36_Shdr{sh_offset = ShOffset, sh_size = ShSize, sh_name = ShName} = Shdr,
-          case pdp10_stdio:fseek(FP, {bof, ShOffset}) of
-            ok ->
-              Input = #frag_input{fp = FP, file = File, sh_name = ShName, size = ShSize, pushback = []},
-              {ok, {Input, Relocs}};
-            {error, _Reason} = Error -> Error
-          end;
-        {error, _Reason} = Error -> Error
-      end;
-    {error, Reason} -> {error, {?MODULE, {cannot_open, File, Reason}}}
-  end.
-
-input_relocs(_FP, false) -> {ok, []};
-input_relocs(FP, Shdr) -> pdp10_elf36:read_RelaTab(FP, Shdr).
-
-input_fini(#frag_input{fp = FP}) ->
-  pdp10_stdio:fclose(FP).
-
-input_pushback(#frag_input{pushback = Pushback} = Input, Buffer) ->
-  Input#frag_input{pushback = Buffer ++ Pushback}.
-
-input(#frag_input{pushback = [Byte | Pushback]} = Input) ->
-  {ok, {Byte, Input#frag_input{pushback = Pushback}}};
-input(#frag_input{size = 0}) -> eof;
-input(#frag_input{fp = FP, size = Size} = Input) when Size > 0 ->
-  case pdp10_stdio:fgetc(FP) of
-    {ok, Byte} -> {ok, {Byte, Input#frag_input{size = Size - 1}}};
-    eof ->
-      #frag_input{file = File, sh_name = ShName} = Input,
-      {error, {?MODULE, {premature_eof, File, ShName}}};
+output_frag(Input, Relocs, File, GlobalMap, FileMap, FP, FragOffset, Buffer) ->
+  case input(Input) of
+    {ok, {Byte, NewInput}} -> output_frag(Byte, NewInput, Relocs, File, GlobalMap, FileMap, FP, FragOffset, Buffer);
+    eof -> {ok, {Relocs, FragOffset}};
     {error, _Reason} = Error -> Error
   end.
 
--record(frag_output,
-        { file
-        , sh_name
-        , globalmap
-        , filemap
-        , fp
-        , relocs
-        , frag_offset
-        , buffer
-        }).
-
-output_init(Frag, GlobalMap, FileMap, FP, Relocs) ->
-  #sectfrag{file = File, shdr = #elf36_Shdr{sh_name = ShName}} = Frag,
-  SortedRelocs = lists:keysort(#elf36_Rela.r_offset, Relocs),
-  #frag_output{file = File, sh_name = ShName, globalmap = GlobalMap, filemap = FileMap,
-               fp = FP, relocs = SortedRelocs, frag_offset = 0, buffer = []}.
-
-output_fini(#frag_output{relocs = [], frag_offset = FragOffset}) -> {ok, FragOffset};
-output_fini(#frag_output{file = File, sh_name = ShName}) ->
-  {error, {?MODULE, {unresolved_relocs, File, ShName}}}.
-
-output(Output, Byte) ->
-  case Output#frag_output.relocs of
-    [] -> output_directly(Output, Byte);
-    [#elf36_Rela{r_offset = RelOffset} = Rela | _] ->
-      FragOffset = Output#frag_output.frag_offset,
+output_frag(Byte, Input, Relocs, File, GlobalMap, FileMap, FP, FragOffset, Buffer) ->
+  case Relocs of
+    [] -> output_byte(Byte, Input, Relocs, File, GlobalMap, FileMap, FP, FragOffset);
+    [#elf36_Rela{r_offset = RelOffset} = Reloc | NewRelocs] ->
       case FragOffset < RelOffset of
-        true -> output_directly(Output, Byte);
+        true -> output_byte(Byte, Input, Relocs, File, GlobalMap, FileMap, FP, FragOffset);
         false ->
-          NewBuffer = [Byte | Output#frag_output.buffer],
+          NewBuffer = [Byte | Buffer],
           NewFragOffset = FragOffset + 1,
-          NewOutput = Output#frag_output{frag_offset = NewFragOffset, buffer = NewBuffer},
-          case length(NewBuffer) =:= sizeof_reloc(Rela) of
-            true -> output_reloc(NewOutput);
-            false -> {ok, NewOutput}
+          Length = length(NewBuffer),
+          case Length =:= sizeof_reloc(Reloc) of
+            true ->
+              Word = buffer_to_word(Length, lists:reverse(NewBuffer)),
+              case apply_reloc(Reloc, File, GlobalMap, FileMap, Word) of
+                {ok, NewWord} ->
+                  Pushback = word_to_buffer(Length, NewWord),
+                  NewInput = input_pushback(Input, Pushback),
+                  output_frag(NewInput, NewRelocs, File, GlobalMap, FileMap, FP, NewFragOffset - Length, _Buffer = []);
+                {error, _Reason} = Error -> Error
+              end;
+            false -> output_frag(Input, Relocs, File, GlobalMap, FileMap, FP, NewFragOffset, NewBuffer)
           end
       end
   end.
 
-output_reloc(Output) ->
-  #frag_output{ file = File
-              , filemap = FileMap
-              , globalmap = GlobalMap
-              , relocs = [Reloc | Relocs]
-              , buffer = Buffer0
-              , frag_offset = FragOffset
-              } = Output,
-  #elf36_Rela{ r_info = Info
-             , r_addend = Addend
-             } = Reloc,
-  Type = ?ELF36_R_TYPE(Info),
-  SymNdx = ?ELF36_R_SYM(Info),
-  case symbol_value(SymNdx, File, FileMap, GlobalMap) of
-    {ok, SymbolValue} ->
-      Buffer1 = lists:reverse(Buffer0),
-      Length = length(Buffer1),
-      Word = buffer_word(Length, Buffer1),
-      %% TODO: handle {error,_} returns
-      {ok, NewWord} = apply_reloc(Type, SymbolValue + Addend, Word),
-      Pushback = word_buffer(Length, NewWord),
-      {ok, {Pushback, Output#frag_output{relocs = Relocs, buffer = [], frag_offset = FragOffset - Length}}};
+output_byte(Byte, Input, Relocs, File, GlobalMap, FileMap, FP, FragOffset) ->
+  case pdp10_stdio:fputc(Byte, FP) of
+    ok -> output_frag(Input, Relocs, File, GlobalMap, FileMap, FP, FragOffset + 1, _Buffer = []);
     {error, _Reason} = Error -> Error
   end.
 
-symbol_value(SymNdx, File, FileMap, GlobalMap) ->
-  LocalMap = maps:get(File, FileMap),
-  case maps:get(SymNdx, LocalMap) of
-    Value when is_integer(Value) -> {ok, Value};
-    Symbol when is_list(Symbol) ->
-      case maps:get(Symbol, GlobalMap, false) of
-        Value when is_integer(Value) -> {ok, Value};
-        false -> {error, {?MODULE, {undefined_symbol, Symbol}}}
-      end
-  end.
+buffer_to_word(4, Buffer) -> pdp10_extint:uint36_from_ext(Buffer);
+buffer_to_word(2, Buffer) -> pdp10_extint:uint18_from_ext(Buffer);
+buffer_to_word(1, [Byte]) -> Byte.
 
-buffer_word(4, Buffer) -> pdp10_extint:uint36_from_ext(Buffer);
-buffer_word(2, Buffer) -> pdp10_extint:uint18_from_ext(Buffer);
-buffer_word(1, [Byte]) -> Byte.
+word_to_buffer(4, Word) -> pdp10_extint:uint36_to_ext(Word);
+word_to_buffer(2, Word) -> pdp10_extint:uint18_to_ext(Word);
+word_to_buffer(1, Byte) -> [Byte].
 
-word_buffer(4, Word) -> pdp10_extint:uint36_to_ext(Word);
-word_buffer(2, Word) -> pdp10_extint:uint18_to_ext(Word);
-word_buffer(1, Byte) -> [Byte].
+%% Relocations -----------------------------------------------------------------
 
 sizeof_reloc(#elf36_Rela{r_info = Info}) ->
   case ?ELF36_R_TYPE(Info) of
@@ -321,6 +257,15 @@ sizeof_reloc(#elf36_Rela{r_info = Info}) ->
     ?R_PDP10_LITERAL_W -> 4;
     ?R_PDP10_LITERAL_H -> 2;
     ?R_PDP10_LITERAL_B -> 1
+  end.
+
+apply_reloc(Reloc, File, GlobalMap, FileMap, Word) ->
+  #elf36_Rela{r_info = Info, r_addend = Addend} = Reloc,
+  Type = ?ELF36_R_TYPE(Info),
+  SymNdx = ?ELF36_R_SYM(Info),
+  case symbol_value(SymNdx, File, FileMap, GlobalMap) of
+    {ok, SymbolValue} -> apply_reloc(Type, SymbolValue + Addend, Word);
+    {error, _Reason} = Error -> Error
   end.
 
 apply_reloc(Type, Value, Word) ->
@@ -379,10 +324,68 @@ apply_reloc(Type, Value, Word) ->
       {ok, Value}
   end.
 
-output_directly(Output, Byte) ->
-  #frag_output{fp = FP, frag_offset = FragOffset} = Output,
-  case pdp10_stdio:fputc(Byte, FP) of
-    ok -> {ok, Output#frag_output{frag_offset = FragOffset + 1}};
+%% Symbol values ---------------------------------------------------------------
+
+symbol_value(SymNdx, File, FileMap, GlobalMap) ->
+  LocalMap = maps:get(File, FileMap),
+  resolve(maps:get(SymNdx, LocalMap), GlobalMap).
+
+resolve(Value, _GlobalMap) when is_integer(Value) -> {ok, Value};
+resolve(Symbol, GlobalMap) ->
+  case maps:get(Symbol, GlobalMap, false) of
+    Value when is_integer(Value) -> {ok, Value};
+    false -> {error, {?MODULE, {undefined_symbol, Symbol}}}
+  end.
+
+%% Fragment input buffer -------------------------------------------------------
+%%
+%% An input section consists of its image data and associated relocations.
+%% An input object is a streaming reader of that image data with a pushback buffer.
+
+-record(frag_input,
+        { fp :: pdp10_stdio:file()
+        , file :: string()
+        , sh_name :: string()
+        , size :: non_neg_integer()
+        , pushback :: [0..511]
+        }).
+
+input_init(Frag) ->
+  #sectfrag{file = File, shdr = Shdr, relocs = RelocShdr} = Frag,
+  case pdp10_stdio:fopen(File, [raw, read]) of
+    {ok, FP} ->
+      case input_relocs(FP, RelocShdr) of
+        {ok, Relocs} ->
+          #elf36_Shdr{sh_offset = ShOffset, sh_size = ShSize, sh_name = ShName} = Shdr,
+          case pdp10_stdio:fseek(FP, {bof, ShOffset}) of
+            ok ->
+              Input = #frag_input{fp = FP, file = File, sh_name = ShName, size = ShSize, pushback = []},
+              {ok, {Input, Relocs}};
+            {error, _Reason} = Error -> Error
+          end;
+        {error, _Reason} = Error -> Error
+      end;
+    {error, Reason} -> {error, {?MODULE, {cannot_open, File, Reason}}}
+  end.
+
+input_relocs(_FP, false) -> {ok, []};
+input_relocs(FP, Shdr) -> pdp10_elf36:read_RelaTab(FP, Shdr).
+
+input_fini(#frag_input{fp = FP}) ->
+  pdp10_stdio:fclose(FP).
+
+input_pushback(#frag_input{pushback = Pushback} = Input, Buffer) ->
+  Input#frag_input{pushback = Buffer ++ Pushback}.
+
+input(#frag_input{pushback = [Byte | Pushback]} = Input) ->
+  {ok, {Byte, Input#frag_input{pushback = Pushback}}};
+input(#frag_input{size = 0}) -> eof;
+input(#frag_input{fp = FP, size = Size} = Input) when Size > 0 ->
+  case pdp10_stdio:fgetc(FP) of
+    {ok, Byte} -> {ok, {Byte, Input#frag_input{size = Size - 1}}};
+    eof ->
+      #frag_input{file = File, sh_name = ShName} = Input,
+      {error, {?MODULE, {premature_eof, File, ShName}}};
     {error, _Reason} = Error -> Error
   end.
 
