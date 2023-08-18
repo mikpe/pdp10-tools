@@ -344,7 +344,7 @@ resolve(Symbol, GlobalMap) ->
 
 -record(frag_input,
         { fp :: pdp10_stdio:file()
-        , file :: string()
+        , file :: ifile()
         , sh_name :: string()
         , size :: non_neg_integer()
         , pushback :: [0..511]
@@ -352,12 +352,13 @@ resolve(Symbol, GlobalMap) ->
 
 input_init(Frag) ->
   #sectfrag{file = File, shdr = Shdr, relocs = RelocShdr} = Frag,
-  case pdp10_stdio:fopen(File, [raw, read]) of
+  {ActualFile, Base, Limit} = ifile_props(File),
+  case pdp10_stdio:fopen(ActualFile, [raw, read]) of
     {ok, FP} ->
-      case input_relocs(FP, RelocShdr) of
+      case input_relocs(FP, Base, Limit, RelocShdr) of
         {ok, Relocs} ->
           #elf36_Shdr{sh_offset = ShOffset, sh_size = ShSize, sh_name = ShName} = Shdr,
-          case pdp10_stdio:fseek(FP, {bof, ShOffset}) of
+          case pdp10_stdio:fseek(FP, {bof, Base + ShOffset}) of
             ok ->
               Input = #frag_input{fp = FP, file = File, sh_name = ShName, size = ShSize, pushback = []},
               {ok, {Input, Relocs}};
@@ -368,8 +369,11 @@ input_init(Frag) ->
     {error, Reason} -> {error, {?MODULE, {cannot_open, File, Reason}}}
   end.
 
-input_relocs(_FP, false) -> {ok, []};
-input_relocs(FP, Shdr) -> pdp10_elf36:read_RelaTab(FP, Shdr).
+ifile_props({Archive, _Name, Offset, Size}) -> {Archive, _Base = Offset, _Limit = Offset + Size};
+ifile_props(File) when is_list(File) -> {File, _Base = 0, _Limit = false}.
+
+input_relocs(_FP, _Base, _Limit, false) -> {ok, []};
+input_relocs(FP, Base, Limit, Shdr) -> pdp10_elf36:read_RelaTab(FP, Base, Limit, Shdr).
 
 input_fini(#frag_input{fp = FP}) ->
   pdp10_stdio:fclose(FP).
@@ -395,11 +399,14 @@ input(#frag_input{fp = FP, size = Size} = Input) when Size > 0 ->
 format_error(Reason) ->
   case Reason of
     {cannot_open, File, Reason0} ->
-      io_lib:format("cannot open ~s: ~s", [File, error:format(Reason0)]);
+      io_lib:format("cannot open ~s: ~s", [ifile_to_string(File), error:format(Reason0)]);
     {premature_eof, File, ShName} ->
-      io_lib:format("premature eof: ~s:~s", [File, ShName]);
+      io_lib:format("premature eof: ~s:~s", [ifile_to_string(File), ShName]);
     {undefined_symbol, Symbol} ->
       io_lib:format("undefined symbol: ~s", [Symbol]);
     {unresolved_relocs, File, ShName} ->
-      io_lib:format("unresolved relocations: ~s:~s", [File, ShName])
+      io_lib:format("unresolved relocations: ~s:~s", [ifile_to_string(File), ShName])
   end.
+
+ifile_to_string({Archive, Name, _Offset, _Size}) -> io_lib:format("~s(~s)", [Archive, Name]);
+ifile_to_string(File) when is_list(File) -> File.
