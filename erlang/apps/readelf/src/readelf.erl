@@ -463,11 +463,12 @@ disassemble_phdr(Phdr, PhNdx, FP) ->
   case Phdr of
     #elf36_Phdr{ p_type = ?PT_LOAD
                , p_offset = Offset
+               , p_vaddr = VAddr
                , p_filesz = Size
                , p_flags = Flags
                } when (Flags band ?PF_X) =/= 0 ->
       io:format("\nDisassembly of segment nr ~.10b:\n", [PhNdx]),
-      disassemble_unit(Offset, Size, FP, _Labels = []);
+      disassemble_unit(Offset, Size, VAddr, FP, _Labels = []);
     #elf36_Phdr{} ->
       ok
   end.
@@ -672,32 +673,33 @@ disassemble_section(Shdr, ShNdx, FP, SymTab) ->
   case Shdr of
     #elf36_Shdr{ sh_type = ?SHT_PROGBITS
                , sh_flags = ?SHF_ALLOC bor ?SHF_EXECINSTR
+               , sh_addr = ShAddr
                , sh_offset = ShOffset
                , sh_size = ShSize
                } ->
       io:format("Disassembly of section nr ~.10b ~s:\n\n",
                 [ShNdx, sh_name(Shdr)]),
-      disassemble_unit(ShOffset, ShSize, FP, labels(SymTab, ShNdx));
+      disassemble_unit(ShOffset, ShSize, ShAddr, FP, labels(SymTab, ShNdx));
     #elf36_Shdr{} ->
       ok
   end.
 
-disassemble_unit(Offset, Size, FP, Labels) ->
-  case pdp10_stdio:fseek(FP, {bof, Offset}) of
-    ok -> disassemble_insns(0, Size, FP, Labels);
+disassemble_unit(FileOffset, Size, VAddr, FP, Labels) ->
+  case pdp10_stdio:fseek(FP, {bof, FileOffset}) of
+    ok -> disassemble_insns(0, Size, VAddr, FP, Labels);
     {error, _Reason} = Error -> Error
   end.
 
-disassemble_insns(Offset, Size, FP, Labels) when Offset < Size ->
+disassemble_insns(Offset, Size, VAddr, FP, Labels) when Offset < Size ->
   case pdp10_elf36:read_uint36(FP) of
     {ok, InsnWord} ->
       RestLabels = print_labels(Labels, Offset),
-      io:format(" 0x~.16b:\t0~12.8.0b\t", [Offset, InsnWord]),
+      io:format(" 0x~.16b:\t0~12.8.0b\t", [VAddr + Offset, InsnWord]),
       disassemble_insn(InsnWord),
-      disassemble_insns(Offset + 4, Size, FP, RestLabels);
+      disassemble_insns(Offset + 4, Size, VAddr, FP, RestLabels);
     {error, _Reason} = Error -> Error
   end;
-disassemble_insns(_Offset, _Size, _FP, _Labels) -> ok.
+disassemble_insns(_Offset, _Size, _VAddr, _FP, _Labels) -> ok.
 
 disassemble_insn(InsnWord) ->
   Models = ?PDP10_KL10_271up,
