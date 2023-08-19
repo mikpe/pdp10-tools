@@ -1,5 +1,5 @@
 # TODO notes for pdp10-tools
-# Copyright (C) 2013-2020  Mikael Pettersson <mikpelinux@gmail.com>
+# Copyright (C) 2013-2023  Mikael Pettersson <mikpelinux@gmail.com>
 #
 # This file is part of pdp10-tools.
 #
@@ -33,9 +33,7 @@ Tools:
 - top-level Makefile: subdirs should error out on error in subdir
 - size: implement it
 - strip: implement it
-- as:
-  * tunit_{strtab_,}section_enter() should be generalized and merged
-  * what happens if user defines .comment as say text, and later enters .ident?
-  * output: move section_symtab into the context
-  * tunit: add symtab sections analagous to strtab sections?
-  * add support for extended opcodes (emit second opcode after current .text section)
+- ranlib: add wrapper script doing 'ar s'
+- sim: improve it so it can run simple applications
+- as/ld: add support for PIC
+- as/ld: add support for shared objects

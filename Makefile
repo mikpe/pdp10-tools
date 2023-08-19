@@ -1,5 +1,5 @@
 # Makefile for pdp10-tools
-# Copyright (C) 2013-2018  Mikael Pettersson
+# Copyright (C) 2013-2023  Mikael Pettersson
 #
 # This file is part of pdp10-tools.
 #
@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
 
-SUBDIRS=	lib 8to9 ar as nm od readelf sim
+SUBDIRS=	erlang
 
 all:
 	make TARGET= subdirs
