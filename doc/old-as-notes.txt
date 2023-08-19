@@ -1,0 +1,52 @@
+* strip whitespace, leave one space before a keyword on a line, compress any
+  other whitespace to a single space
+* white is blank, tab, /* ... */
+* target-spec line comment, .e.g. #
+* symbol = [letter | _ | . | $] [letter | _ | . | $ | digit]*
+* stmt: {label}* { directive | instruction | empty }
+
+* %r0..%r15 with %sp == %r15 ? (no, % is also an operator)
+* $0..$15 with $sp == $15? (yes, these are just symbols)
+
+
+* PDP10 syntax:
+
+mnemonic accumulator,address
+
+	movem 1,foo
+
+mnemonic accumulator,
+
+	popj 17,
+
+mnemonic address
+
+	setzm foo
+
+	skipe 0(16)
+
+address prefixed by "@" makes it indirect
+
+	setzm @foo
+
+address suffixed by "(ixreg)" makes it indexed
+
+	setzm 3(16)
+
+
+";" is line comment char
+
+	foo ;comment
+
+radix is 8 by default; a single-digit number is always decimal
+radix can be changed by the RADIX directive
+a number can indicate its radix by a ^B, ^O, or ^D prefix (XXX: add ^X for hex)
+
+symbols can use letters, digits, dot, dollar, and percent signs
+
+exp1,,exp2 assembles two 18-bit expressions into a 36-bit value
+
+< expr > parenteses
+
+there is no "semi-colon" like symbol for putting multiple statements
+on a single line
