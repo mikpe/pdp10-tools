@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
-%%% pdp10_stdint.hrl -- stdint.h clone for PDP10
-%%% Copyright (C) 2013-2020  Mikael Pettersson
+%%% pdp10_stdint.hrl -- stdint.h for PDP10
+%%% Copyright (C) 2013-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%

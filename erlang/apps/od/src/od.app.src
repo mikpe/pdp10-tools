@@ -1,4 +1,4 @@
-%%% Copyright (C) 2018  Mikael Pettersson
+%%% Copyright (C) 2018-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -16,7 +16,7 @@
 %%% along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
 
 {application, od,
- [{description, "'od' clone for nonet files"},
+ [{description, "'od' for files with 9-bit bytes"},
   {vsn, "0.3.0"},
   {registered, []},
   {applications, [kernel, stdlib, lib]},

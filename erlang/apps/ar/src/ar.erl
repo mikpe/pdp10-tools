@@ -1,6 +1,6 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
-%%% 'ar' clone for pdp10-elf
+%%% 'ar' for pdp10-elf
 %%% Copyright (C) 2013-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.

@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
-%%% strtol() clone for Erlang
-%%% Copyright (C) 2018-2020  Mikael Pettersson
+%%% strtol() for Erlang
+%%% Copyright (C) 2018-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%

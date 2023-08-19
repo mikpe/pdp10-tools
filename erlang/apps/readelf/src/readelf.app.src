@@ -1,4 +1,4 @@
-%%% Copyright (C) 2019  Mikael Pettersson
+%%% Copyright (C) 2019-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -16,7 +16,7 @@
 %%% along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
 
 {application, readelf,
- [{description, "'readelf' clone for pdp10-elf"},
+ [{description, "'readelf' for pdp10-elf"},
   {vsn, "0.1.0"},
   {registered, []},
   {applications, [kernel, stdlib, lib]},
