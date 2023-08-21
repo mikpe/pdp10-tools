@@ -82,7 +82,7 @@ load(FP, Ehdr, PhTab, ArgvStrings, EnvStrings) ->
 
 init_stack(Mem, ArgvStrings, EnvStrings) ->
   %% TODO: assumes large or small code model output, not tiny
-  Stack0 = 8#00000001000 bsl 2, % section 0, page 1, word 0
+  Stack0 = 8#00001001000 bsl 2, % section 1, page 1, word 0
   Size = ((512 - 2) * 512) bsl 2, % 510 pages (pages 0 and 511 left unmapped)
   map_zero_core(Mem, Stack0, Size),
   {ArgvPointers, Stack1} = store_strings(ArgvStrings, Mem, Stack0),
