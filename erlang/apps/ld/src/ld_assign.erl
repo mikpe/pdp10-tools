@@ -36,8 +36,8 @@
 assign(Segments) ->
   PhNum = length(Segments),
   true = PhNum < ?PN_XNUM, % assert; TODO: otherwise store PhNum in Shdr0.sh_info
-  %% TODO: assumes KL10B-compatible "small" code model output
-  VAddr = 8#00001001000 bsl 2, % section 1, page 1, word address to byte address
+  %% TODO: assumes large or small code model output, not tiny
+  VAddr = 8#00002001000 bsl 2, % section 2, page 1, word address to byte address
   Offset = ?ELF36_EHDR_SIZEOF + ?ELF36_PHDR_SIZEOF * PhNum,
   {_Offset, _VAddr, NewSegments} = lists:foldl(fun assign/2, {Offset, VAddr, []}, Segments),
   lists:reverse(NewSegments).
