@@ -573,13 +573,16 @@ however, several factors limit the size of a process.
   the KL10B supports 32 sections, and the KA10, KI10, early KL10, and KS10 support only a single section.
 * Section 0 may not contain code in programs compiled for 32 or 4096 sections, due to the
   differing semantics of executing in section zero versus a non-zero section.
+* Section 0 may not contain the stack for programs running in non-zero sections, since the stack
+  pointer would be interpreted as a local stack pointer and not function as intended.
 * Locations 0 to 017 in sections 0 and 1 alias the general purpose registers, and are therefore
   unavailable for data or code allocation.
 * Shared libraries, as defined by this ABI, must be section-aligned.
 
 The Large Code Model
 
-The large code model provides processes with access to the full 30-bit address space.
+The large code model provides processes with access to a 30-bit address space with
+sections 1 to 4095.
 
              +------------------+
 07777_777777 | ...              |
@@ -596,22 +599,22 @@ The large code model provides processes with access to the full 30-bit address s
              +------------------+
              | ...              |
              |                  |
-00001_000020 | Text segment     |
+00002_000020 | Text segment     |
              +------------------+
-00000_777777 | ...              |
-00000_777000 | Guard page       |
+00001_777777 | ...              |
+00001_777000 | Guard page       |
              +------------------+
-00000_776777 | ...              |
+00001_776777 | ...              |
              |                  |
-00000_001000 | Stack segment    |
+00001_001000 | Stack segment    |
              +------------------+
-00000_000777 |                  |
-00000_000000 | Reserved segment |
+00001_000777 |                  |
+00001_000000 | Guard page       |
              +------------------+
 
-The main program code and data is loaded starting in section 1 at offset 020,
-and the main stack is allocated in section 0 at offset 01000 (page 1).  Pages 0
-and 0777 of section 0 are reserved and unmapped.
+The main program code and data is loaded starting in section 2 at offset 020,
+and the main stack is allocated in section 1 at offset 01000 (page 1).  Pages 0
+and 0777 of section 1 are reserved and unmapped.  Section 0 is reserved and unmapped.
 
 The upper half of the address space is reserved for dynamic segments, allowing
 for up to 2048 shared libraries to be mapped into the process.  Unused space there
@@ -622,7 +625,8 @@ extended addressing.
 
 The Small Code Model
 
-The small code model provides processes with access to a 23-bit address space.
+The small code model provides processes with access to a 23-bit address space with
+sections 1 to 31.
 
              +------------------+
 00037_777777 | ...              |
@@ -639,17 +643,17 @@ The small code model provides processes with access to a 23-bit address space.
              +------------------+
              | ...              |
              |                  |
-00001_000020 | Text segment     |
+00002_000020 | Text segment     |
              +------------------+
-00000_777777 | ...              |
-00000_777000 | Guard page       |
+00001_777777 | ...              |
+00001_777000 | Guard page       |
              +------------------+
-00000_776777 | ...              |
+00001_776777 | ...              |
              |                  |
-00000_001000 | Stack segment    |
+00001_001000 | Stack segment    |
              +------------------+
-00000_000777 |                  |
-00000_000000 | Reserved segment |
+00001_000777 |                  |
+00001_000000 | Guard page       |
              +------------------+
 
 The small code model is identicial to the large code model, except for the base
