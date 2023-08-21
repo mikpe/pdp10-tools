@@ -607,7 +607,7 @@ The large code model provides processes with access to the full 30-bit address s
              +------------------+
 00000_000777 |                  |
 00000_000000 | Reserved segment |
-             +------------------
+             +------------------+
 
 The main program code and data is loaded starting in section 1 at offset 020,
 and the main stack is allocated in section 0 at offset 01000 (page 1).  Pages 0
@@ -650,7 +650,7 @@ The small code model provides processes with access to a 23-bit address space.
              +------------------+
 00000_000777 |                  |
 00000_000000 | Reserved segment |
-             +------------------
+             +------------------+
 
 The small code model is identicial to the large code model, except for the base
 of the dynamic segments, and that the number of shared libraries is limited to
@@ -785,7 +785,7 @@ Figure 3-??
 
 Every process has a stack, but the system defines no fixed stack address.  Furthermore,
 a program's stack address can change from one system to another -- even from one process
-invocation to another.  This the process initialization code must use the stack address
+invocation to another.  Thus the process initialization code must use the stack address
 in general purpose register 017.  Data in the stack segment at addresses above the stack
 pointer contain undefined values.
 
