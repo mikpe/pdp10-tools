@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% simulator for pdp10-elf
-%%% Copyright (C) 2018-2020  Mikael Pettersson
+%%% Copyright (C) 2018-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -24,7 +24,7 @@
 %%%
 %%% Words are 36 bits wide.  The bits are numbered 0-35, left to right (most
 %%% significant to least significant).  The left (more significant) half word
-%%% is bits 0-17, and the right (less significant) half word is bits 18-36.
+%%% is bits 0-17, and the right (less significant) half word is bits 18-35.
 %%% Numbers use twos-complement representation, with bit 0 as the sign.
 %%%
 %%% A double word is two adjacent words treated as a single 72-bit entity,
