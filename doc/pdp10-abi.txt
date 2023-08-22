@@ -770,6 +770,8 @@ SP:     | Argument count word                    | High Address
         | information (size varies)              | Low Address
         +----------------------------------------+
 
+[TODO: The above stack layout is subject to change, the below register contents is correct.]
+
 When a process is first entered (from an exec() system call), the contents of registers
 other than those listed below are unspecified.  Consequently, a program that requires
 registers to have specific values must set them explicitly during process initialization.
@@ -778,8 +780,10 @@ registers whose contents are specified:
 
 Figure 3-??
 
-017     The initial stack pointer, pointing to a stack location that contains the
-        argument count.
+001     Argument count (argc).
+002     Pointer to NULL-terminated array of pointers to argument strings (argv).
+003     Pointer to NULL-terminated array of pointers to environment strings (envp).
+017     The initial stack pointer.
 
 [TODO: a register e.g. 1 with a function pointer for atexit()?
  Not all archs use that.  Only if Linux really wants it.]
