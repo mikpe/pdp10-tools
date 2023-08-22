@@ -599,7 +599,7 @@ sections 1 to 4095.
              +------------------+
              | ...              |
              |                  |
-00002_000020 | Text segment     |
+00002_001000 | Text segment     |
              +------------------+
 00001_777777 | ...              |
 00001_777000 | Guard page       |
@@ -612,7 +612,7 @@ sections 1 to 4095.
 00001_000000 | Guard page       |
              +------------------+
 
-The main program code and data is loaded starting in section 2 at offset 020,
+The main program code and data is loaded starting in section 2 at offset 01000 (page 1),
 and the main stack is allocated in section 1 at offset 01000 (page 1).  Pages 0
 and 0777 of section 1 are reserved and unmapped.  Section 0 is reserved and unmapped.
 
@@ -643,7 +643,7 @@ sections 1 to 31.
              +------------------+
              | ...              |
              |                  |
-00002_000020 | Text segment     |
+00002_001000 | Text segment     |
              +------------------+
 00001_777777 | ...              |
 00001_777000 | Guard page       |
@@ -688,7 +688,7 @@ The tiny code model provides processes with access to an 18-bit address space in
 00000_001000 | Stack segment    |
              +------------------+
 00000_000777 |                  |
-00000_000000 | Reserved segment |
+00000_000000 | Guard page       |
              +------------------+
 
 The main program code and data is loaded starting at offset 0400000 (page 0400),
