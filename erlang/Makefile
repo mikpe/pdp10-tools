@@ -38,6 +38,12 @@ link:	$(REBAR3)
 test:
 	$(REBAR3) eunit
 
+install:
+	mkdir -p ../bin
+	for PROG in $(PROGRAMS); do \
+		cp _build/default/bin/$$PROG ../bin/pdp10-elf-$$PROG; \
+	done
+
 distclean realclean:	clean
 	rm -f ./rebar3
 

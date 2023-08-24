@@ -21,6 +21,9 @@ SUBDIRS=	erlang
 all:
 	make TARGET= subdirs
 
+install:
+	make TARGET=install subdirs
+
 clean:
 	make TARGET=clean subdirs
 
