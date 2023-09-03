@@ -27,6 +27,7 @@ as:		assembler producing pdp10-elf object files
 		intended primarily as an assembler for GCC output;
 		the syntax is modelled after normal UNIX/ELF syntax
 		rather than classic TOPS-10, TOPS-20, or ITS syntax
+elf2boot:	converts pdp10-elf executables to KLH10-bootable files
 ld:		linker for pdp10-elf object files
 nm:		list symbols from pdp10-elf object files
 od:		file dumper for binary files with 9-bit bytes (nonets)
