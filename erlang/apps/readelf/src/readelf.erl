@@ -315,7 +315,7 @@ version_string(?EV_CURRENT) -> "current";
 version_string(_) -> "?".
 
 print_e_entry(EEntry) ->
-  io:format("  Entry point address:\t\t\t0x~.16b\n", [EEntry]).
+  io:format("  Entry point address:\t\t\t0~12.8.0b\n", [EEntry]).
 
 print_e_phoff(EPhOff) ->
   io:format("  Start of program headers:\t\t~.10b\n", [EPhOff]).
@@ -353,7 +353,7 @@ print_shtab(_Opts, ShTab) ->
   print_shdrs(ShTab, 0).
 
 print_shdrs([Shdr | Shdrs], I) ->
-  io:format("  [~.10b] ~s ~s 0x~.16b ~.10b ~.10b ~.10b ~s ~.10b ~.10b ~.10b\n",
+  io:format("  [~.10b] ~s ~s 0~12.8.0b 0~12.8.0b ~.10b ~.10b ~s ~.10b ~.10b ~.10b\n",
             [ I
             , sh_name(Shdr)
             , sh_type(Shdr)
@@ -440,7 +440,7 @@ print_phtab(Opts, FP, Ehdr) ->
       io:format("There are no program headers in this file.\n\n");
     {ok, PhTab} ->
       io:format("Program Headers:\n"),
-      io:format("  Type   Offset      VirtAddr    PhysAddr    FileSiz     MemSiz      Flg Align\n"),
+      io:format("  Type   Offset        VirtAddr      PhysAddr      FileSiz     MemSiz      Flg Align\n"),
       lists:foreach(fun print_phdr/1, PhTab),
       disassemble_phtab(Opts, FP, PhTab),
       io:format("\n");
@@ -474,7 +474,7 @@ disassemble_phdr(Phdr, PhNdx, FP) ->
   end.
 
 print_phdr(Phdr) ->
-  io:format("  ~-6s 0x~9.16.0b 0x~9.16.0b 0x~9.16.0b 0x~9.16.0b 0x~9.16.0b ~-3s 0x~.16b\n",
+  io:format("  ~-6s 0~12.8.0b 0~12.8.0b 0~12.8.0b 0x~9.16.0b 0x~9.16.0b ~-3s 0x~.16b\n",
             [ p_type(Phdr)
             , Phdr#elf36_Phdr.p_offset
             , Phdr#elf36_Phdr.p_vaddr
@@ -604,7 +604,7 @@ print_symtab(_Opts, SymTab, ShNdx, ShTab) ->
   print_syms(SymTab, 0).
 
 print_syms([Sym | Syms], I) ->
-  io:format("  ~.10b 0x~.16b ~.10b ~s ~s ~s ~.10b ~s\n",
+  io:format("  ~.10b 0~12.8.0b ~.10b ~s ~s ~s ~.10b ~s\n",
             [ I
             , Sym#elf36_Sym.st_value
             , Sym#elf36_Sym.st_size
@@ -694,7 +694,7 @@ disassemble_insns(Offset, Size, VAddr, FP, Labels) when Offset < Size ->
   case pdp10_elf36:read_uint36(FP) of
     {ok, InsnWord} ->
       RestLabels = print_labels(Labels, Offset),
-      io:format(" 0x~.16b:\t0~12.8.0b\t", [VAddr + Offset, InsnWord]),
+      io:format(" 0~12.8.0b:\t0~12.8.0b\t", [VAddr + Offset, InsnWord]),
       disassemble_insn(InsnWord),
       disassemble_insns(Offset + 4, Size, VAddr, FP, RestLabels);
     {error, _Reason} = Error -> Error
@@ -711,16 +711,16 @@ disassemble_insn(InsnWord) ->
       io:format("~s ", [Name]),
       case Format of
         ?PDP10_INSN_A_OPCODE -> ok;
-        _ -> io:format("~.10b,", [(InsnWord bsr 23) band 16#F])
+        _ -> io:format("0~2.8.0b,", [(InsnWord bsr 23) band 16#F])
       end,
       case InsnWord band (1 bsl 22) of
         0 -> ok;
         _ -> io:format("@")
       end,
-      io:format("~.10b", [InsnWord band ((1 bsl 18) - 1)]),
+      io:format("0~6.8.0b", [InsnWord band ((1 bsl 18) - 1)]),
       case (InsnWord bsr 18) band 16#F of
         0 -> ok;
-        IxReg -> io:format("(~.10b)", [IxReg])
+        IxReg -> io:format("(0~2.8.0b)", [IxReg])
       end,
       io:format("\n");
     false ->
@@ -732,7 +732,7 @@ print_labels(Labels = [Label | RestLabels], Offset) ->
   #elf36_Sym{st_value = StValue} = Label,
   if StValue < Offset -> print_labels(RestLabels, Offset);
      StValue =:= Offset ->
-       io:format("0x~9.16.0b <~s>:\n", [Offset, st_name(Label)]),
+       io:format("0~12.8.0b <~s>:\n", [Offset, st_name(Label)]),
        print_labels(RestLabels, Offset);
      true -> Labels
   end.
