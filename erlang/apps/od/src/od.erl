@@ -242,15 +242,25 @@ skip_bytes(SkipBytes, Opts, Input, Offset) when SkipBytes > 0 ->
   end.
 
 output_lines(Opts, Input, Offset) ->
-  print_offset(Opts, Offset),
+  output_lines(Opts, Input, Offset, _PrevBytes = [], _DidMark = false).
+
+output_lines(Opts, Input, Offset, PrevBytes, DidMark) ->
   {NrBytes, LineBytes, NewInput} = input_line(Opts, Input),
-  if NrBytes =:= 0 -> io:format("\n");
+  if NrBytes =:= 0 ->
+       print_offset(Opts, Offset),
+       io:format("\n");
+     LineBytes =:= PrevBytes andalso DidMark ->
+       output_lines(Opts, NewInput, Offset + NrBytes, PrevBytes, DidMark);
+     LineBytes =:= PrevBytes ->
+       io:format("*\n"),
+       output_lines(Opts, NewInput, Offset + NrBytes, PrevBytes, _DidMark = true);
      true ->
-          NrDatums = print_datums(Opts, NrBytes, LineBytes),
-          print_padding(Opts, NrDatums),
-          print_printable(Opts, LineBytes),
-          io:format("\n"),
-          output_lines(Opts, NewInput, Offset + NrBytes)
+       print_offset(Opts, Offset),
+       NrDatums = print_datums(Opts, NrBytes, LineBytes),
+       print_padding(Opts, NrDatums),
+       print_printable(Opts, LineBytes),
+       io:format("\n"),
+       output_lines(Opts, NewInput, Offset + NrBytes, LineBytes, _DidMark = false)
   end.
 
 print_offset(Opts, Offset) ->
