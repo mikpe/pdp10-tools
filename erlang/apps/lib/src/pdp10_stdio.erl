@@ -243,11 +243,21 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
 handle_fopen(Path, Modes) ->
   case iodir(Modes) of
-    {ok, {Read, Write}} ->
-      case file_open(Path, fopen_modes(Modes)) of
-        {ok, IoDev} -> {ok, {IoDev, Read, Write}};
-        {error, _Reason} = Error -> Error
+    {ok, {Read = false, Write = true}} ->
+      %% A write after a seek to a non octet-aligned nonet needs to reload the
+      %% shiftreg, which requires a read. Therefore if the user did not request
+      %% read access try to get it anyway.
+      case file_open(Path, fopen_modes([read | Modes])) of
+        {ok, IoDev} -> {ok, {IoDev, _Read = true, Write}};
+        {error, _Reason} -> handle_fopen(Path, Modes, Read, Write)
       end;
+    {ok, {Read, Write}} -> handle_fopen(Path, Modes, Read, Write);
+    {error, _Reason} = Error -> Error
+  end.
+
+handle_fopen(Path, Modes, Read, Write) ->
+  case file_open(Path, fopen_modes(Modes)) of
+    {ok, IoDev} -> {ok, {IoDev, Read, Write}};
     {error, _Reason} = Error -> Error
   end.
 
