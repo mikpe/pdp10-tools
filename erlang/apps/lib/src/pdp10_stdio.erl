@@ -498,7 +498,7 @@ fputs_loop([Nonet | Nonets], State0) ->
 prepare_to_write(State0) ->
   case State0 of
     #state{iodir = write} -> {ok, State0};
-    #state{iodir = seek, write = true} -> {ok, State0#state{iodir = write}};
+    #state{iodir = seek, write = true} -> reload_shiftreg(State0);
     #state{iodir = read, write = true} ->
       case do_fseek(State0, 0, cur) of
         {ok, State} -> reload_shiftreg(State);
@@ -528,7 +528,7 @@ reload_shiftreg(State = #state{shiftreg_nr_bits = ShiftregNrBits0}) ->
      true -> {ok, State#state{iodir = write}}
   end.
 
-
+peek_next_octet(#state{read = false}) -> {error, read_only};
 peek_next_octet(#state{iodev = IoDev}) ->
   %% read the next octet which we will partially overwrite
   case file_read1(IoDev) of
