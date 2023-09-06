@@ -184,7 +184,6 @@ write_src(NrBytes, Src, DstFP, SrcFP) ->
       write_words(Words, DstFP)
   end.
 
--ifdef(notdef).
 padto(DstFP, DstOffset) ->
   CurOffset = pdp10_stdio:ftell(DstFP),
   true = CurOffset =< DstOffset, % assert
@@ -196,21 +195,6 @@ padto(DstFP, DstOffset) ->
         {error, _Reason} = Error -> Error
       end
   end.
--else.
-%% TODO: There is a bug in pdp10_stdio where extending a file by seeking beyond
-%% its current end doesn't work, so we have to extend explicitly by writing NULs.
-padto(DstFP, DstOffset) ->
-  CurOffset = pdp10_stdio:ftell(DstFP),
-  true = CurOffset =< DstOffset, % assert
-  pad(DstFP, DstOffset - CurOffset).
-
-pad(_DstFP, 0) -> ok;
-pad(DstFP, N) ->
-  case pdp10_stdio:fputc(0, DstFP) of
-    ok -> pad(DstFP, N - 1);
-    {error, _Reason} = Error -> Error
-  end.
--endif.
 
 write_words([], _DstFP) -> ok;
 write_words([Word | Words], DstFP) ->
