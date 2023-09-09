@@ -31,6 +31,7 @@ elf2boot:	converts pdp10-elf executables to KLH10-bootable files
 ld:		linker for pdp10-elf object files
 nm:		list symbols from pdp10-elf object files
 od:		file dumper for binary files with 9-bit bytes (nonets)
+ranlib:		add an index to a pdp10-elf archive (same as `ar s`)
 readelf:	display information about pdp10-elf object files,
 		extended with an option to disassemble .text sections
 sim:            a simulator for running pdp10-elf executables on a

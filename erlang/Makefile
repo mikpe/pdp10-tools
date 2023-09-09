@@ -43,6 +43,7 @@ install:
 	for PROG in $(PROGRAMS); do \
 		cp _build/default/bin/$$PROG ../bin/pdp10-elf-$$PROG; \
 	done
+	ln -sf pdp10-elf-ar ../bin/pdp10-elf-ranlib
 
 distclean realclean:	clean
 	rm -f ./rebar3
