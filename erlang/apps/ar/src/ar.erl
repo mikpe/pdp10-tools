@@ -1,6 +1,6 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
-%%% 'ar' for pdp10-elf
+%%% 'ar' and 'ranlib' for pdp10-elf
 %%% Copyright (C) 2013-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
@@ -41,6 +41,29 @@
 
 -spec main([string()]) -> no_return().
 main(Argv) ->
+  Progname = escript_runtime:progname(),
+  case string:find(Progname, "ranlib") of
+    nomatch -> main_ar(Argv);
+    _ -> main_ranlib(Argv)
+  end.
+
+-spec main_ranlib([string()]) -> no_return().
+main_ranlib(Argv) ->
+  %% In ranlib emulation mode we do not accept any options.
+  case Argv of
+    [[C | _] = Archive] when C =/= $- -> main_ar(["-s", Archive]);
+    _ -> usage_ranlib()
+  end.
+
+usage_ranlib() ->
+  Progname = escript_runtime:progname(),
+  escript_runtime:fmterr(
+    "Usage: ~s <archive>\n",
+    [Progname]),
+  halt(1).
+
+-spec main_ar([string()]) -> no_return().
+main_ar(Argv) ->
   case parse_argv(Argv) of
     {ok, {Opts, ArchiveFile, Files}} ->
       ar(Opts, ArchiveFile, Files),

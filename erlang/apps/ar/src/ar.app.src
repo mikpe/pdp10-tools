@@ -16,7 +16,7 @@
 %%% along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
 
 {application, ar,
- [{description, "'ar' for pdp10-elf"},
+ [{description, "'ar' and 'ranlib' for pdp10-elf"},
   {vsn, "0.1.0"},
   {registered, []},
   {applications, [kernel, stdlib, lib]},
