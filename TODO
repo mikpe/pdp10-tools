@@ -33,7 +33,9 @@ Tools:
 - top-level Makefile: subdirs should error out on error in subdir
 - size: implement it
 - strip: implement it
-- ranlib: add wrapper script doing 'ar s'
 - sim: improve it so it can run simple applications
 - as/ld: add support for PIC
 - as/ld: add support for shared objects
+- as/ld: add support for .section .note.GNU-stack (needed by gcc file_end hook)
+- as: add support for .L1-L2 in data directives (needed for gcc -g w/ Dwarf)
+- as: add support for SVR4-specific options (needed by svr4.h in gcc tm_file)
