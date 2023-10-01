@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% sections assembler for pdp10-elf as
-%%% Copyright (C) 2013-2020  Mikael Pettersson
+%%% Copyright (C) 2013-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -183,16 +183,48 @@ exprs_values([Expr | Exprs], Tunit, SectionName, Dot, Size, Context, AccValues, 
   {ok, {Value, Relocs}} = expr_value(Expr, Tunit, SectionName, Dot, Context),
   exprs_values(Exprs, Tunit, SectionName, Dot + Size, Size, Context, [Value | AccValues], Relocs ++ AccRelocs).
 
-expr_value(Expr, Tunit, SectionName, Dot, Context) ->
-  #expr{symbol = Name, offset = Offset, modifier = Modifier} = Expr,
-  case Name of
-    false -> make_abs(Context, Modifier, Offset);
-    "." -> make_rel(Context, Modifier, Dot, SectionName, Dot + Offset);
-    _ ->
-      case tunit:get_symbol(Tunit, Name) of
-        #symbol{section = abs, st_value = Value} when Value =/= false ->
-          make_abs(Context, Modifier, Value + Offset);
-        _ -> make_rel(Context, Modifier, Dot, Name, Offset)
+expr_value(Expr, Tunit, DotSection, Dot, Context) ->
+  #expr{modifier = Modifier} = Expr,
+  case expr_value(Expr, Tunit, DotSection, Dot) of
+    {Symbol, Offset} -> make_rel(Context, Modifier, Dot, Symbol, Offset);
+    Value -> make_abs(Context, Modifier, Value)
+  end.
+
+%% An expression can evaluate to:
+%% - Value when is_integer(Value)
+%% - {Symbol, Addend} when is_string(Symbol), is_integer(Addend)
+expr_value(Expr, Tunit, DotSection, Dot) ->
+  #expr{operand1 = Opnd1, operator = Op, operand2 = Opnd2} = Expr,
+  case {Op, operand_value(Opnd1, Tunit, DotSection, Dot), operand_value(Opnd2, Tunit, DotSection, Dot)} of
+    {'+', false, Value2} -> Value2;
+    {'+', {Sect1, Off1}, Value2} when is_integer(Value2) -> {Sect1, Off1 + Value2};
+    {'+', Value1, {Sect2, Off2}} when is_integer(Value1) -> {Sect2, Off2 + Value1};
+    {'+', Value1, Value2} when is_integer(Value1), is_integer(Value2) -> Value1 + Value2;
+    {'-', false, Value2} when is_integer(Value2) -> -Value2;
+    {'-', {Sect, Off1}, {Sect, Off2}} -> Off1 - Off2;
+    {'-', {Sect1, Off1}, Value2} when is_integer(Value2) -> {Sect1, Off1 - Value2};
+    {'-', Value1, Value2} when is_integer(Value1), is_integer(Value2) -> Value1 - Value2
+  end.
+
+%% An operand can evaluate to:
+%% - false
+%%   if the operand is absent
+%% - Value when is_integer(Value)
+%%   if the operand is an integer or an absolute symbol
+%% - {Section, Offset} when is_string(Section), is_integer(Offset)
+%%   if the operand is a label defined in the current translation unit
+%% - {Symbol, 0} when is_string(Symbol)
+%%   if the operand is an undefined symbol
+operand_value(Operand, Tunit, DotSection, Dot) ->
+  case Operand of
+    false -> false;
+    Value when is_integer(Value) -> Value;
+    "." -> {DotSection, Dot};
+    Symbol when is_list(Symbol) ->
+      case tunit:get_symbol(Tunit, Symbol) of
+        #symbol{section = abs, st_value = Value} when Value =/= false -> Value;
+        #symbol{section = Section, st_value = Value} when Value =/= false -> {Section, Value};
+        _ -> {Symbol, 0}
       end
   end.
 

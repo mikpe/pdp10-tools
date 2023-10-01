@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% translation unit declarations for pdp10-elf as.
-%%% Copyright (C) 2013-2020  Mikael Pettersson
+%%% Copyright (C) 2013-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -23,9 +23,13 @@
 
 %% An expression occurring in a statement. (TODO: extend)
 
+-type operand() :: string()                     % label or symbol, may be "."
+                 | {non_neg_integer(), $b | $f} % local label, eliminated before assembly
+                 | integer().
 -record(expr,
-        { symbol :: false | string() | {non_neg_integer(), $b | $f}
-        , offset :: integer()
+        { operand1 :: operand() | false
+        , operator :: '+' | '-'
+        , operand2 :: operand()
         , modifier :: false | w | b | h
         }).
 -type expr() :: #expr{}.

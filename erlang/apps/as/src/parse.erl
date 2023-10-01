@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% parser for pdp10-elf as
-%%% Copyright (C) 2013-2020  Mikael Pettersson
+%%% Copyright (C) 2013-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -605,8 +605,10 @@ section_name(ScanState) ->
 %%
 %% <plain_expr> ::= "(" <plain_expr> ")"
 %%                | "-"? <uinteger>
-%%                | (<symbol> | <local_label>) (("+" | "-") <uinteger>)?
+%%                | <symbol_or_label> (("+" | "-") <uinteger>)?
+%%                | <symbol_or_label> "-" <symbol_or_label>
 %%
+%% <symbol_or_label> := <symbol> | <local_label>
 %% <modifier> ::= "w" | "b" | "h"
 %%
 %% Note: <modifier> describes how the value should be represented, which also
@@ -709,6 +711,10 @@ do_expr_offset(ScanState, Symbol, IsMinus, Modifier) ->
   case scan:token(ScanState) of
     {ok, {_Location, {?T_UINTEGER, UInt}}} ->
       {ok, mk_symbol_expr(Symbol, if IsMinus -> -UInt; true -> UInt end, Modifier)};
+    {ok, {_Location, {?T_LOCAL_LABEL, Number, Direction}}} when IsMinus ->
+      {ok, mk_diff_expr(Symbol, _Symbol2 = {Number, Direction}, Modifier)};
+    {ok, {_Location, {?T_SYMBOL, Symbol2}}} when IsMinus ->
+      {ok, mk_diff_expr(Symbol, Symbol2, Modifier)};
     ScanRes -> badtok("expected <uinteger> after <sign>", ScanRes)
   end.
 
@@ -720,9 +726,10 @@ symbol_modifier(Symbol) ->
     _      -> error
   end.
 
-mk_integer_expr(Value, Modifier) -> #expr{symbol = false, offset = Value, modifier = Modifier}.
-mk_symbol_expr(Symbol, Modifier) -> #expr{symbol = Symbol, offset = 0, modifier = Modifier}.
-mk_symbol_expr(Symbol, Offset, Modifier) -> #expr{symbol = Symbol, offset = Offset, modifier = Modifier}.
+mk_integer_expr(Value, Modifier) -> #expr{operand1 = false, operator = '+', operand2 = Value, modifier = Modifier}.
+mk_symbol_expr(Symbol, Modifier) -> #expr{operand1 = false, operator = '+', operand2 = Symbol, modifier = Modifier}.
+mk_symbol_expr(Symbol, Offset, Modifier) -> #expr{operand1 = Symbol, operator = '+', operand2 = Offset, modifier = Modifier}.
+mk_diff_expr(Symbol1, Symbol2, Modifier) -> #expr{operand1 = Symbol1, operator = '-', operand2 = Symbol2, modifier = Modifier}.
 
 %% String Lists ----------------------------------------------------------------
 

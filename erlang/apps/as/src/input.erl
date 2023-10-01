@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% input processing phase for pdp10-elf as
-%%% Copyright (C) 2013-2020  Mikael Pettersson
+%%% Copyright (C) 2013-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -634,18 +634,19 @@ insn_fixup(Tunit, Insn) ->
   Insn#s_insn{address = expr_fixup(Tunit, Address)}.
 
 expr_fixup(Tunit, Expr) ->
-  case Expr of
-    #expr{symbol = {Number, Direction}} ->
-      LabelSerial = local_label_serial(Tunit, Number),
-      ReferenceSerial =
-        case Direction of
-          $b -> LabelSerial;
-          $f -> LabelSerial + 1
-        end,
-      Name = local_label_name(Number, ReferenceSerial),
-      Expr#expr{symbol = Name};
-    _ -> Expr
-  end.
+  #expr{operand1 = Operand1, operand2 = Operand2} = Expr,
+  Expr#expr{operand1 = operand_fixup(Tunit, Operand1),
+            operand2 = operand_fixup(Tunit, Operand2)}.
+
+operand_fixup(Tunit, {Number, Direction}) ->
+  LabelSerial = local_label_serial(Tunit, Number),
+  ReferenceSerial =
+    case Direction of
+      $b -> LabelSerial;
+      $f -> LabelSerial + 1
+    end,
+  local_label_name(Number, ReferenceSerial);
+operand_fixup(_Tunit, Operand) -> Operand.
 
 %% Initialization --------------------------------------------------------------
 
