@@ -93,6 +93,12 @@
 %% .type foo,@function (TODO: extend)
 -record(s_dot_type, {name :: string()}).
 
+%% .2byte [expr (, expr)*]
+-record(s_dot_2byte, {exprs :: [expr()]}).
+
+%% .4byte [expr (, expr)*]
+-record(s_dot_4byte, {exprs :: [expr()]}).
+
 %% foo: 1:
 -record(s_label, {name :: string()}).
 -record(s_local_label, {number :: non_neg_integer()}).
@@ -120,6 +126,8 @@
               | #s_dot_subsection{}
               | #s_dot_text{}
               | #s_dot_type{}
+              | #s_dot_2byte{}
+              | #s_dot_4byte{}
               | #s_label{}
               | #s_local_label{}
               | #s_insn{}

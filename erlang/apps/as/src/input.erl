@@ -439,6 +439,8 @@ pass2_stmt(Location, Tunit, Stmt) ->
     #s_dot_short{} -> dot_short(Location, Tunit, Stmt);
     #s_dot_size{} -> dot_size(Location, Tunit, Stmt);
     #s_dot_type{} -> dot_type(Location, Tunit, Stmt);
+    #s_dot_2byte{} -> dot_2byte(Location, Tunit, Stmt);
+    #s_dot_4byte{} -> dot_4byte(Location, Tunit, Stmt);
     #s_label{} -> label(Location, Tunit, Stmt);
     #s_local_label{} -> local_label(Location, Tunit, Stmt);
     #s_insn{} -> insn(Location, Tunit, Stmt)
@@ -460,7 +462,9 @@ dot_ascii(_Location, Tunit, #s_dot_ascii{z = Z, strings = Strings} = Stmt) ->
   {ok, tunit:put_section(Tunit, NewSection)}.
 
 dot_byte(Location, Tunit, #s_dot_byte{} = Stmt0) ->
-  integer_data_directive(Location, Tunit, Stmt0, 1, ".byte",
+  Size = 1,
+  Align = 1,
+  integer_data_directive(Location, Tunit, Stmt0, Size, Align, ".byte",
                          fun(Stmt) -> Stmt#s_dot_byte.exprs end,
                          fun(Stmt, Exprs) -> Stmt#s_dot_byte{exprs = Exprs} end).
 
@@ -509,16 +513,17 @@ dot_ident(_Location, Tunit, #s_dot_ident{} = Stmt) ->
   {ok, tunit:put_section(Tunit, NewSection)}.
 
 dot_long(Location, Tunit, #s_dot_long{} = Stmt0) ->
-  Size = 4, % FIXME: target-specific alignof and sizeof
-  integer_data_directive(Location, Tunit, Stmt0, Size, ".long",
+  Size = 4, % FIXME: target-specific
+  Align = Size,
+  integer_data_directive(Location, Tunit, Stmt0, Size, Align, ".long",
                          fun(Stmt) -> Stmt#s_dot_long.exprs end,
                          fun(Stmt, Exprs) -> Stmt#s_dot_long{exprs = Exprs} end).
 
-integer_data_directive(Location, Tunit, Stmt, Size, Lexeme, GetExpr, SetExprs) ->
+integer_data_directive(Location, Tunit, Stmt, Size, Align, Lexeme, GetExpr, SetExprs) ->
   Exprs = GetExpr(Stmt),
   #tunit{cursect = Cursect} = Tunit,
   #section{data = {stmts, Stmts}, dot = Dot} = Section = tunit:get_section(Tunit, Cursect),
-  case Dot rem Size of
+  case Dot rem Align of
     0 ->
       NewExprs = [expr_fixup(Tunit, Expr) || Expr <- Exprs],
       NewStmt = SetExprs(Stmt, NewExprs),
@@ -531,8 +536,9 @@ integer_data_directive(Location, Tunit, Stmt, Size, Lexeme, GetExpr, SetExprs) -
   end.
 
 dot_short(Location, Tunit, #s_dot_short{} = Stmt0) ->
-  Size = 2, % FIXME: target-specific alignof and sizeof
-  integer_data_directive(Location, Tunit, Stmt0, Size, ".short",
+  Size = 2, % FIXME: target-specific
+  Align = Size,
+  integer_data_directive(Location, Tunit, Stmt0, Size, Align, ".short",
                          fun(Stmt) -> Stmt#s_dot_short.exprs end,
                          fun(Stmt, Exprs) -> Stmt#s_dot_short{exprs = Exprs} end).
 
@@ -576,6 +582,20 @@ dot_type(Location, Tunit, #s_dot_type{name = Name}) ->
           fmterr(Location, "symbol ~s has previous incompatible type ~p", [Name, Type])
       end
   end.
+
+dot_2byte(Location, Tunit, #s_dot_2byte{} = Stmt0) ->
+  Size = 2, % FIXME: target-specific
+  Align = 1,
+  integer_data_directive(Location, Tunit, Stmt0, Size, Align, ".2byte",
+                         fun(Stmt) -> Stmt#s_dot_2byte.exprs end,
+                         fun(Stmt, Exprs) -> Stmt#s_dot_2byte{exprs = Exprs} end).
+
+dot_4byte(Location, Tunit, #s_dot_4byte{} = Stmt0) ->
+  Size = 4, % FIXME: target-specific
+  Align = 1,
+  integer_data_directive(Location, Tunit, Stmt0, Size, Align, ".4byte",
+                         fun(Stmt) -> Stmt#s_dot_4byte.exprs end,
+                         fun(Stmt, Exprs) -> Stmt#s_dot_4byte{exprs = Exprs} end).
 
 label(Location, Tunit, #s_label{name = Name}) ->
   case tunit:get_symbol(Tunit, Name) of

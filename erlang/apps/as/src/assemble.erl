@@ -133,6 +133,8 @@ stmt_image(Stmt, Tunit, SectionName, Dot) ->
     #s_dot_byte{} -> dot_byte_image(Stmt, Tunit, SectionName, Dot);
     #s_dot_long{} -> dot_long_image(Stmt, Tunit, SectionName, Dot);
     #s_dot_short{} -> dot_short_image(Stmt, Tunit, SectionName, Dot);
+    #s_dot_2byte{} -> dot_2byte_image(Stmt, Tunit, SectionName, Dot);
+    #s_dot_4byte{} -> dot_4byte_image(Stmt, Tunit, SectionName, Dot);
     #s_insn{} -> insn_image(Stmt, Tunit, SectionName, Dot)
   end.
 
@@ -160,6 +162,16 @@ integer_data_directive(Exprs, Tunit, SectionName, Dot, Size, Context, ValueToExt
 dot_short_image(#s_dot_short{exprs = Exprs}, Tunit, SectionName, Dot) ->
   integer_data_directive(Exprs, Tunit, SectionName, Dot, _Size = 2, _Context = short,
                          fun pdp10_extint:uint18_to_ext/1).
+
+%% TODO: merge with .short handling?
+dot_2byte_image(#s_dot_2byte{exprs = Exprs}, Tunit, SectionName, Dot) ->
+  integer_data_directive(Exprs, Tunit, SectionName, Dot, _Size = 2, _Context = short,
+                         fun pdp10_extint:uint18_to_ext/1).
+
+%% TODO: merge with .long handling?
+dot_4byte_image(#s_dot_4byte{exprs = Exprs}, Tunit, SectionName, Dot) ->
+  integer_data_directive(Exprs, Tunit, SectionName, Dot, _Size = 4, _Context = long,
+                         fun pdp10_extint:uint36_to_ext/1).
 
 insn_image(Stmt, Tunit, SectionName, Dot) ->
   #s_insn{ high13 = High13

@@ -54,6 +54,8 @@ stmt(ScanState) ->
     {ok, {Location, ?T_DOT_TEXT}} -> dot_text(ScanState, Location);
     {ok, {Location, ?T_DOT_TYPE}} -> dot_type(ScanState, Location);
     {ok, {Location, ?T_DOT_WORD}} -> dot_word(ScanState, Location);
+    {ok, {Location, ?T_DOT_2BYTE}} -> dot_2byte(ScanState, Location);
+    {ok, {Location, ?T_DOT_4BYTE}} -> dot_4byte(ScanState, Location);
     {ok, {Location, {?T_SYMBOL, Name}}} -> stmt_after_symbol(ScanState, Location, Name);
     {ok, {Location, {?T_UINTEGER, UInt}}} -> stmt_after_uinteger(ScanState, Location, UInt);
     {ok, {_Location, ?T_NEWLINE}} -> stmt(ScanState);
@@ -423,6 +425,14 @@ dot_type(ScanState, Location) ->
 
 dot_word(ScanState, Location) ->
   dot_long(ScanState, Location).
+
+dot_2byte(ScanState, Location) ->
+  integer_data_directive(ScanState, Location,
+                         fun(Exprs) -> #s_dot_2byte{exprs = Exprs} end).
+
+dot_4byte(ScanState, Location) ->
+  integer_data_directive(ScanState, Location,
+                         fun(Exprs) -> #s_dot_4byte{exprs = Exprs} end).
 
 %% .section/.pushsection directives --------------------------------------------
 %%

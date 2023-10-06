@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% token definitions for pdp10-elf as
-%%% Copyright (C) 2013-2020  Mikael Pettersson
+%%% Copyright (C) 2013-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -45,8 +45,10 @@
 -define(T_DOT_TEXT,             'T_DOT_TEXT').          % .text
 -define(T_DOT_TYPE,             'T_DOT_TYPE').          % .type
 -define(T_DOT_WORD,             'T_DOT_WORD').          % .word
+-define(T_DOT_2BYTE,            'T_DOT_2BYTE').         % .2byte
+-define(T_DOT_4BYTE,            'T_DOT_4BYTE').         % .4byte
 
-%% ordinary (non-reserved, non-special non-synthetic) symbols
+%% ordinary (non-reserved, non-special, non-synthetic) symbols
 -define(T_SYMBOL,       'T_SYMBOL').    % pushj, foo, .Lbar
 
 %% literals
@@ -87,6 +89,8 @@
                | ?T_DOT_TEXT
                | ?T_DOT_TYPE
                | ?T_DOT_WORD
+               | ?T_DOT_2BYTE
+               | ?T_DOT_4BYTE
                | {?T_SYMBOL, string()}
                | {?T_LOCAL_LABEL, non_neg_integer(), $b | $f}
                | {?T_STRING, string()}

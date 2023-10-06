@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% token handling for pdp10-elf as
-%%% Copyright (C) 2013-2020  Mikael Pettersson
+%%% Copyright (C) 2013-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -48,6 +48,8 @@ from_symbol(Name) ->
     ".text"             -> ?T_DOT_TEXT;
     ".type"             -> ?T_DOT_TYPE;
     ".word"             -> ?T_DOT_WORD;
+    ".2byte"            -> ?T_DOT_2BYTE;
+    ".4byte"            -> ?T_DOT_4BYTE;
     _                   -> {?T_SYMBOL, Name}
   end.
 
@@ -73,6 +75,8 @@ format(Token) ->
     ?T_DOT_TEXT         -> ".text";
     ?T_DOT_TYPE         -> ".type";
     ?T_DOT_WORD         -> ".word";
+    ?T_DOT_2BYTE        -> ".2byte";
+    ?T_DOT_4BYTE        -> ".4byte";
     {?T_SYMBOL, Name}   -> io_lib:format("symbol:~s", [Name]);
     {?T_LOCAL_LABEL, Number, Direction} ->
       io_lib:format("label: ~.10b~c", [Number, Direction]);
