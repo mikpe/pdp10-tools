@@ -296,7 +296,7 @@ make_section(SectionName) ->
           , sh_flags = 0
           , sh_link = ?SHN_UNDEF
           , sh_info = 0
-          , sh_addralign = 0
+          , sh_addralign = 1
           , sh_entsize = 0
           }.
 
@@ -405,6 +405,7 @@ pass2_sections([{SectionName, {Section, SubsectionsMap}} | Sections], Tunit0) ->
 pass2_subsections(SectionName, SubsectionsMap, Tunit) ->
   case SectionName of
     ".data" ++ _ -> ok;
+    ".debug" ++ _ -> ok;
     ".rodata" ++ _ -> ok;
     ".text" ++ _ -> ok
   end,

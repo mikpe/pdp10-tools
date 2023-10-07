@@ -40,9 +40,16 @@ sections([Section | Sections], Tunit) ->
 
 section(Section, Tunit) ->
   case Section of
+    #section{ name = ".comment"
+            , sh_type = ?SHT_PROGBITS
+            , sh_flags = ?SHF_MERGE bor ?SHF_STRINGS
+            } -> comment(Section, Tunit);
     #section{ name = ".data" ++ _
             , sh_type = ?SHT_PROGBITS
             , sh_flags = ?SHF_ALLOC bor ?SHF_WRITE
+            } -> stmts(Section, Tunit);
+    #section{ name = ".debug" ++ _
+            , sh_type = ?SHT_PROGBITS
             } -> stmts(Section, Tunit);
     #section{ name = ".rodata" ++ _
             , sh_type = ?SHT_PROGBITS
@@ -52,10 +59,6 @@ section(Section, Tunit) ->
             , sh_type = ?SHT_PROGBITS
             , sh_flags = ?SHF_ALLOC bor ?SHF_EXECINSTR
             } -> stmts(Section, Tunit);
-    #section{ name = ".comment"
-            , sh_type = ?SHT_PROGBITS
-            , sh_flags = ?SHF_MERGE bor ?SHF_STRINGS
-            } -> comment(Section, Tunit);
     #section{ name = Name } ->
       {error, {?MODULE, {cannot_assemble, Name}}}
   end.
