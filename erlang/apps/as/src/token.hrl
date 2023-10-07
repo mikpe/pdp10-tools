@@ -41,6 +41,7 @@
 -define(T_DOT_SECTION,          'T_DOT_SECTION').       % .section
 -define(T_DOT_SHORT,            'T_DOT_SHORT').         % .short
 -define(T_DOT_SIZE,             'T_DOT_SIZE').          % .size
+-define(T_DOT_STRING,           'T_DOT_STRING').        % .string
 -define(T_DOT_SUBSECTION,       'T_DOT_SUBSECTION').    % .subsection
 -define(T_DOT_TEXT,             'T_DOT_TEXT').          % .text
 -define(T_DOT_TYPE,             'T_DOT_TYPE').          % .type
@@ -85,6 +86,7 @@
                | ?T_DOT_SECTION
                | ?T_DOT_SHORT
                | ?T_DOT_SIZE
+               | ?T_DOT_STRING
                | ?T_DOT_SUBSECTION
                | ?T_DOT_TEXT
                | ?T_DOT_TYPE

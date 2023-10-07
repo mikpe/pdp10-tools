@@ -50,6 +50,7 @@ stmt(ScanState) ->
     {ok, {Location, ?T_DOT_SECTION}} -> dot_section(ScanState, Location);
     {ok, {Location, ?T_DOT_SHORT}} -> dot_short(ScanState, Location);
     {ok, {Location, ?T_DOT_SIZE}} -> dot_size(ScanState, Location);
+    {ok, {Location, ?T_DOT_STRING}} -> dot_string(ScanState, Location);
     {ok, {Location, ?T_DOT_SUBSECTION}} -> dot_subsection(ScanState, Location);
     {ok, {Location, ?T_DOT_TEXT}} -> dot_text(ScanState, Location);
     {ok, {Location, ?T_DOT_TYPE}} -> dot_type(ScanState, Location);
@@ -378,6 +379,9 @@ dot_size(ScanState, Location) ->
       end;
     ScanRes -> badtok("junk after .size", ScanRes)
   end.
+
+dot_string(ScanState, Location) -> % .string is essentially an alias for .asciz
+  dot_ascii(ScanState, Location, ".string", _Z = true).
 
 dot_subsection(ScanState, Location) ->
   case scan:token(ScanState) of

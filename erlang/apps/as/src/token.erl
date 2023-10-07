@@ -44,6 +44,7 @@ from_symbol(Name) ->
     ".section"          -> ?T_DOT_SECTION;
     ".short"            -> ?T_DOT_SHORT;
     ".size"             -> ?T_DOT_SIZE;
+    ".string"           -> ?T_DOT_STRING;
     ".subsection"       -> ?T_DOT_SUBSECTION;
     ".text"             -> ?T_DOT_TEXT;
     ".type"             -> ?T_DOT_TYPE;
@@ -71,6 +72,7 @@ format(Token) ->
     ?T_DOT_SECTION      -> ".section";
     ?T_DOT_SHORT        -> ".short";
     ?T_DOT_SIZE         -> ".size";
+    ?T_DOT_STRING       -> ".string";
     ?T_DOT_SUBSECTION   -> ".subsection";
     ?T_DOT_TEXT         -> ".text";
     ?T_DOT_TYPE         -> ".type";
