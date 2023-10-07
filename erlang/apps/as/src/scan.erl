@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% scanner for pdp10-elf as
-%%% Copyright (C) 2013-2021  Mikael Pettersson
+%%% Copyright (C) 2013-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -299,11 +299,11 @@ do_number(ScanState, Location, Dig0) ->
                case fgetc(ScanState) of
                  {error, _Reason} = Error -> Error;
                  eof -> badchar(ScanState, eof, "after 0x in number");
-                 {ok, Ch} ->
-                   case chval(Ch) of
-                     ChVal when ChVal < 16 ->
-                       do_number(ScanState, Location, _Base = 16, ChVal);
-                     _Val -> badchar(ScanState, Ch, "after 0x in number")
+                 {ok, Ch2} ->
+                   case chval(Ch2) of
+                     Ch2Val when Ch2Val < 16 ->
+                       do_number(ScanState, Location, _Base = 16, Ch2Val);
+                     _Val -> badchar(ScanState, Ch2, "after 0x in number")
                    end
                end;
              true ->
