@@ -192,7 +192,7 @@ insn_ea_index(ScanState, Location, Name, AccOrDev, At, Displacement) ->
 
 make_insn(Location, Name, AccOrDev, At, Displacement, Index) ->
   Models = ?PDP10_KL10_271, % FIXME: make dynamic
-  case pdp10_opcodes:insn_from_name(Models, Name, AccOrDev =/= false) of
+  case insn_from_name(Models, Name, AccOrDev =/= false) of
     false -> badinsn(Location, "invalid mnemonic ~s", Name);
     #pdp10_insn_desc{ high13 = High13
                     , format = Format
@@ -216,6 +216,15 @@ make_insn(Location, Name, AccOrDev, At, Displacement, Index) ->
               {ok, {Location, Stmt}}
           end
       end
+  end.
+
+insn_from_name(Models, Name, HaveA) ->
+  case pdp10_opcodes:insn_from_name(Models, Name, HaveA) of
+    false ->
+      %% To simplify porting code written for MACRO-10 we accept
+      %% mnemonics written in upper-case.
+      pdp10_opcodes:insn_from_name(Models, string:lowercase(Name), HaveA);
+    Insn -> Insn
   end.
 
 make_high13(Location, Name, AccOrDev, High13, Format) ->
