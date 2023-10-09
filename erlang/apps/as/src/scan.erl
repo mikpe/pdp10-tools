@@ -162,7 +162,11 @@ do_token(ScanState) ->
         $#  -> do_line_comment(ScanState);
         $@  -> {ok, {Location, ?T_AT}};
         $:  -> {ok, {Location, ?T_COLON}};
-        $;  -> {ok, {Location, ?T_NEWLINE}};
+        $;  ->
+          %% This should be ?T_NEWLINE to permit multiple instructions in a line,
+          %% but for compatibility with code written for MACRO-10 we to treat it
+          %% as the start of a line-comment. TODO: restore ; -> ?T_NEWLINE
+          do_line_comment(ScanState);
         $,  -> {ok, {Location, ?T_COMMA}};
         $(  -> {ok, {Location, ?T_LPAREN}};
         $)  -> {ok, {Location, ?T_RPAREN}};
