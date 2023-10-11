@@ -716,6 +716,8 @@ do_plain_expr(ScanState, First, Modifier) ->
       do_expr_maybe_offset(ScanState, _Symbol = {Number, Direction}, Modifier);
     {ok, {_Location, {?T_SYMBOL, Symbol}}} ->
       do_expr_maybe_offset(ScanState, Symbol, Modifier);
+    {ok, {_Location, ?T_DOT}} ->
+      do_expr_maybe_offset(ScanState, _Symbol = ".", Modifier);
     _ ->
       badtok("invalid start of expr", First)
   end.
