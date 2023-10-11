@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% pdp10_opcodes.erl
-%%% Copyright (C) 2013-2019  Mikael Pettersson
+%%% Copyright (C) 2013-2023  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -81,7 +81,7 @@ section0_matches(Section0, #pdp10_insn_desc{section0 = RequiredSection0}) ->
 
 %% Access lookup table, mapping names or opcode high13 bits,
 %% to candidate descriptors.
-%% TODO: _maybe_ use peristent_term instead
+%% TODO: _maybe_ use persistent_term instead
 descs_from_key(NameOrHigh13) ->
   ensure_lookup_table(),
   case ets:lookup(?MODULE, NameOrHigh13) of
@@ -482,7 +482,7 @@ pdp10_insns() ->
   , ?D("skipl",         ?BASIC(8#331),                  ?PDP10_ALL)
   , ?D("skipe",         ?BASIC(8#332),                  ?PDP10_ALL)
   , ?D("skiple",        ?BASIC(8#333),                  ?PDP10_ALL)
-  , ?D("skipa",         ?BASIC(8#334),                  ?PDP10_ALL)
+  , ?D("skipa",         ?E_UNUSED(?BASIC(8#334)),       ?PDP10_ALL)
   , ?D("skipge",        ?BASIC(8#335),                  ?PDP10_ALL)
   , ?D("skipn",         ?BASIC(8#336),                  ?PDP10_ALL)
   , ?D("skipg",         ?BASIC(8#337),                  ?PDP10_ALL)
