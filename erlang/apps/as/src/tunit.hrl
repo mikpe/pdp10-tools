@@ -90,8 +90,8 @@
 %% .text [nr]
 -record(s_dot_text, {nr :: non_neg_integer()}).
 
-%% .type foo,@function (TODO: extend)
--record(s_dot_type, {name :: string()}).
+%% .type foo,(@function|@object) (TODO: extend)
+-record(s_dot_type, {name :: string(), type :: function | object}).
 
 %% .2byte [expr (, expr)*]
 -record(s_dot_2byte, {exprs :: [expr()]}).

@@ -560,7 +560,12 @@ dot_size(Location, Tunit, #s_dot_size{name = Name}) ->
       fmterr(Location, "symbol ~s not defined", [Name])
   end.
 
-dot_type(Location, Tunit, #s_dot_type{name = Name}) ->
+dot_type(Location, Tunit, #s_dot_type{name = Name, type = Type}) ->
+  StType =
+    case Type of
+      function -> ?STT_FUNC;
+      object -> ?STT_OBJECT
+    end,
   case tunit:get_symbol(Tunit, Name) of
     false ->
       Symbol =
@@ -568,19 +573,19 @@ dot_type(Location, Tunit, #s_dot_type{name = Name}) ->
                , section = false
                , st_value = false
                , st_size = false
-               , st_info = ?ELF_ST_INFO(?STB_LOCAL, ?STT_FUNC)
+               , st_info = ?ELF_ST_INFO(?STB_LOCAL, StType)
                , st_name = 0
                , st_shndx = 0
                },
       {ok, tunit:put_symbol(Tunit, Symbol)};
     #symbol{st_info = StInfo} = OldSymbol ->
       case ?ELF_ST_TYPE(StInfo) of
-        ?STT_FUNC -> {ok, Tunit};
+        StType -> {ok, Tunit};
         ?STT_NOTYPE ->
-          Symbol = OldSymbol#symbol{st_info = ?ELF_ST_INFO(?ELF_ST_BIND(StInfo), ?STT_FUNC)},
+          Symbol = OldSymbol#symbol{st_info = ?ELF_ST_INFO(?ELF_ST_BIND(StInfo), StType)},
           {ok, tunit:put_symbol(Tunit, Symbol)};
-        Type ->
-          fmterr(Location, "symbol ~s has previous incompatible type ~p", [Name, Type])
+        Other ->
+          fmterr(Location, "symbol ~s has previous incompatible type ~p", [Name, Other])
       end
   end.
 

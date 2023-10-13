@@ -413,7 +413,7 @@ dot_text(ScanState, Location) ->
     ScanRes -> badtok("junk after .text", ScanRes)
   end.
 
-%% For now only accepts ".type <sym>,@function".  TODO: extend
+%% For now only accepts ".type <sym>,(@function|@object)".  TODO: extend
 dot_type(ScanState, Location) ->
   case scan:token(ScanState) of
     {ok, {_Location1, {?T_SYMBOL, Name}}} ->
@@ -423,16 +423,21 @@ dot_type(ScanState, Location) ->
             {ok, {_Location3, ?T_AT}} ->
               case scan:token(ScanState) of
                 {ok, {_Location4, {?T_SYMBOL, "function"}}} ->
-                  case scan:token(ScanState) of
-                    {ok, {_Location5, ?T_NEWLINE}} -> {ok, {Location, #s_dot_type{name = Name}}};
-                    ScanRes -> badtok("junk after .type", ScanRes)
-                  end;
+                  dot_type(ScanState, Location, Name, function);
+                {ok, {_Location4, {?T_SYMBOL, "object"}}} ->
+                  dot_type(ScanState, Location, Name, object);
                 ScanRes -> badtok("junk after .type", ScanRes)
               end;
             ScanRes -> badtok("junk after .type", ScanRes)
           end;
         ScanRes -> badtok("junk after .type", ScanRes)
       end;
+    ScanRes -> badtok("junk after .type", ScanRes)
+  end.
+
+dot_type(ScanState, Location, Name, Type) ->
+  case scan:token(ScanState) of
+    {ok, {_Location5, ?T_NEWLINE}} -> {ok, {Location, #s_dot_type{name = Name, type = Type}}};
     ScanRes -> badtok("junk after .type", ScanRes)
   end.
 
