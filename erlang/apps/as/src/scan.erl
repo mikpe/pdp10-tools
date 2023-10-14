@@ -291,6 +291,8 @@ do_symbol(Location, Chars) ->
     _ -> {ok, {Location, {?T_SYMBOL, Chars}}}
   end.
 
+%% Numbers are octal by default.
+%% Numbers may be prefixed by 0d or 0D to specify decimal.
 do_number(ScanState, Location, Dig0) ->
   case Dig0 of
     $0 ->
@@ -299,24 +301,39 @@ do_number(ScanState, Location, Dig0) ->
         eof -> {ok, {Location, {?T_UINTEGER, Dig0 - $0}}};
         {ok, Ch} ->
           if Ch =:= $x; Ch =:= $X ->
-               %% must have hex digit after 0x
-               case fgetc(ScanState) of
-                 {error, _Reason} = Error -> Error;
-                 eof -> badchar(ScanState, eof, "after 0x in number");
-                 {ok, Ch2} ->
-                   case chval(Ch2) of
-                     Ch2Val when Ch2Val < 16 ->
-                       do_number(ScanState, Location, _Base = 16, Ch2Val);
-                     _Val -> badchar(ScanState, Ch2, "after 0x in number")
-                   end
-               end;
+               do_number_base(ScanState, Location, _Base = 16);
+             Ch =:= $d; Ch =:= $D ->
+               do_number_base(ScanState, Location, _Base = 10);
              true ->
                ungetc(Ch, ScanState),
                do_number(ScanState, Location, _Base = 8, _Val = 0)
           end
       end;
-    _ -> do_number(ScanState, Location, _Base = 10, _Val = Dig0 - $0)
+    _ when Dig0 =:= $8; Dig0 =:= $9 ->
+      do_number(ScanState, Location, _Base = 10, _Val = Dig0 - $0);
+    _ ->
+      do_number(ScanState, Location, _Base = 8, _Val = Dig0 - $0)
   end.
+
+do_number_base(ScanState, Location, Base) ->
+  %% must have <base> digit after 0<base indicator>
+  case fgetc(ScanState) of
+    {error, _Reason} = Error -> Error;
+    eof -> badbase(ScanState, eof, Base);
+    {ok, Ch2} ->
+      case chval(Ch2) of
+        Ch2Val when Ch2Val < Base ->
+          do_number(ScanState, Location, Base, Ch2Val);
+        _Val -> badbase(ScanState, Ch2, Base)
+      end
+  end.
+
+badbase(ScanState, Ch, Base) ->
+  Context =
+    case Base of
+      16 -> "after 0x in number"
+    end,
+  badchar(ScanState, Ch, Context).
 
 do_number(ScanState, Location, Base, Val) ->
   case fgetc(ScanState) of
