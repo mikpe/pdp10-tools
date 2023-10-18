@@ -88,9 +88,11 @@ format(Token) ->
     ?T_COLON            -> ":";
     ?T_COMMA            -> ",";
     ?T_DOT              -> ".";
+    ?T_LBRACK           -> "[";
     ?T_LPAREN           -> "(";
     ?T_MINUS            -> "-";
     ?T_PLUS             -> "+";
+    ?T_RBRACK           -> "]";
     ?T_RPAREN           -> ")";
     ?T_NEWLINE          -> "<newline>";
     ?T_EOF              -> "<eof>"

@@ -62,9 +62,11 @@
 -define(T_COLON,        'T_COLON').     % :
 -define(T_COMMA,        'T_COMMA').     % ,
 -define(T_DOT,          'T_DOT').       % .
+-define(T_LBRACK,       'T_LBRACK').    % [
 -define(T_LPAREN,       'T_LPAREN').    % (
 -define(T_MINUS,        'T_MINUS').     % -
 -define(T_PLUS,         'T_PLUS').      % +
+-define(T_RBRACK,       'T_RBRACK').    % ]
 -define(T_RPAREN,       'T_RPAREN').    % )
 
 %% synthetic symbols
@@ -101,9 +103,11 @@
                | ?T_COLON
                | ?T_COMMA
                | ?T_DOT
+               | ?T_LBRACK
                | ?T_LPAREN
                | ?T_MINUS
                | ?T_PLUS
+               | ?T_RBRACK
                | ?T_RPAREN
                | ?T_NEWLINE
                | ?T_EOF
