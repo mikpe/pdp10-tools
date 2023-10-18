@@ -70,7 +70,7 @@ stmt(ScanState) ->
 %%
 %% <label> ::= <symbol> ":" | <uinteger> ":"
 %%
-%% <insn> ::= <symbol> (<accumulator> ",")? <address> <newline>
+%% <insn> ::= <symbol> (<accumulator> ",")? <address>
 %%
 %% <accumulator> ::= <uinteger> [uint <= 0xF]
 %%
@@ -90,7 +90,7 @@ stmt(ScanState) ->
 %%
 %% Ambiguous example:
 %%
-%% <symbol> (<uinteger>) <newline>
+%% <symbol> (<uinteger>)
 %%
 %% This is ambiguous since we have no special notation for <register>, and the
 %% same kind of parentheses are used for expression grouping in the displacement
@@ -115,7 +115,9 @@ stmt_after_uinteger(ScanState, Location, UInt) ->
 stmt_after_symbol(ScanState, Location, Name) ->
   case scan:token(ScanState) of
     {ok, {_Location, ?T_COLON}} -> {ok, {Location, #s_label{name = Name}}};
-    {ok, {_Location, ?T_NEWLINE}} -> make_insn(Location, Name, false, false, false, false);
+    {ok, {_Location, ?T_NEWLINE} = Follow} ->
+      scan:pushback(ScanState, Follow),
+      make_insn(Location, Name, false, false, false, false);
     {ok, {_Location, ?T_AT}} -> insn_ea_at(ScanState, Location, Name, _AccOrDev = false);
     {ok, {Location2, {?T_UINTEGER, UInt}}} -> insn_uint(ScanState, Location, Name, Location2, UInt);
     {ok, {_Location, _Token} = First} -> insn_disp(ScanState, Location, Name, First);
@@ -143,10 +145,11 @@ insn_disp(ScanState, Location, Name, First) ->
     {error, _Reason} = Error -> Error
   end.
 
-%% <symbol> <accordev> "," . [ ["@"] <displacement> ["(" <index> ")"] ] <newline>
+%% <symbol> <accordev> "," . [ ["@"] <displacement> ["(" <index> ")"] ]
 insn_ea(ScanState, Location, Name, AccOrDev) ->
   case scan:token(ScanState) of
-    {ok, {_Location, ?T_NEWLINE}} ->
+    {ok, {_Location, ?T_NEWLINE} = Follow} ->
+      scan:pushback(ScanState, Follow),
       make_insn(Location, Name, AccOrDev, _At = false, _Displacement = false, _Index = false);
     {ok, {_Location, ?T_AT}} -> insn_ea_at(ScanState, Location, Name, AccOrDev);
     {ok, {_Location, _Token}} = ScanRes ->
@@ -158,7 +161,7 @@ insn_ea(ScanState, Location, Name, AccOrDev) ->
     {error, _Reason} = Error -> Error
   end.
 
-%% <symbol> [<accordev> ","] "@" . <displacement> ["(" <index> ")"] <newline>
+%% <symbol> [<accordev> ","] "@" . <displacement> ["(" <index> ")"]
 insn_ea_at(ScanState, Location, Name, AccOrDev) ->
   case expr(ScanState) of
     {ok, Displacement} ->
@@ -166,22 +169,25 @@ insn_ea_at(ScanState, Location, Name, AccOrDev) ->
     {error, _Reason} = Error -> Error
   end.
 
-%% <symbol> [<accordev> ","] ["@"] <displacement> . ["(" <index> ")"] <newline>
+%% <symbol> [<accordev> ","] ["@"] <displacement> . ["(" <index> ")"]
 insn_ea_disp(ScanState, Location, Name, AccOrDev, At, Displacement) ->
   case scan:token(ScanState) of
     {ok, {_Location, ?T_LPAREN}} -> insn_ea_index(ScanState, Location, Name, AccOrDev, At, Displacement);
-    {ok, {_Location, ?T_NEWLINE}} -> make_insn(Location, Name, AccOrDev, At, Displacement, _Index = false);
+    {ok, {_Location, ?T_NEWLINE} = Follow} ->
+      scan:pushback(ScanState, Follow),
+      make_insn(Location, Name, AccOrDev, At, Displacement, _Index = false);
     ScanRes -> badtok("junk after <displacement>", ScanRes)
   end.
 
-%% <symbol> [<accordev> ","] ["@"] <displacement> "(" . <index> ")" <newline>
+%% <symbol> [<accordev> ","] ["@"] <displacement> "(" . <index> ")"
 insn_ea_index(ScanState, Location, Name, AccOrDev, At, Displacement) ->
   case scan:token(ScanState) of
     {ok, {_Location1, {?T_UINTEGER, Index}}} when Index =< 8#17 ->
       case scan:token(ScanState) of
         {ok, {_Location2, ?T_RPAREN}} ->
           case scan:token(ScanState) of
-            {ok, {_Location3, ?T_NEWLINE}} ->
+            {ok, {_Location3, ?T_NEWLINE} = Follow} ->
+              scan:pushback(ScanState, Follow),
               make_insn(Location, Name, AccOrDev, At, Displacement, Index);
             ScanRes -> badtok("junk after <index>", ScanRes)
           end;
@@ -282,6 +288,7 @@ dot_ascii(ScanState, Location, Lexeme, Z) ->
     {ok, {Strings, Follow}} ->
       case Follow of
         {_Location, ?T_NEWLINE} ->
+          scan:pushback(ScanState, Follow),
           {ok, {Location, #s_dot_ascii{z = Z, strings = Strings}}};
         _ -> badtok("junk after " ++ Lexeme ++ " <strings>", {ok, Follow})
       end;
@@ -294,10 +301,14 @@ dot_byte(ScanState, Location) ->
 
 dot_data(ScanState, Location) ->
   case scan:token(ScanState) of
-    {ok, {_Location1, ?T_NEWLINE}} -> {ok, {Location, #s_dot_data{nr = 0}}};
+    {ok, {_Location1, ?T_NEWLINE} = Follow} ->
+      scan:pushback(ScanState, Follow),
+      {ok, {Location, #s_dot_data{nr = 0}}};
     {ok, {_Location1, {?T_UINTEGER, Nr}}} ->
       case scan:token(ScanState) of
-        {ok, {_Location2, ?T_NEWLINE}} -> {ok, {Location, #s_dot_data{nr = Nr}}};
+        {ok, {_Location2, ?T_NEWLINE} = Follow} ->
+          scan:pushback(ScanState, Follow),
+          {ok, {Location, #s_dot_data{nr = Nr}}};
         ScanRes -> badtok("junk after .data <nr>", ScanRes)
       end;
     ScanRes -> badtok("junk after .data", ScanRes)
@@ -317,7 +328,9 @@ dot_file_or_ident(ScanState, Location, MkStmt, ErrMsg) ->
   case scan:token(ScanState) of
     {ok, {_Location1, {?T_STRING, String}}} ->
       case scan:token(ScanState) of
-        {ok, {_Location2, ?T_NEWLINE}} -> {ok, {Location, MkStmt(String)}};
+        {ok, {_Location2, ?T_NEWLINE} = Follow} ->
+          scan:pushback(ScanState, Follow),
+          {ok, {Location, MkStmt(String)}};
         ScanRes -> badtok(ErrMsg, ScanRes)
       end;
     ScanRes -> badtok(ErrMsg, ScanRes)
@@ -327,7 +340,9 @@ dot_globl(ScanState, Location) ->
   case scan:token(ScanState) of
     {ok, {_Location1, {?T_SYMBOL, Name}}} ->
       case scan:token(ScanState) of
-        {ok, {_Location2, ?T_NEWLINE}} -> {ok, {Location, #s_dot_globl{name = Name}}};
+        {ok, {_Location2, ?T_NEWLINE} = Follow} ->
+          scan:pushback(ScanState, Follow),
+          {ok, {Location, #s_dot_globl{name = Name}}};
         ScanRes -> badtok("junk after .globl", ScanRes)
       end;
     ScanRes -> badtok("junk after .globl", ScanRes)
@@ -348,13 +363,17 @@ integer_data_directive(ScanState, Location, MkStmt) ->
 
 dot_popsection(ScanState, Location) ->
   case scan:token(ScanState) of
-    {ok, {_Location, ?T_NEWLINE}} -> {ok, {Location, #s_dot_popsection{}}};
+    {ok, {_Location, ?T_NEWLINE} = Follow} ->
+      scan:pushback(ScanState, Follow),
+      {ok, {Location, #s_dot_popsection{}}};
     ScanRes -> badtok("junk after .popsection", ScanRes)
   end.
 
 dot_previous(ScanState, Location) ->
   case scan:token(ScanState) of
-    {ok, {_Location, ?T_NEWLINE}} -> {ok, {Location, #s_dot_previous{}}};
+    {ok, {_Location, ?T_NEWLINE} = Follow} ->
+      scan:pushback(ScanState, Follow),
+      {ok, {Location, #s_dot_previous{}}};
     ScanRes -> badtok("junk after .previous", ScanRes)
   end.
 
@@ -375,7 +394,9 @@ dot_size(ScanState, Location) ->
                   case scan:token(ScanState) of
                     {ok, {_Location5, {?T_SYMBOL, Name}}} -> % same Name as above
                       case scan:token(ScanState) of
-                        {ok, {_Location6, ?T_NEWLINE}} -> {ok, {Location, #s_dot_size{name = Name}}};
+                        {ok, {_Location6, ?T_NEWLINE} = Follow} ->
+                          scan:pushback(ScanState, Follow),
+                          {ok, {Location, #s_dot_size{name = Name}}};
                         ScanRes -> badtok("junk after .size", ScanRes)
                       end;
                     ScanRes -> badtok("junk after .size", ScanRes)
@@ -396,7 +417,9 @@ dot_subsection(ScanState, Location) ->
   case scan:token(ScanState) of
     {ok, {_Location1, {?T_UINTEGER, Nr}}} ->
       case scan:token(ScanState) of
-        {ok, {_Location2, ?T_NEWLINE}} -> {ok, {Location, #s_dot_subsection{nr = Nr}}};
+        {ok, {_Location2, ?T_NEWLINE} = Follow} ->
+          scan:pushback(ScanState, Follow),
+          {ok, {Location, #s_dot_subsection{nr = Nr}}};
         ScanRes -> badtok("junk after .subsection <nr>", ScanRes)
       end;
     ScanRes -> badtok("junk after .subsection", ScanRes)
@@ -404,10 +427,14 @@ dot_subsection(ScanState, Location) ->
 
 dot_text(ScanState, Location) ->
   case scan:token(ScanState) of
-    {ok, {_Location1, ?T_NEWLINE}} -> {ok, {Location, #s_dot_text{nr = 0}}};
+    {ok, {_Location1, ?T_NEWLINE} = Follow} ->
+      scan:pushback(ScanState, Follow),
+      {ok, {Location, #s_dot_text{nr = 0}}};
     {ok, {_Location1, {?T_UINTEGER, Nr}}} ->
       case scan:token(ScanState) of
-        {ok, {_Location2, ?T_NEWLINE}} -> {ok, {Location, #s_dot_text{nr = Nr}}};
+        {ok, {_Location2, ?T_NEWLINE} = Follow} ->
+          scan:pushback(ScanState, Follow),
+          {ok, {Location, #s_dot_text{nr = Nr}}};
         ScanRes -> badtok("junk after .text <nr>", ScanRes)
       end;
     ScanRes -> badtok("junk after .text", ScanRes)
@@ -437,7 +464,9 @@ dot_type(ScanState, Location) ->
 
 dot_type(ScanState, Location, Name, Type) ->
   case scan:token(ScanState) of
-    {ok, {_Location5, ?T_NEWLINE}} -> {ok, {Location, #s_dot_type{name = Name, type = Type}}};
+    {ok, {_Location5, ?T_NEWLINE} = Follow} ->
+      scan:pushback(ScanState, Follow),
+      {ok, {Location, #s_dot_type{name = Name, type = Type}}};
     ScanRes -> badtok("junk after .type", ScanRes)
   end.
 
@@ -489,7 +518,8 @@ dot_section_subsection(ScanState, Location, Name, IsPushsection) ->
   case IsPushsection of
     true ->
       case scan:token(ScanState) of
-        {ok, {_Location1, ?T_NEWLINE}} ->
+        {ok, {_Location1, ?T_NEWLINE} = Follow} ->
+          scan:pushback(ScanState, Follow),
           dot_section_finish(Location, Name, _Nr = 0, _ShFlags = 0, _ShType = 0, _ShEntSize = 0);
         {ok, {_Location1, ?T_COMMA}} ->
           case scan:token(ScanState) of
@@ -505,7 +535,8 @@ dot_section_subsection(ScanState, Location, Name, IsPushsection) ->
 
 dot_section_flags(ScanState, Location, Name, Nr) ->
   case scan:token(ScanState) of
-    {ok, {_Location, ?T_NEWLINE}} ->
+    {ok, {_Location, ?T_NEWLINE} = Follow} ->
+      scan:pushback(ScanState, Follow),
       dot_section_finish(Location, Name, Nr, _ShFlags = 0, _ShType = 0, _ShEntSize = 0);
     {ok, {_Location, ?T_COMMA}} ->
       dot_section_flags(ScanState, Location, Name, Nr, scan:token(ScanState));
@@ -551,10 +582,11 @@ sh_flag(C) ->
 
 dot_section_type(ScanState, Location, Name, Nr, ShFlags) ->
   case scan:token(ScanState) of
-    {ok, {_Location1, ?T_NEWLINE}} = ScanRes ->
+    {ok, {_Location1, ?T_NEWLINE} = Follow} = ScanRes ->
       case (ShFlags band (?SHF_MERGE bor ?SHF_GROUP)) =/= 0 of
         true -> badtok("expected ,@type", ScanRes);
-         false ->
+        false ->
+          scan:pushback(ScanState, Follow),
           dot_section_finish(Location, Name, Nr, ShFlags, _ShType = 0, _ShEntSize = 0)
       end;
     {ok, {_Location1, ?T_COMMA}} ->
@@ -603,9 +635,10 @@ dot_section_entsize(ScanState, Location, Name, Nr, ShFlags, ShType) ->
 
 dot_section_newline(ScanState, Location, Name, Nr, ShFlags, ShType, ShEntSize) ->
   case scan:token(ScanState) of
-    {ok, {_Location, ?T_NEWLINE}} ->
+    {ok, {_Location, ?T_NEWLINE} = Follow} ->
+      scan:pushback(ScanState, Follow),
       dot_section_finish(Location, Name, Nr, ShFlags, ShType, ShEntSize);
-    ScanRes -> badtok("expected <newline>", ScanRes)
+    ScanRes -> badtok("expected newline", ScanRes)
   end.
 
 dot_section_finish(Location, Name, Nr, ShFlags, ShType, ShEntSize) ->
@@ -645,7 +678,9 @@ section_name(ScanState) ->
 %% <expr_list> ::= (<expr> ("," <expr>)*)? \n
 expr_list(ScanState) ->
   case scan:token(ScanState) of
-    {ok, {_Location, ?T_NEWLINE}} -> {ok, []};
+    {ok, {_Location, ?T_NEWLINE} = Follow} ->
+      scan:pushback(ScanState, Follow),
+      {ok, []};
     First ->
       case do_expr(ScanState, First) of
         {ok, Expr} -> expr_list(ScanState, [Expr]);
@@ -660,7 +695,9 @@ expr_list(ScanState, Exprs) ->
         {ok, Expr} -> expr_list(ScanState, [Expr | Exprs]);
         {error, _Reason} = Error -> Error
       end;
-    {ok, {_Location, ?T_NEWLINE}} -> {ok, lists:reverse(Exprs)};
+    {ok, {_Location, ?T_NEWLINE} = Follow} ->
+      scan:pushback(ScanState, Follow),
+      {ok, lists:reverse(Exprs)};
     ScanRes -> badtok("expected comma or newline", ScanRes)
   end.
 
