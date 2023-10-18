@@ -170,6 +170,8 @@ do_token(ScanState) ->
         $,  -> {ok, {Location, ?T_COMMA}};
         $(  -> {ok, {Location, ?T_LPAREN}};
         $)  -> {ok, {Location, ?T_RPAREN}};
+        $[  -> {ok, {Location, ?T_LBRACK}};
+        $]  -> {ok, {Location, ?T_RBRACK}};
         $/  -> do_slash(ScanState);
         $\" -> do_string(ScanState, Location, []);
         $-  -> {ok, {Location, ?T_MINUS}};
