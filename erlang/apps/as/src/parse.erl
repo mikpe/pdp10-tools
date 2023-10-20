@@ -117,6 +117,8 @@ stmt_after_symbol(ScanState, Location, Name) ->
     {ok, {_Location, ?T_COLON}} -> {ok, {Location, #s_label{name = Name}}};
     {ok, {_Location, ?T_NEWLINE} = Follow} ->
       stmt_after_symbol_eol(ScanState, Location, Name, Follow);
+    {ok, {_Location, ?T_RBRACK} = Follow} ->
+      stmt_after_symbol_eol(ScanState, Location, Name, Follow);
     {ok, {_Location, ?T_AT}} -> insn_ea_at(ScanState, Location, Name, _AccOrDev = false);
     {ok, {Location2, {?T_UINTEGER, UInt}}} -> insn_uint(ScanState, Location, Name, Location2, UInt);
     {ok, {_Location, _Token} = First} -> insn_disp(ScanState, Location, Name, First);
@@ -153,6 +155,8 @@ insn_ea(ScanState, Location, Name, AccOrDev) ->
   case scan:token(ScanState) of
     {ok, {_Location, ?T_NEWLINE} = Follow} ->
       insn_ea_eol(ScanState, Location, Name, AccOrDev, Follow);
+    {ok, {_Location, ?T_RBRACK} = Follow} ->
+      insn_ea_eol(ScanState, Location, Name, AccOrDev, Follow);
     {ok, {_Location, ?T_AT}} -> insn_ea_at(ScanState, Location, Name, AccOrDev);
     {ok, {_Location, _Token}} = ScanRes ->
       case do_expr(ScanState, ScanRes) of
@@ -181,6 +185,8 @@ insn_ea_disp(ScanState, Location, Name, AccOrDev, At, Displacement) ->
     {ok, {_Location, ?T_LPAREN}} -> insn_ea_index(ScanState, Location, Name, AccOrDev, At, Displacement);
     {ok, {_Location, ?T_NEWLINE} = Follow} ->
       insn_ea_disp_eol(ScanState, Location, Name, AccOrDev, At, Displacement, Follow);
+    {ok, {_Location, ?T_RBRACK} = Follow} ->
+      insn_ea_disp_eol(ScanState, Location, Name, AccOrDev, At, Displacement, Follow);
     ScanRes -> badtok("junk after <displacement>", ScanRes)
   end.
 
@@ -196,6 +202,8 @@ insn_ea_index(ScanState, Location, Name, AccOrDev, At, Displacement) ->
         {ok, {_Location2, ?T_RPAREN}} ->
           case scan:token(ScanState) of
             {ok, {_Location3, ?T_NEWLINE} = Follow} ->
+              insn_ea_index_eol(ScanState, Location, Name, AccOrDev, At, Displacement, Index, Follow);
+            {ok, {_Location3, ?T_RBRACK} = Follow} ->
               insn_ea_index_eol(ScanState, Location, Name, AccOrDev, At, Displacement, Index, Follow);
             ScanRes -> badtok("junk after <index>", ScanRes)
           end;
@@ -301,6 +309,8 @@ dot_ascii(ScanState, Location, Lexeme, Z) ->
       case Follow of
         {_Location, ?T_NEWLINE} ->
           dot_ascii_eol(ScanState, Location, Z, Strings, Follow);
+        {_Location, ?T_RBRACK} ->
+          dot_ascii_eol(ScanState, Location, Z, Strings, Follow);
         _ -> badtok("junk after " ++ Lexeme ++ " <strings>", {ok, Follow})
       end;
     {error, _Reason} = Error -> Error
@@ -318,9 +328,13 @@ dot_data(ScanState, Location) ->
   case scan:token(ScanState) of
     {ok, {_Location1, ?T_NEWLINE} = Follow} ->
       dot_data_eol(ScanState, Location, _Nr = 0, Follow);
+    {ok, {_Location1, ?T_RBRACK} = Follow} ->
+      dot_data_eol(ScanState, Location, _Nr = 0, Follow);
     {ok, {_Location1, {?T_UINTEGER, Nr}}} ->
       case scan:token(ScanState) of
         {ok, {_Location2, ?T_NEWLINE} = Follow} ->
+          dot_data_eol(ScanState, Location, Nr, Follow);
+        {ok, {_Location2, ?T_RBRACK} = Follow} ->
           dot_data_eol(ScanState, Location, Nr, Follow);
         ScanRes -> badtok("junk after .data <nr>", ScanRes)
       end;
@@ -347,6 +361,8 @@ dot_file_or_ident(ScanState, Location, MkStmt, ErrMsg) ->
       case scan:token(ScanState) of
         {ok, {_Location2, ?T_NEWLINE} = Follow} ->
           dot_file_or_ident_eol(ScanState, Location, MkStmt, String, Follow);
+        {ok, {_Location2, ?T_RBRACK} = Follow} ->
+          dot_file_or_ident_eol(ScanState, Location, MkStmt, String, Follow);
         ScanRes -> badtok(ErrMsg, ScanRes)
       end;
     ScanRes -> badtok(ErrMsg, ScanRes)
@@ -361,6 +377,8 @@ dot_globl(ScanState, Location) ->
     {ok, {_Location1, {?T_SYMBOL, Name}}} ->
       case scan:token(ScanState) of
         {ok, {_Location2, ?T_NEWLINE} = Follow} ->
+          dot_globl_eol(ScanState, Location, Name, Follow);
+        {ok, {_Location2, ?T_RBRACK} = Follow} ->
           dot_globl_eol(ScanState, Location, Name, Follow);
         ScanRes -> badtok("junk after .globl", ScanRes)
       end;
@@ -388,6 +406,8 @@ dot_popsection(ScanState, Location) ->
   case scan:token(ScanState) of
     {ok, {_Location, ?T_NEWLINE} = Follow} ->
       dot_popsection_eol(ScanState, Location, Follow);
+    {ok, {_Location, ?T_RBRACK} = Follow} ->
+      dot_popsection_eol(ScanState, Location, Follow);
     ScanRes -> badtok("junk after .popsection", ScanRes)
   end.
 
@@ -398,6 +418,8 @@ dot_popsection_eol(ScanState, Location, Follow) ->
 dot_previous(ScanState, Location) ->
   case scan:token(ScanState) of
     {ok, {_Location, ?T_NEWLINE} = Follow} ->
+      dot_previous_eol(ScanState, Location, Follow);
+    {ok, {_Location, ?T_RBRACK} = Follow} ->
       dot_previous_eol(ScanState, Location, Follow);
     ScanRes -> badtok("junk after .previous", ScanRes)
   end.
@@ -425,6 +447,8 @@ dot_size(ScanState, Location) ->
                       case scan:token(ScanState) of
                         {ok, {_Location6, ?T_NEWLINE} = Follow} ->
                           dot_size_eol(ScanState, Location, Name, Follow);
+                        {ok, {_Location6, ?T_RBRACK} = Follow} ->
+                          dot_size_eol(ScanState, Location, Name, Follow);
                         ScanRes -> badtok("junk after .size", ScanRes)
                       end;
                     ScanRes -> badtok("junk after .size", ScanRes)
@@ -451,6 +475,8 @@ dot_subsection(ScanState, Location) ->
       case scan:token(ScanState) of
         {ok, {_Location2, ?T_NEWLINE} = Follow} ->
           dot_subsection_eol(ScanState, Location, Nr, Follow);
+        {ok, {_Location2, ?T_RBRACK} = Follow} ->
+          dot_subsection_eol(ScanState, Location, Nr, Follow);
         ScanRes -> badtok("junk after .subsection <nr>", ScanRes)
       end;
     ScanRes -> badtok("junk after .subsection", ScanRes)
@@ -464,9 +490,13 @@ dot_text(ScanState, Location) ->
   case scan:token(ScanState) of
     {ok, {_Location1, ?T_NEWLINE} = Follow} ->
       dot_text_eol(ScanState, Location, _Nr = 0, Follow);
+    {ok, {_Location1, ?T_RBRACK} = Follow} ->
+      dot_text_eol(ScanState, Location, _Nr = 0, Follow);
     {ok, {_Location1, {?T_UINTEGER, Nr}}} ->
       case scan:token(ScanState) of
         {ok, {_Location2, ?T_NEWLINE} = Follow} ->
+          dot_text_eol(ScanState, Location, Nr, Follow);
+        {ok, {_Location2, ?T_RBRACK} = Follow} ->
           dot_text_eol(ScanState, Location, Nr, Follow);
         ScanRes -> badtok("junk after .text <nr>", ScanRes)
       end;
@@ -502,6 +532,8 @@ dot_type(ScanState, Location) ->
 dot_type(ScanState, Location, Name, Type) ->
   case scan:token(ScanState) of
     {ok, {_Location5, ?T_NEWLINE} = Follow} ->
+      dot_type_eol(ScanState, Location, Name, Type, Follow);
+    {ok, {_Location5, ?T_RBRACK} = Follow} ->
       dot_type_eol(ScanState, Location, Name, Type, Follow);
     ScanRes -> badtok("junk after .type", ScanRes)
   end.
@@ -560,6 +592,8 @@ dot_section_subsection(ScanState, Location, Name, IsPushsection) ->
       case scan:token(ScanState) of
         {ok, {_Location1, ?T_NEWLINE} = Follow} ->
           dot_section_eol(ScanState, Location, Name, _Nr = 0, _ShFlags = 0, _ShType = 0, _ShEntSize = 0, Follow);
+        {ok, {_Location1, ?T_RBRACK} = Follow} ->
+          dot_section_eol(ScanState, Location, Name, _Nr = 0, _ShFlags = 0, _ShType = 0, _ShEntSize = 0, Follow);
         {ok, {_Location1, ?T_COMMA}} ->
           case scan:token(ScanState) of
             {ok, {_Location2, {?T_UINTEGER, Nr}}} ->
@@ -575,6 +609,8 @@ dot_section_subsection(ScanState, Location, Name, IsPushsection) ->
 dot_section_flags(ScanState, Location, Name, Nr) ->
   case scan:token(ScanState) of
     {ok, {_Location, ?T_NEWLINE} = Follow} ->
+      dot_section_eol(ScanState, Location, Name, Nr, _ShFlags = 0, _ShType = 0, _ShEntSize = 0, Follow);
+    {ok, {_Location, ?T_RBRACK} = Follow} ->
       dot_section_eol(ScanState, Location, Name, Nr, _ShFlags = 0, _ShType = 0, _ShEntSize = 0, Follow);
     {ok, {_Location, ?T_COMMA}} ->
       dot_section_flags(ScanState, Location, Name, Nr, scan:token(ScanState));
@@ -621,6 +657,8 @@ sh_flag(C) ->
 dot_section_type(ScanState, Location, Name, Nr, ShFlags) ->
   case scan:token(ScanState) of
     {ok, {_Location1, ?T_NEWLINE}} = ScanRes ->
+      dot_section_eol(ScanState, Location, Name, Nr, ShFlags, ScanRes);
+    {ok, {_Location1, ?T_RBRACK}} = ScanRes ->
       dot_section_eol(ScanState, Location, Name, Nr, ShFlags, ScanRes);
     {ok, {_Location1, ?T_COMMA}} ->
       case sh_type(ScanState) of
@@ -677,6 +715,8 @@ dot_section_done(ScanState, Location, Name, Nr, ShFlags, ShType, ShEntSize) ->
   case scan:token(ScanState) of
     {ok, {_Location, ?T_NEWLINE} = Follow} ->
       dot_section_eol(ScanState, Location, Name, Nr, ShFlags, ShType, ShEntSize, Follow);
+    {ok, {_Location, ?T_RBRACK} = Follow} ->
+      dot_section_eol(ScanState, Location, Name, Nr, ShFlags, ShType, ShEntSize, Follow);
     ScanRes -> badtok("expected newline", ScanRes)
   end.
 
@@ -720,6 +760,8 @@ expr_list(ScanState) ->
   case scan:token(ScanState) of
     {ok, {_Location, ?T_NEWLINE} = Follow} ->
       expr_list_eol(ScanState, _Exprs = [], Follow);
+    {ok, {_Location, ?T_RBRACK} = Follow} ->
+      expr_list_eol(ScanState, _Exprs = [], Follow);
     First ->
       case do_expr(ScanState, First) of
         {ok, Expr} -> expr_list(ScanState, [Expr]);
@@ -735,6 +777,8 @@ expr_list(ScanState, Exprs) ->
         {error, _Reason} = Error -> Error
       end;
     {ok, {_Location, ?T_NEWLINE} = Follow} ->
+      expr_list_eol(ScanState, Exprs, Follow);
+    {ok, {_Location, ?T_RBRACK} = Follow} ->
       expr_list_eol(ScanState, Exprs, Follow);
     ScanRes -> badtok("expected comma or newline", ScanRes)
   end.
