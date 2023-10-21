@@ -748,6 +748,10 @@ section_name(ScanState) ->
 %%                | "-"? <uinteger>
 %%                | <symbol_or_label> (("+" | "-") <uinteger>)?
 %%                | <symbol_or_label> "-" <symbol_or_label>
+%%                | "[" <literal> "]"
+%%
+%% <literal> ::= <stmt>
+%%             | <literal> <newline> <stmt>
 %%
 %% <symbol_or_label> := <symbol> | <local_label>
 %% <modifier> ::= "w" | "b" | "h"
@@ -832,6 +836,11 @@ do_plain_expr(ScanState, First, Modifier) ->
           end;
         {error, _Reason} = Error -> Error
       end;
+    {ok, {_Location1, ?T_LBRACK}} ->
+      case literal(ScanState, []) of
+        {ok, Literal} -> do_expr_maybe_offset(ScanState, {literal, Literal}, Modifier);
+        {error, _Reason} = Error -> Error
+      end;
     {ok, {_Location1, ?T_MINUS}} ->
       case scan:token(ScanState) of
         {ok, {_Location2, {?T_UINTEGER, UInt}}} ->
@@ -869,6 +878,24 @@ do_expr_offset(ScanState, Symbol, IsMinus, Modifier) ->
     {ok, {_Location, {?T_SYMBOL, Symbol2}}} when IsMinus ->
       {ok, mk_diff_expr(Symbol, Symbol2, Modifier)};
     ScanRes -> badtok("expected <uinteger> after <sign>", ScanRes)
+  end.
+
+literal(ScanState, Stmts) ->
+  case scan:token(ScanState) of
+    {ok, {_Location, ?T_RBRACK}} = ScanRes ->
+      case Stmts of
+        [] -> badtok("empty <literal>", ScanRes);
+        _ -> {ok, lists:reverse(Stmts)}
+      end;
+    {ok, {_Location, ?T_NEWLINE}} -> literal(ScanState, Stmts);
+    {ok, {_Location, ?T_EOF}} = ScanRes -> badtok("expected <stmt> or ]", ScanRes);
+    {ok, Token} ->
+      scan:pushback(ScanState, Token),
+      case stmt(ScanState) of
+        {ok, Stmt} -> literal(ScanState, [Stmt | Stmts]);
+        {error, _Reason} = Error -> Error
+      end;
+    {error, _Reason} = Error -> Error
   end.
 
 symbol_modifier(Symbol) ->
