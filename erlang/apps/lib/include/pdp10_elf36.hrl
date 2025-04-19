@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% pdp10_elf36.hrl -- ELF definitions for PDP10
-%%% Copyright (C) 2013-2023  Mikael Pettersson
+%%% Copyright (C) 2013-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -797,6 +797,9 @@
                                                 %   note name must be "LINUX".
 -define(NT_X86_CET,             16#203).        % x86 CET state.
                                                 %   note name must be "LINUX".
+-define(NT_X86_SHSTK,           16#204).        % x86 SHSTK state.
+                                                % This replaces NT_X86_CET (16#203).
+                                                %   note name must be "LINUX".
 -define(NT_S390_HIGH_GPRS,      16#300).        % S/390 upper halves of GPRs
                                                 %   note name must be "LINUX".
 -define(NT_S390_TIMER,          16#301).        % S390 timer
@@ -852,6 +855,8 @@
 -define(NT_ARM_SSVE,            16#40b).        % AArch64 SME streaming SVE registers.
                                                 %   Note: name must be "LINUX".
 -define(NT_ARM_ZA,              16#40c).        % AArch64 SME ZA register.
+                                                %   Note: name must be "LINUX".
+-define(NT_ARM_ZT,              16#40d).        % AArch64 SME2 ZT registers.
                                                 %   Note: name must be "LINUX".
 -define(NT_ARC_V2,              16#600).        % ARC HS accumulator/extra registers.
                                                 %   note name must be "LINUX".
@@ -1216,6 +1221,7 @@
 -define(PT_OPENBSD_MUTABLE,     (?PT_LOOS + 16#5a3dbe5)).       % Like bss, but not immutable.
 -define(PT_OPENBSD_RANDOMIZE,   (?PT_LOOS + 16#5a3dbe6)).       % Fill with random data.
 -define(PT_OPENBSD_WXNEEDED,    (?PT_LOOS + 16#5a3dbe7)).       % Program does W^X violations.
+-define(PT_OPENBSD_NOBTCFI,     (?PT_LOOS + 16#5a3dbe8)).       % No branch target CFI.
 -define(PT_OPENBSD_BOOTDATA,    (?PT_LOOS + 16#5a41be6)).       % Section for boot arguments.
 
 %% Mbind segments
@@ -1531,39 +1537,41 @@
 
 %% Auxv a_type values.
 
--define(AT_NULL,        0).     % End of vector
--define(AT_IGNORE,      1).     % Entry should be ignored
--define(AT_EXECFD,      2).     % File descriptor of program
--define(AT_PHDR,        3).     % Program headers for program
--define(AT_PHENT,       4).     % Size of program header entry
--define(AT_PHNUM,       5).     % Number of program headers
--define(AT_PAGESZ,      6).     % System page size
--define(AT_BASE,        7).     % Base address of interpreter
--define(AT_FLAGS,       8).     % Flags
--define(AT_ENTRY,       9).     % Entry point of program
--define(AT_NOTELF,      10).    % Program is not ELF
--define(AT_UID,         11).    % Real uid
--define(AT_EUID,        12).    % Effective uid
--define(AT_GID,         13).    % Real gid
--define(AT_EGID,        14).    % Effective gid
--define(AT_CLKTCK,      17).    % Frequency of times()
--define(AT_PLATFORM,    15).    % String identifying platform.
--define(AT_HWCAP,       16).    % Machine dependent hints about
-                                % processor capabilities.
--define(AT_FPUCW,       18).    % Used FPU control word.
--define(AT_DCACHEBSIZE, 19).    % Data cache block size.
--define(AT_ICACHEBSIZE, 20).    % Instruction cache block size.
--define(AT_UCACHEBSIZE, 21).    % Unified cache block size.
--define(AT_IGNOREPPC,   22).    % Entry should be ignored
--define(AT_SECURE,      23).    % Boolean, was exec setuid-like?
--define(AT_BASE_PLATFORM, 24).  % String identifying real platform,
-                                % may differ from AT_PLATFORM.
--define(AT_RANDOM,      25).    % Address of 16 random bytes.
--define(AT_EXECFN,      31).    % Filename of executable.
+-define(AT_NULL,        0).             % End of vector
+-define(AT_IGNORE,      1).             % Entry should be ignored
+-define(AT_EXECFD,      2).             % File descriptor of program
+-define(AT_PHDR,        3).             % Program headers for program
+-define(AT_PHENT,       4).             % Size of program header entry
+-define(AT_PHNUM,       5).             % Number of program headers
+-define(AT_PAGESZ,      6).             % System page size
+-define(AT_BASE,        7).             % Base address of interpreter
+-define(AT_FLAGS,       8).             % Flags
+-define(AT_ENTRY,       9).             % Entry point of program
+-define(AT_NOTELF,      10).            % Program is not ELF
+-define(AT_UID,         11).            % Real uid
+-define(AT_EUID,        12).            % Effective uid
+-define(AT_GID,         13).            % Real gid
+-define(AT_EGID,        14).            % Effective gid
+-define(AT_CLKTCK,      17).            % Frequency of times()
+-define(AT_PLATFORM,    15).            % String identifying platform.
+-define(AT_HWCAP,       16).            % Machine dependent hints about
+                                        % processor capabilities.
+-define(AT_FPUCW,       18).            % Used FPU control word.
+-define(AT_DCACHEBSIZE, 19).            % Data cache block size.
+-define(AT_ICACHEBSIZE, 20).            % Instruction cache block size.
+-define(AT_UCACHEBSIZE, 21).            % Unified cache block size.
+-define(AT_IGNOREPPC,   22).            % Entry should be ignored
+-define(AT_SECURE,      23).            % Boolean, was exec setuid-like?
+-define(AT_BASE_PLATFORM, 24).          % String identifying real platform,
+                                        % may differ from AT_PLATFORM.
+-define(AT_RANDOM,      25).            % Address of 16 random bytes.
+-define(AT_RSEQ_FEATURE_SIZE, 27).      % rseq supported feature size
+-define(AT_RSEQ_ALIGN,  28).            % rseq allocation alignment
+-define(AT_EXECFN,      31).            % Filename of executable.
 %% Pointer to the global system page used for system calls and other
 %% nice things.
 -define(AT_SYSINFO,     32).
--define(AT_SYSINFO_EHDR,33).    % Pointer to ELF header of system-supplied DSO.
+-define(AT_SYSINFO_EHDR,33).            % Pointer to ELF header of system-supplied DSO.
 
 %% More complete cache descriptions than AT_[DIU]CACHEBSIZE.  If the
 %% value is -1, then the cache doesn't exist.  Otherwise:
