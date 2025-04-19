@@ -104,6 +104,8 @@
 -define(ELFOSABI_FENIXOS,      16). % FenixOS
 -define(ELFOSABI_CLOUDABI,     17). % Nuxi CloudABI
 -define(ELFOSABI_OPENVOS,      18). % Stratus Technologies OpenVOS
+
+-define(ELFOSABI_CUDA,         51). % NVIDIA CUDA architecture.
 -define(ELFOSABI_C6000_ELFABI, 64). % Bare-metal TMS320C6000
 -define(ELFOSABI_AMDGPU_HSA,   64). % AMD HSA Runtime
 -define(ELFOSABI_C6000_LINUX,  65). % Linux TMS320C6000
@@ -549,17 +551,40 @@
 -define(SHT_LOOS,       16#60000000).   % First of OS specific semantics
 -define(SHT_HIOS,       16#6fffffff).   % Last of OS specific semantics
 
--define(SHT_GNU_INCREMENTAL_INPUTS, 16#6fff4700). % incremental build data
--define(SHT_GNU_ATTRIBUTES, 16#6ffffff5). % Object attributes
--define(SHT_GNU_HASH, 16#6ffffff6).     % GNU style symbol hash table
--define(SHT_GNU_LIBLIST, 16#6ffffff7).  % List of prelink dependencies
+-define(SHT_ANDROID_REL,                16#60000001).
+-define(SHT_ANDROID_RELA,               16#60000002).
 
+-define(SHT_GNU_INCREMENTAL_INPUTS,     16#6fff4700). % Incremental build data
+
+-define(SHT_LLVM_ODRTAB,                16#6fff4c00). % LLVM ODR table.
+-define(SHT_LLVM_LINKER_OPTIONS,        16#6fff4c01). % LLVM Linker Options.
+-define(SHT_LLVM_ADDRSIG,               16#6fff4c03). % List of address-significant symbols for safe ICF.
+-define(SHT_LLVM_DEPENDENT_LIBRARIES,   16#6fff4c04). % LLVM Dependent Library Specifiers.
+-define(SHT_LLVM_SYMPART,               16#6fff4c05). % Symbol partition specification.
+-define(SHT_LLVM_PART_EHDR,             16#6fff4c06). % ELF header for loadable partition.
+-define(SHT_LLVM_PART_PHDR,             16#6fff4c07). % Phdrs for loadable partition.
+-define(SHT_LLVM_BB_ADDR_MAP_V0,        16#6fff4c08). % LLVM Basic Block Address Map.
+-define(SHT_LLVM_CALL_GRAPH_PROFILE,    16#6fff4c09). % LLVM Call Graph Profile.
+-define(SHT_LLVM_BB_ADDR_MAP,           16#6fff4c0a). % LLVM Basic Block Address Map.
+-define(SHT_LLVM_OFFLOADING,            16#6fff4c0b). % LLVM device offloading data.
+-define(SHT_LLVM_LTO,                   16#6fff4c0c). % .llvm.lto for fat LTO.
+
+-define(SHT_ANDROID_RELR,               16#6fffff00).
+
+-define(SHT_GNU_ATTRIBUTES,             16#6ffffff5). % Object attributes
+-define(SHT_GNU_HASH,                   16#6ffffff6). % GNU style symbol hash table
+-define(SHT_GNU_LIBLIST,                16#6ffffff7). % List of prelink dependencies
+-define(SHT_CHECKSUM,                   16#6ffffff8). % Checksum for DSO content.
+
+-define(SHT_SUNW_move,                  16#6ffffffa).
+-define(SHT_SUNW_COMDAT,                16#6ffffffb).
+-define(SHT_SUNW_syminfo,               16#6ffffffc).
 %% The next three section types are defined by Solaris, and are named
 %% SHT_SUNW*.  We use them in GNU code, so we also define SHT_GNU*
 %% versions.
--define(SHT_SUNW_verdef,  16#6ffffffd). % Versions defined by file
--define(SHT_SUNW_verneed, 16#6ffffffe). % Versions needed by file
--define(SHT_SUNW_versym,  16#6fffffff). % Symbol versions
+-define(SHT_SUNW_verdef,                16#6ffffffd). % Versions defined by file
+-define(SHT_SUNW_verneed,               16#6ffffffe). % Versions needed by file
+-define(SHT_SUNW_versym,                16#6fffffff). % Symbol versions
 
 -define(SHT_GNU_verdef,  ?SHT_SUNW_verdef).
 -define(SHT_GNU_verneed, ?SHT_SUNW_verneed).
@@ -567,6 +592,7 @@
 
 -define(SHT_LOPROC,     16#70000000).   % Processor-specific semantics, lo
 -define(SHT_HIPROC,     16#7FFFFFFF).   % Processor-specific semantics, hi
+
 -define(SHT_LOUSER,     16#80000000).   % Application-specific semantics
 %%-define(SHT_HIUSER,   16#8FFFFFFF).   % Application-specific semantics
 -define(SHT_HIUSER,     16#FFFFFFFF).   % New value, defined in Oct 4, 1999 Draft
@@ -588,18 +614,14 @@
 %%-define(SHF_MASKOS,   16#0F000000).   % OS-specific semantics
 -define(SHF_MASKOS,     16#0FF00000).   % New value, Oct 4, 1999 Draft
 -define(SHF_GNU_RETAIN, (1 bsl 21)).    % Section should not be garbage collected by the linker.
+-define(SHF_GNU_MBIND,  (1 bsl 24)).    % Mbind section.
+
 -define(SHF_MASKPROC,   16#F0000000).   % Processor-specific semantics
-
 %% This used to be implemented as a processor specific section flag.
-%% We just make it generic.
--define(SHF_EXCLUDE,    16#80000000).   % Link editor is to exclude
-                                        % this section from executable
-                                        % and shared library that it
-                                        % builds when those objects
-                                        % are not to be further
-                                        % relocated.
-
--define(SHF_GNU_MBIND,  16#01000000).   % Mbind section.
+%% We just make it generic.  The definition is:	the link editor is
+%% to exclude this section from executable and shared libraries that
+%% it builds when those objects are not to be further relocated.
+-define(SHF_EXCLUDE,    (1 bsl 31)).
 
 %% Size of SHT_GROUP section entry.
 
@@ -870,6 +892,10 @@
                                                 %   note name must be "LINUX".
 -define(NT_LARCH_LBT,           16#a04).        % LoongArch Binary Translation registers
                                                 %   note name must be "CORE".
+-define(NT_LOONGARCH_HW_BREAK,  16#a05).        % LoongArch hardware breakpoint registers
+                                                %   note name must be "LINUX".
+-define(NT_LOONGARCH_HW_WATCH,  16#a06).        % LoongArch hardware watchpoint registers
+                                                %   note name must be "LINUX".
 -define(NT_RISCV_CSR,           16#900).        % RISC-V Control and Status Registers
                                                 %   note name must be "LINUX".
 -define(NT_SIGINFO,             16#53494749).   % Fields of siginfo_t.
@@ -1180,6 +1206,9 @@
 %% Values for FDO .note.package notes as defined on https://systemd.io/COREDUMP_PACKAGE_METADATA/
 -define(FDO_PACKAGING_METADATA, 16#cafe1a7e).
 
+%% Values for FDO .note.dlopen notes as defined on https://systemd.io/ELF_DLOPEN_METADATA/
+-define(FDO_DLOPEN_METADATA, 16#407c0c0a).
+
 %% Program header
 
 -record(elf36_Phdr,
@@ -1205,11 +1234,12 @@
 -define(PT_SHLIB,       5).             % Reserved, unspecified semantics
 -define(PT_PHDR,        6).             % Entry for header table itself
 -define(PT_TLS,         7).             % Thread local storage segment
+-define(PT_NUM,         8).             % Number of defined types.
+
 -define(PT_LOOS,        16#60000000).   % OS-specific
 -define(PT_HIOS,        16#6fffffff).   % OS-specific
--define(PT_LOPROC,      16#70000000).   % Processor-specific
--define(PT_HIPROC,      16#7FFFFFFF).   % Processor-specific
 
+-define(PT_SUNW_UNWIND,         (?PT_LOOS + 16#464e550)).
 -define(PT_GNU_EH_FRAME,        (?PT_LOOS + 16#474e550)).       % Frame unwind information
 -define(PT_SUNW_EH_FRAME,       ?PT_GNU_EH_FRAME).              % Solaris uses the same value
 -define(PT_GNU_STACK,           (?PT_LOOS + 16#474e551)).       % Stack flags
@@ -1222,12 +1252,22 @@
 -define(PT_OPENBSD_RANDOMIZE,   (?PT_LOOS + 16#5a3dbe6)).       % Fill with random data.
 -define(PT_OPENBSD_WXNEEDED,    (?PT_LOOS + 16#5a3dbe7)).       % Program does W^X violations.
 -define(PT_OPENBSD_NOBTCFI,     (?PT_LOOS + 16#5a3dbe8)).       % No branch target CFI.
+-define(PT_OPENBSD_SYSCALLS,    (?PT_LOOS + 16#5a3dbe9)).       % System call sites.
 -define(PT_OPENBSD_BOOTDATA,    (?PT_LOOS + 16#5a41be6)).       % Section for boot arguments.
+
+%% Solaris segment types.
+-define(PT_SUNWBSS,             (?PT_LOOS + 16#ffffffa)).       % Sun Specific segment.
+-define(PT_SUNWSTACK,           (?PT_LOOS + 16#ffffffb)).       % Stack segment.
+-define(PT_SUNWDTRACE,          (?PT_LOOS + 16#ffffffc)).
+-define(PT_SUNWCAP,             (?PT_LOOS + 16#ffffffd)).
 
 %% Mbind segments
 -define(PT_GNU_MBIND_NUM,       4096).
 -define(PT_GNU_MBIND_LO,        (?PT_LOOS + 16#474e555)).
 -define(PT_GNU_MBIND_HI,        (?PT_GNU_MBIND_LO + ?PT_GNU_MBIND_NUM - 1)).
+
+-define(PT_LOPROC,      16#70000000).   % Processor-specific
+-define(PT_HIPROC,      16#7FFFFFFF).   % Processor-specific
 
 %% Program segment permissions, in program header p_flags field.
 
