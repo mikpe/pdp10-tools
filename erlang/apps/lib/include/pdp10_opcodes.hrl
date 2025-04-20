@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% pdp10_opcodes.hrl
-%%% Copyright (C) 2013-2019  Mikael Pettersson
+%%% Copyright (C) 2013-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -171,7 +171,7 @@
 
 -define(PDP6_to_KI10, (?PDP6 bor ?PDP10_KA10_to_KI10)).
 
--type pdp10_cpu_models() :: 0..?PDP10_ALL.
+-type pdp10_cpu_models() :: 1..?PDP10_ALL.
 
 %% Device fields in IO instructions.
 

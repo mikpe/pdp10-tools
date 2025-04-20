@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% pdp10_opcodes.erl
-%%% Copyright (C) 2013-2023  Mikael Pettersson
+%%% Copyright (C) 2013-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -146,8 +146,6 @@ add_keys([Key | Keys], Desc, Map) ->
 
 add_key(Key, Desc, Map) ->
   Descs = maps:get(Key, Map, []),
-  Models = Desc#pdp10_insn_desc.models,
-  true = Models =/= 0,
   [check_descs(Key, Desc, Desc2) || Desc2 <- Descs],
   maps:put(Key, [Desc | Descs], Map).
 
