@@ -737,7 +737,7 @@ pdp10_insns() ->
   , ?D("swpvo",         ?PRIO(?A_OPCODE(8#70170), 1),   ?PDP10_KL10any bor ?PDP10_XKL1) % aliases CONSZ CCA, and APR1
   , ?D("swpuo",         ?PRIO(?A_OPCODE(8#70174), 1),   ?PDP10_KL10any bor ?PDP10_XKL1) % aliases CONSO CCA, and APR1
   , ?D("rdperf",        ?PRIO(?A_OPCODE(8#70200), 2),   ?PDP10_KL10any) % aliases BLKI TIM, APR2, and RDSPB
-  , ?D("rdspb",         ?PRIO(?A_OPCODE(8#70200), 1),   ?PDP10_KS10 bor ?PDP10_XKL1) % aliasesr BLKI TIM, APR2, and RDPERF
+  , ?D("rdspb",         ?PRIO(?A_OPCODE(8#70200), 1),   ?PDP10_KS10 bor ?PDP10_XKL1) % aliases BLKI TIM, APR2, and RDPERF
   , ?D("rdtime",        ?PRIO(?A_OPCODE(8#70204), 1),   ?PDP10_KL10any band bnot ?PDP10_XKL1) % aliases DATAI TIM, (FIXME: was KL10any)
   , ?D("rdcsb",         ?PRIO(?A_OPCODE(8#70204), 1),   ?PDP10_KS10 bor ?PDP10_XKL1) % aliases DATAI TIM, and APR2
   , ?D("wrpae",         ?PRIO(?A_OPCODE(8#70210), 2),   ?PDP10_KL10any) % aliases BLKO TIM, and APR2
@@ -886,7 +886,7 @@ pdp10_insns() ->
     %%
     %% These take an operand which determines which device to access.
     %% Most of the system instructions above are instances of these with
-    %% pre-determined values for the device operands.
+    %% predetermined values for the device operands.
   , ?D("blki",          ?PRIO(?IO(8#70000), 0),         ?PDP10_not_KS10_or_XKL1)
   , ?D("datai",         ?PRIO(?IO(8#70004), 0),         ?PDP10_not_KS10_or_XKL1)
   , ?D("blko",          ?PRIO(?IO(8#70010), 0),         ?PDP10_not_KS10_or_XKL1)
