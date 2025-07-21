@@ -217,12 +217,10 @@ high13_keys(High13, Shift, Value, Keys) ->
 -define(A_OPCODE(OPCODE15), high13 = (OPCODE15) bsr 2, format = ?PDP10_INSN_A_OPCODE).
 -define(A_NONZERO(OPCODE9), high13 = (OPCODE9) bsl 4, format = ?PDP10_INSN_A_NONZERO).
 -define(IO(OPCODE15), high13 = (OPCODE15) bsr 2, format = ?PDP10_INSN_IO).
+-define(A_UNUSED(OPCODE9), ?BASIC(OPCODE9), a_unused = true).
 -define(E_UNUSED(Opcode), Opcode, e_unused = true).
 -define(SECTION_ZERO(Opcode), Opcode, section0 = true).
 -define(SECTION_NONZERO(Opcode), Opcode, section0 = false).
-
-%% A_UNUSED is shorthand for A_OPCODE with the opcode bits in A set to zero.
--define(A_UNUSED(OPCODE9), high13 = (OPCODE9) bsl 4, format = ?PDP10_INSN_A_OPCODE).
 
 %% The .priority field is used to disambiguate lookups when a key maps to
 %% multiple descriptors, and the models are not mutually exclusive.  This
