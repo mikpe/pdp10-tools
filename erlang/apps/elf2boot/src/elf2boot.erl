@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% Converts pdp10-elf executables to KLH10-bootable files
-%%% Copyright (C) 2023  Mikael Pettersson
+%%% Copyright (C) 2023-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -82,7 +82,7 @@ scan_option({$o, Output}, Opts) -> % -o / --output
 -type word() :: non_neg_integer().
 
 -record(frag,
-        { nrbytes :: non_neg_integer()
+        { nrwords :: non_neg_integer()
         , src :: pagenr() % offset in input ELF file
                | [word()] % stub
         , mem :: pagenr() % offset in physical memory
@@ -125,7 +125,7 @@ elf2boot(Opts, InFile, OutFile) ->
 %% - Consequently the entry vector refers to an XJRSTF which performs a long
 %%   jump to the real entry point.
 
--define(MAX_GROUP_NRBYTES, (512*512*4)). % 512 pages x 512 words/page x 4 bytes/word
+-define(MAX_GROUP_NRWORDS, (512*512)). % 512 pages x 512 words/page
 
 -record(group,
         { frag :: #frag{}
@@ -136,12 +136,12 @@ write_boot(Opts, InFP, Entry, Frags, OutFile) ->
   #frag{mem = EntryPageNr} = EntryFrag = entry_frag(Entry),
   Groups = groups([EntryFrag | Frags]),
   print_groups(Opts, Groups),
-  case pdp10_stdio:fopen(OutFile, [raw, write, delayed_write]) of
+  case outfp_fopen(OutFile) of
     {ok, OutFP} ->
       try
         write_boot_1(Opts, InFP, EntryPageNr, Groups, OutFP)
       after
-        pdp10_stdio:fclose(OutFP)
+        outfp_fclose(OutFP)
       end;
     {error, _Reason} = Error -> Error
   end.
@@ -149,8 +149,8 @@ write_boot(Opts, InFP, Entry, Frags, OutFile) ->
 write_boot_1(Opts, InFP, EntryPageNr, Groups, OutFP) ->
   NrGroups = length(Groups),
   true = NrGroups =< 512, % assert
-  HdrNrBytes = (1 + NrGroups * 2 + 3 + 1) * 4,
-  HdrNrPages = nrbytes_to_nrpages(HdrNrBytes),
+  HdrNrWords = 1 + NrGroups * 2 + 3 + 1,
+  HdrNrPages = nrwords_to_nrpages(HdrNrWords),
   HdrWords = build_decexe_hdr(Groups, EntryPageNr, HdrNrPages),
   print_header(Opts, HdrWords),
   ok = write_words(HdrWords, OutFP),
@@ -164,44 +164,100 @@ write_groups([Group | Groups], HdrNrPages, OutFP, InFP) ->
   end.
 
 write_group(Group, HdrNrPages, OutFP, InFP) ->
-  #group{frag = #frag{nrbytes = NrBytes, src = Src}, dst = DstPageNr} = Group,
-  case padto(OutFP, nrpages_to_nrbytes(HdrNrPages + DstPageNr)) of
+  #group{frag = #frag{nrwords = NrWords, src = Src}, dst = DstPageNr} = Group,
+  case padto(OutFP, HdrNrPages + DstPageNr) of
     ok ->
-      case write_src(NrBytes, Src, OutFP, InFP) of
+      case write_src(NrWords, Src, OutFP, InFP) of
         ok ->
-          NrPages = nrbytes_to_nrpages(NrBytes),
-          padto(OutFP, nrpages_to_nrbytes(HdrNrPages + DstPageNr + NrPages));
+          NrPages = nrwords_to_nrpages(NrWords),
+          padto(OutFP, HdrNrPages + DstPageNr + NrPages);
         {error, _Reason} = Error -> Error
       end;
     {error, _Reason} = Error -> Error
   end.
 
-write_src(NrBytes, Src, DstFP, SrcFP) ->
+write_src(NrWords, Src, DstFP, SrcFP) ->
   case Src of
     SrcPageNr when is_integer(SrcPageNr) ->
-      archive:iocpy(DstFP, SrcFP, nrpages_to_nrbytes(SrcPageNr), NrBytes); % TODO: make non-archive-specific
+      iocpy(DstFP, SrcFP, SrcPageNr, NrWords);
     Words when is_list(Words) ->
       write_words(Words, DstFP)
   end.
 
-padto(DstFP, DstOffset) ->
-  CurOffset = pdp10_stdio:ftell(DstFP),
-  true = CurOffset =< DstOffset, % assert
-  case CurOffset =:= DstOffset of
+padto(DstFP, DstPageNr) ->
+  DstWordOffset = nrpages_to_nrwords(DstPageNr),
+  CurWordOffset = outfp_ftellw(DstFP),
+  true = CurWordOffset =< DstWordOffset, % assert
+  case CurWordOffset =:= DstWordOffset of
     true -> ok;
     false ->
-      case pdp10_stdio:fseek(DstFP, {bof, DstOffset - 1}) of
-        ok -> pdp10_stdio:fputc(0, DstFP);
+      case outfp_fseekw(DstFP, DstWordOffset - 1) of
+        ok -> outfp_fputw(0, DstFP);
         {error, _Reason} = Error -> Error
       end
   end.
 
 write_words([], _DstFP) -> ok;
 write_words([Word | Words], DstFP) ->
-  case pdp10_stdio:fputs(pdp10_extint:uint36_to_ext(Word), DstFP) of
+  case outfp_fputw(Word, DstFP) of
     ok -> write_words(Words, DstFP);
     {error, _Reason} = Error -> Error
   end.
+
+%% Copy data between I/O devices ===============================================
+
+iocpy(DstFP, SrcFP, SrcPageNr, NrWords) ->
+  SrcWordOffset = nrpages_to_nrwords(SrcPageNr),
+  case infp_fseekw(SrcFP, SrcWordOffset) of
+    ok -> iocpy(DstFP, SrcFP, NrWords);
+    {error, _Reason} = Error -> Error
+  end.
+
+iocpy(_DstFP, _SrcFP, _NrWords = 0) -> ok;
+iocpy(DstFP, SrcFP, NrWords) ->
+  case infp_fgetw(SrcFP) of
+    {ok, Word} ->
+      case outfp_fputw(Word, DstFP) of
+        ok -> iocpy(DstFP, SrcFP, NrWords - 1);
+        {error, _Reason} = Error -> Error
+      end;
+    {error, _Reason} = Error -> Error;
+    eof -> {error, eof}
+  end.
+
+%% Word-oriented input file abstraction ========================================
+
+infp_fseekw(InFP, WordOffset) ->
+  pdp10_stdio:fseek(InFP, {bof, WordOffset*4}).
+
+infp_fgetw(SrcFP) ->
+  infp_fgetw(_NrBytes = 4, SrcFP, _Acc = 0).
+
+infp_fgetw(0, _SrcFP, Word) -> {ok, Word};
+infp_fgetw(N, SrcFP, Acc) ->
+  case pdp10_stdio:fgetc(SrcFP) of
+    {ok, Nonet} -> infp_fgetw(N - 1, SrcFP, (Acc bsl 9) bor Nonet);
+    Else -> Else
+  end.
+
+%% Word-oriented output file abstraction =======================================
+
+outfp_fopen(FileName) ->
+  pdp10_stdio:fopen(FileName, [raw, write, delayed_write]).
+
+outfp_fclose(OutFP) ->
+  pdp10_stdio:fclose(OutFP).
+
+outfp_ftellw(OutFP) ->
+  ByteOffset = pdp10_stdio:ftell(OutFP),
+  0 = ByteOffset band 3, % assert
+  ByteOffset bsr 2.
+
+outfp_fseekw(OutFP, WordOffset) ->
+  pdp10_stdio:fseek(OutFP, {bof, WordOffset*4}).
+
+outfp_fputw(Word, OutFP) ->
+  pdp10_stdio:fputs(pdp10_extint:uint36_to_ext(Word), OutFP).
 
 %% Optional debugging output ===================================================
 
@@ -224,8 +280,8 @@ print_group(Group) ->
   print_frag(Frag).
 
 print_frag(Frag) ->
-  #frag{nrbytes = NrBytes, src = Src, mem = MemPageNr} = Frag,
-  io:format("\tnrbytes ~p\n", [NrBytes]),
+  #frag{nrwords = NrWords, src = Src, mem = MemPageNr} = Frag,
+  io:format("\tnrwords ~p\n", [NrWords]),
   io:format("\tmem ~s\n", [format_lh(MemPageNr bsl 9)]),
   case Src of
     SrcPageNr when is_integer(SrcPageNr) ->
@@ -275,9 +331,9 @@ build_decexe_dir(Groups = [_|_], HdrNrPages) ->
   ].
 
 build_decexe_dir_entry(Group, HdrNrPages) ->
-  #group{frag = #frag{nrbytes = NrBytes, mem = MemPageNr}, dst = DstPageNr} = Group,
-  true = NrBytes > 0 andalso NrBytes =< ?MAX_GROUP_NRBYTES, % assert
-  NrPages = nrbytes_to_nrpages(NrBytes),
+  #group{frag = #frag{nrwords = NrWords, mem = MemPageNr}, dst = DstPageNr} = Group,
+  true = NrWords > 0 andalso NrWords =< ?MAX_GROUP_NRWORDS, % assert
+  NrPages = nrwords_to_nrpages(NrWords),
   [ word927(0, HdrNrPages + DstPageNr)
   , word927(NrPages - 1, MemPageNr)
   ].
@@ -306,25 +362,25 @@ groups([Frag | Frags], PageNr, Groups) ->
   groups(Frag, Frags, PageNr, Groups).
 
 groups(Frag, Frags, PageNr, Groups) ->
-  NrBytes = Frag#frag.nrbytes,
-  case NrBytes > ?MAX_GROUP_NRBYTES of
+  NrWords = Frag#frag.nrwords,
+  case NrWords > ?MAX_GROUP_NRWORDS of
     true ->
-      NrPages = nrbytes_to_nrpages(?MAX_GROUP_NRBYTES),
-      Group = #group{frag = Frag#frag{nrbytes = ?MAX_GROUP_NRBYTES}, dst = PageNr},
-      NewFrag = Frag#frag{ nrbytes = NrBytes - ?MAX_GROUP_NRBYTES
+      NrPages = nrwords_to_nrpages(?MAX_GROUP_NRWORDS),
+      Group = #group{frag = Frag#frag{nrwords = ?MAX_GROUP_NRWORDS}, dst = PageNr},
+      NewFrag = Frag#frag{ nrwords = NrWords - ?MAX_GROUP_NRWORDS
                          , src = (Frag#frag.src) + NrPages
                          , mem = (Frag#frag.mem) + NrPages
                          },
       groups(NewFrag, Frags, PageNr + NrPages, [Group | Groups]);
     false ->
       NewGroups =
-        case NrBytes of
+        case NrWords of
           0 -> Groups;
           _ ->
            Group = #group{frag = Frag, dst = PageNr},
            [Group | Groups]
         end,
-      NrPages = nrbytes_to_nrpages(NrBytes),
+      NrPages = nrwords_to_nrpages(NrWords),
       groups(Frags, PageNr + NrPages, NewGroups)
   end.
 
@@ -347,7 +403,7 @@ entry_frag(Entry) ->
     , 8#000000_000000 % 0,,001003 0             ; flag-PC double-word: program flags
     , EntryPC         % 0,,001004 EntryPC       ; flag-PC double-word: PC
     ],
-  #frag{nrbytes = 4 * length(Src), src = Src, mem = MemPageNr}.
+  #frag{nrwords = length(Src), src = Src, mem = MemPageNr}.
 
 %% Reading ELF =================================================================
 
@@ -402,7 +458,7 @@ frag(Phdr) ->
             MemSz >= FileSz andalso
             no_excess_flags(Flags)) of
         true ->
-          #frag{nrbytes = FileSz, src = nrbytes_to_nrpages(Offset), mem = nrbytes_to_nrpages(VAddr)};
+          #frag{nrwords = nrbytes_to_nrwords(FileSz), src = nrbytes_to_nrpages(Offset), mem = nrbytes_to_nrpages(VAddr)};
         false -> error
       end;
     _ -> error
@@ -413,6 +469,8 @@ no_excess_flags(Flags) ->
 
 %% Operations on bytes and pages ===============================================
 
+-define(LOG2_NR_WORDS_PER_PAGE, 9). % 512 words per page
+-define(LOG2_NR_BYTES_PER_WORD, 2). % 4 bytes (nonets) per word
 -define(LOG2_NR_BYTES_PER_PAGE, (2 + 9)). % 4 bytes per word, 512 words per page
 
 is_page_aligned(Address) ->
@@ -421,8 +479,14 @@ is_page_aligned(Address) ->
 nrbytes_to_nrpages(NrBytes) ->
   (NrBytes + ((1 bsl ?LOG2_NR_BYTES_PER_PAGE) - 1)) bsr ?LOG2_NR_BYTES_PER_PAGE.
 
-nrpages_to_nrbytes(NrPages) ->
-  NrPages bsl ?LOG2_NR_BYTES_PER_PAGE.
+nrpages_to_nrwords(NrPages) ->
+  NrPages bsl ?LOG2_NR_WORDS_PER_PAGE.
+
+nrbytes_to_nrwords(NrBytes) ->
+  (NrBytes + ((1 bsl ?LOG2_NR_BYTES_PER_WORD) - 1)) bsr ?LOG2_NR_BYTES_PER_WORD.
+
+nrwords_to_nrpages(NrWords) ->
+  (NrWords + ((1 bsl ?LOG2_NR_WORDS_PER_PAGE) - 1)) bsr ?LOG2_NR_WORDS_PER_PAGE.
 
 %% Error Formatting ============================================================
 
