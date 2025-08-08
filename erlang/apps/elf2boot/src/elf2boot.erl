@@ -39,16 +39,18 @@
 -record(options,
         { verbose :: boolean()  % -v/--verbose
         , output :: undefined | string()
+        , format :: c36 | h36
         }).
 
 %% Command-line interface ======================================================
 
 -spec main([string()]) -> no_return().
 main(Argv) ->
-  case my_getopt:parse(Argv, "Vvo:",
+  case my_getopt:parse(Argv, "Vvo:f:",
                        [ {"version", no, $V}
                        , {"verbose", no, $v}
-                       , {"output", no, $o}
+                       , {"output", required, $o}
+                       , {"format", required, $f}
                        ]) of
     {ok, {Options, Files}} ->
       elf2boot(scan_options(Options), Files);
@@ -59,13 +61,12 @@ main(Argv) ->
 
 usage() ->
   escript_runtime:fmterr(
-    "Usage: ~s [-V] [-v] [-o OUTFILE] INFILE\n",
+    "Usage: ~s [-V] [-v] [-f FORMAT] [-o OUTFILE] INFILE\n",
     [escript_runtime:progname()]),
   halt(1).
 
 scan_options(Options) ->
-  Opts = #options{ verbose = false
-                 },
+  Opts = #options{verbose = false, format = c36},
   lists:foldl(fun scan_option/2, Opts, Options).
 
 scan_option($V, _Opts) -> % -V / --version
@@ -74,7 +75,15 @@ scan_option($V, _Opts) -> % -V / --version
 scan_option($v, Opts) -> % -v / --verbose
   Opts#options{verbose = true};
 scan_option({$o, Output}, Opts) -> % -o / --output
-  Opts#options{output = Output}.
+  Opts#options{output = Output};
+scan_option({$f, Format}, Opts) -> % -f / --format
+  case Format of
+    "h36" -> Opts#options{format = h36};
+    "c36" -> Opts#options{format = c36};
+    _ ->
+      escript_runtime:errmsg("Invalid format: ~s\n", [Format]),
+      usage()
+  end.
 
 %% elf2boot ====================================================================
 
@@ -136,7 +145,7 @@ write_boot(Opts, InFP, Entry, Frags, OutFile) ->
   #frag{mem = EntryPageNr} = EntryFrag = entry_frag(Entry),
   Groups = groups([EntryFrag | Frags]),
   print_groups(Opts, Groups),
-  case outfp_fopen(OutFile) of
+  case outfp_fopen(Opts#options.format, OutFile) of
     {ok, OutFP} ->
       try
         write_boot_1(Opts, InFP, EntryPageNr, Groups, OutFP)
@@ -241,22 +250,61 @@ infp_fgetw(N, SrcFP, Acc) ->
   end.
 
 %% Word-oriented output file abstraction =======================================
+%%
+%% Allow selecting KLH's C36 or H36 as output format.  H36 is denser (9 octets per
+%% pair of 36-bit words) and matches what our pdp10_stdio implements.  C36 is less
+%% dense (5 octets per 36-bit word) but is easier to use since it's KLH's default.
+%%
+%% See klh10/src/wfio.c for details.
 
-outfp_fopen(FileName) ->
-  pdp10_stdio:fopen(FileName, [raw, write, delayed_write]).
+outfp_fopen(c36, FileName) ->
+  case file:open(FileName, [raw, write, delayed_write]) of
+    {ok, IoDev} -> {ok, {c36, IoDev}};
+    {error, Reason} -> {error, {file, Reason}}
+  end;
+outfp_fopen(h36, FileName) ->
+  case pdp10_stdio:fopen(FileName, [raw, write, delayed_write]) of
+    {ok, OutFP} -> {ok, {h36, OutFP}};
+    Error -> Error
+  end.
 
-outfp_fclose(OutFP) ->
+outfp_fclose({c36, IoDev}) ->
+  case file:close(IoDev) of
+    ok -> ok;
+    {error, Reason} -> {error, {file, Reason}}
+  end;
+outfp_fclose({h36, OutFP}) ->
   pdp10_stdio:fclose(OutFP).
 
-outfp_ftellw(OutFP) ->
+outfp_ftellw({c36, IoDev}) ->
+  {ok, ByteOffset} = file:position(IoDev, {cur, 0}),
+  0 = ByteOffset rem 5, % assert
+  ByteOffset div 5;
+outfp_ftellw({h36, OutFP}) ->
   ByteOffset = pdp10_stdio:ftell(OutFP),
   0 = ByteOffset band 3, % assert
   ByteOffset bsr 2.
 
-outfp_fseekw(OutFP, WordOffset) ->
+outfp_fseekw({c36, IoDev}, WordOffset) ->
+  case file:position(IoDev, {bof, WordOffset*5}) of
+    {ok, _Pos} -> ok;
+    {error, Reason} -> {error, {file, Reason}}
+  end;
+outfp_fseekw({h36, OutFP}, WordOffset) ->
   pdp10_stdio:fseek(OutFP, {bof, WordOffset*4}).
 
-outfp_fputw(Word, OutFP) ->
+outfp_fputw(Word, {c36, IoDev}) ->
+  B4 =  Word         band 15,
+  B3 = (Word bsr 4)  band 255,
+  B2 = (Word bsr 12) band 255,
+  B1 = (Word bsr 20) band 255,
+  B0 = (Word bsr 28) band 255,
+  Bytes = [B0, B1, B2, B3, B4],
+  case file:write(IoDev, Bytes) of
+    ok -> ok;
+    {error, Reason} -> {error, {file, Reason}}
+  end;
+outfp_fputw(Word, {h36, OutFP}) ->
   pdp10_stdio:fputs(pdp10_extint:uint36_to_ext(Word), OutFP).
 
 %% Optional debugging output ===================================================
