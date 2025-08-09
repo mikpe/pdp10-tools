@@ -258,9 +258,9 @@ infp_fgetw(N, SrcFP, Acc) ->
 %% See klh10/src/wfio.c for details.
 
 outfp_fopen(c36, FileName) ->
-  case file:open(FileName, [raw, write, delayed_write]) of
+  case stdio8:fopen(FileName, [raw, write, delayed_write]) of
     {ok, IoDev} -> {ok, {c36, IoDev}};
-    {error, Reason} -> {error, {file, Reason}}
+    Error -> Error
   end;
 outfp_fopen(h36, FileName) ->
   case stdio9:fopen(FileName, [raw, write, delayed_write]) of
@@ -269,15 +269,12 @@ outfp_fopen(h36, FileName) ->
   end.
 
 outfp_fclose({c36, IoDev}) ->
-  case file:close(IoDev) of
-    ok -> ok;
-    {error, Reason} -> {error, {file, Reason}}
-  end;
+  stdio8:fclose(IoDev);
 outfp_fclose({h36, OutFP}) ->
   stdio9:fclose(OutFP).
 
 outfp_ftellw({c36, IoDev}) ->
-  {ok, ByteOffset} = file:position(IoDev, {cur, 0}),
+  ByteOffset = stdio8:ftell(IoDev),
   0 = ByteOffset rem 5, % assert
   ByteOffset div 5;
 outfp_ftellw({h36, OutFP}) ->
@@ -286,10 +283,7 @@ outfp_ftellw({h36, OutFP}) ->
   ByteOffset bsr 2.
 
 outfp_fseekw({c36, IoDev}, WordOffset) ->
-  case file:position(IoDev, {bof, WordOffset*5}) of
-    {ok, _Pos} -> ok;
-    {error, Reason} -> {error, {file, Reason}}
-  end;
+  stdio8:fseek(IoDev, {bof, WordOffset*5});
 outfp_fseekw({h36, OutFP}, WordOffset) ->
   stdio9:fseek(OutFP, {bof, WordOffset*4}).
 
@@ -300,10 +294,7 @@ outfp_fputw(Word, {c36, IoDev}) ->
   B1 = (Word bsr 20) band 255,
   B0 = (Word bsr 28) band 255,
   Bytes = [B0, B1, B2, B3, B4],
-  case file:write(IoDev, Bytes) of
-    ok -> ok;
-    {error, Reason} -> {error, {file, Reason}}
-  end;
+  stdio8:fputs(Bytes, IoDev);
 outfp_fputw(Word, {h36, OutFP}) ->
   stdio9:fputs(pdp10_extint:uint36_to_ext(Word), OutFP).
 
