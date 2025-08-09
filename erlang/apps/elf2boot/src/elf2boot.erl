@@ -113,7 +113,7 @@ elf2boot(Opts, InFile, OutFile) ->
       try
         write_boot(Opts, InFP, Entry, Frags, OutFile)
       after
-        pdp10_stdio:fclose(InFP)
+        stdio9:fclose(InFP)
       end;
     {error, Reason} ->
       escript_runtime:errmsg("~s\n", [error:format(Reason)]),
@@ -237,14 +237,14 @@ iocpy(DstFP, SrcFP, NrWords) ->
 %% Word-oriented input file abstraction ========================================
 
 infp_fseekw(InFP, WordOffset) ->
-  pdp10_stdio:fseek(InFP, {bof, WordOffset*4}).
+  stdio9:fseek(InFP, {bof, WordOffset*4}).
 
 infp_fgetw(SrcFP) ->
   infp_fgetw(_NrBytes = 4, SrcFP, _Acc = 0).
 
 infp_fgetw(0, _SrcFP, Word) -> {ok, Word};
 infp_fgetw(N, SrcFP, Acc) ->
-  case pdp10_stdio:fgetc(SrcFP) of
+  case stdio9:fgetc(SrcFP) of
     {ok, Nonet} -> infp_fgetw(N - 1, SrcFP, (Acc bsl 9) bor Nonet);
     Else -> Else
   end.
@@ -252,7 +252,7 @@ infp_fgetw(N, SrcFP, Acc) ->
 %% Word-oriented output file abstraction =======================================
 %%
 %% Allow selecting KLH's C36 or H36 as output format.  H36 is denser (9 octets per
-%% pair of 36-bit words) and matches what our pdp10_stdio implements.  C36 is less
+%% pair of 36-bit words) and matches what our stdio9 implements.  C36 is less
 %% dense (5 octets per 36-bit word) but is easier to use since it's KLH's default.
 %%
 %% See klh10/src/wfio.c for details.
@@ -263,7 +263,7 @@ outfp_fopen(c36, FileName) ->
     {error, Reason} -> {error, {file, Reason}}
   end;
 outfp_fopen(h36, FileName) ->
-  case pdp10_stdio:fopen(FileName, [raw, write, delayed_write]) of
+  case stdio9:fopen(FileName, [raw, write, delayed_write]) of
     {ok, OutFP} -> {ok, {h36, OutFP}};
     Error -> Error
   end.
@@ -274,14 +274,14 @@ outfp_fclose({c36, IoDev}) ->
     {error, Reason} -> {error, {file, Reason}}
   end;
 outfp_fclose({h36, OutFP}) ->
-  pdp10_stdio:fclose(OutFP).
+  stdio9:fclose(OutFP).
 
 outfp_ftellw({c36, IoDev}) ->
   {ok, ByteOffset} = file:position(IoDev, {cur, 0}),
   0 = ByteOffset rem 5, % assert
   ByteOffset div 5;
 outfp_ftellw({h36, OutFP}) ->
-  ByteOffset = pdp10_stdio:ftell(OutFP),
+  ByteOffset = stdio9:ftell(OutFP),
   0 = ByteOffset band 3, % assert
   ByteOffset bsr 2.
 
@@ -291,7 +291,7 @@ outfp_fseekw({c36, IoDev}, WordOffset) ->
     {error, Reason} -> {error, {file, Reason}}
   end;
 outfp_fseekw({h36, OutFP}, WordOffset) ->
-  pdp10_stdio:fseek(OutFP, {bof, WordOffset*4}).
+  stdio9:fseek(OutFP, {bof, WordOffset*4}).
 
 outfp_fputw(Word, {c36, IoDev}) ->
   B4 =  Word         band 15,
@@ -305,7 +305,7 @@ outfp_fputw(Word, {c36, IoDev}) ->
     {error, Reason} -> {error, {file, Reason}}
   end;
 outfp_fputw(Word, {h36, OutFP}) ->
-  pdp10_stdio:fputs(pdp10_extint:uint36_to_ext(Word), OutFP).
+  stdio9:fputs(pdp10_extint:uint36_to_ext(Word), OutFP).
 
 %% Optional debugging output ===================================================
 
@@ -455,9 +455,9 @@ entry_frag(Entry) ->
 
 %% Reading ELF =================================================================
 
--spec read_elf(string()) -> {ok, {pdp10_stdio:file(), word(), [#frag{}]}} | {error, any()}.
+-spec read_elf(string()) -> {ok, {stdio9:file(), word(), [#frag{}]}} | {error, any()}.
 read_elf(File) ->
-  case pdp10_stdio:fopen(File, [raw, read]) of
+  case stdio9:fopen(File, [raw, read]) of
     {ok, FP} ->
       case pdp10_elf36:read_Ehdr(FP) of
         {ok, Ehdr} -> read_elf(FP, Ehdr);
