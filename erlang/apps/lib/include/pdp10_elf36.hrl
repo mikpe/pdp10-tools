@@ -571,6 +571,7 @@
 
 -define(SHT_ANDROID_RELR,               16#6fffff00).
 
+-define(SHT_GNU_SFRAME,                 16#6ffffff4). % SFrame stack trace information.
 -define(SHT_GNU_ATTRIBUTES,             16#6ffffff5). % Object attributes
 -define(SHT_GNU_HASH,                   16#6ffffff6). % GNU style symbol hash table
 -define(SHT_GNU_LIBLIST,                16#6ffffff7). % List of prelink dependencies
@@ -619,7 +620,7 @@
 
 -define(SHF_MASKPROC,   16#F0000000).   % Processor-specific semantics
 %% This used to be implemented as a processor specific section flag.
-%% We just make it generic.  The definition is:	the link editor is
+%% We just make it generic.  The definition is: the link editor is
 %% to exclude this section from executable and shared libraries that
 %% it builds when those objects are not to be further relocated.
 -define(SHF_EXCLUDE,    (1 bsl 31)).
@@ -881,6 +882,9 @@
                                                 %   Note: name must be "LINUX".
 -define(NT_ARM_ZT,              16#40d).        % AArch64 SME2 ZT registers.
                                                 %   Note: name must be "LINUX".
+-define(NT_ARM_GCS,             16#410).        % AArch64 Guarded Control Stack
+                                                % registers.
+                                                %   Note  name must be "LINUX".
 -define(NT_ARC_V2,              16#600).        % ARC HS accumulator/extra registers.
                                                 %   note name must be "LINUX".
 -define(NT_LARCH_CPUCFG,        16#a00).        % LoongArch CPU config registers
@@ -1174,6 +1178,11 @@
 -define(GNU_PROPERTY_AARCH64_FEATURE_1_BTI,     (1 bsl 0)).
 -define(GNU_PROPERTY_AARCH64_FEATURE_1_PAC,     (1 bsl 1)).
 -define(GNU_PROPERTY_AARCH64_FEATURE_1_GCS,     (1 bsl 2)).
+
+%% RISC-V specific GNU PROPERTY.
+-define(GNU_PROPERTY_RISCV_FEATURE_1_AND,               16#c0000000).
+-define(GNU_PROPERTY_RISCV_FEATURE_1_CFI_LP_UNLABELED,  (1 bsl 0)).
+-define(GNU_PROPERTY_RISCV_FEATURE_1_CFI_SS,            (1 bsl 1)).
 
 %% Values used in GNU .note.ABI-tag notes (NT_GNU_ABI_TAG).
 -define(GNU_ABI_TAG_LINUX,      0).
