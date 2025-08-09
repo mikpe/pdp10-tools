@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% stdio for I/O with 9-bit bytes
-%%% Copyright (C) 2013-2023  Mikael Pettersson
+%%% Copyright (C) 2013-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -60,7 +60,7 @@
 %%% - stdin and stdout are non-seekable even when bound to regular files, this
 %%%   is a limitation of the Erlang standard_io implementation.
 
--module(pdp10_stdio).
+-module(stdio9).
 -behaviour(gen_server).
 
 %% API
