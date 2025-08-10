@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% 'ar' and 'ranlib' for pdp10-elf
-%%% Copyright (C) 2013-2023  Mikael Pettersson
+%%% Copyright (C) 2013-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -24,7 +24,7 @@
 -include_lib("kernel/include/file.hrl").
 -include_lib("lib/include/pdp10_ar.hrl").
 -include_lib("lib/include/archive.hrl").
--include_lib("lib/include/pdp10_elf36.hrl").
+-include_lib("lib/include/libelf.hrl").
 
 -record(options,
         { operation     :: $d | $q | $r | $s | $t | $x | print_armap

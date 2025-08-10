@@ -34,7 +34,7 @@
         , format_error/1
         ]).
 
--include_lib("lib/include/pdp10_elf36.hrl").
+-include_lib("lib/include/libelf.hrl").
 
 -record(options,
         { verbose :: boolean()  % -v/--verbose

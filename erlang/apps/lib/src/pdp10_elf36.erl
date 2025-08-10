@@ -37,7 +37,7 @@
         , format_error/1
         ]).
 
--include_lib("lib/include/pdp10_elf36.hrl").
+-include_lib("lib/include/libelf.hrl").
 -include_lib("lib/include/pdp10_stdint.hrl").
 
 -type read_field() :: fun((pdp10_stdio:file())

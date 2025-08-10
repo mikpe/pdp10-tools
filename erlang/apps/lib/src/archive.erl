@@ -30,7 +30,7 @@
 -include_lib("kernel/include/file.hrl").
 -include_lib("lib/include/pdp10_ar.hrl").
 -include_lib("lib/include/archive.hrl").
--include_lib("lib/include/pdp10_elf36.hrl").
+-include_lib("lib/include/libelf.hrl").
 
 -type file() :: pdp10_stdio:file().
 

@@ -1,6 +1,6 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
-%%% pdp10_elf36.hrl -- ELF definitions for PDP10
+%%% libelf.hrl -- ELF definitions for Erlang
 %%% Copyright (C) 2013-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
@@ -20,12 +20,14 @@
 %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%
-%%% This is essentially the standard Elf32 declarations with 8/16/32-bit
-%%% primitive types replaced by 9/18/36-bit primitive types, and Elf32
-%%% replaced by elf36.
+%%% These are the standard ELF32 and ELF64 declarations adapted for Erlang.
+%%%
+%%% As an extension ELF36 is defined as ELF32 where each N x 8 bit integer
+%%% has been expanded to N x 9 bits, making Uchar 9 bits, Half 18 bits, and
+%%% Word 32-bits.  This would be appropriate for e.g. the PDP-10.
 
--ifndef(PDP10_ELF36_HRL).
--define(PDP10_ELF36_HRL, 1).
+-ifndef(LIBELF_HRL).
+-define(LIBELF_HRL, 1).
 
 -include("pdp10_stdint.hrl").
 
@@ -1728,4 +1730,4 @@
 -define(AT_SUN_BRAND_AUX3,      2022).
 -define(AT_SUN_CAP_HW2,         2023).  % Extension of AT_SUN_CAP_HW1.
 
--endif. % PDP10_ELF36_HRL
+-endif. % LIBELF_HRL

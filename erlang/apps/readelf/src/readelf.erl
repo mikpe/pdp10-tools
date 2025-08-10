@@ -21,7 +21,7 @@
 -module(readelf).
 -export([main/1]).
 
--include_lib("lib/include/pdp10_elf36.hrl").
+-include_lib("lib/include/libelf.hrl").
 -include_lib("lib/include/pdp10_opcodes.hrl").
 
 -record(options,

@@ -21,7 +21,7 @@
 -ifndef(LD_INTERNAL_HRL).
 -define(LD_INTERNAL_HRL, 1).
 
--include_lib("lib/include/pdp10_elf36.hrl").
+-include_lib("lib/include/libelf.hrl").
 
 -type ifile() :: string() % explicit input .o-file
                | { Archive :: string() % archive name

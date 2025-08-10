@@ -28,7 +28,7 @@
         , format_error/1
         ]).
 
--include_lib("lib/include/pdp10_elf36.hrl").
+-include_lib("lib/include/libelf.hrl").
 
 -type address() :: non_neg_integer().
 

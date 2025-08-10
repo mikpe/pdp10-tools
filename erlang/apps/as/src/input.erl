@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% input processing phase for pdp10-elf as
-%%% Copyright (C) 2013-2023  Mikael Pettersson
+%%% Copyright (C) 2013-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -25,7 +25,7 @@
         ]).
 
 -include("tunit.hrl").
--include_lib("lib/include/pdp10_elf36.hrl").
+-include_lib("lib/include/libelf.hrl").
 
 -spec files([string()]) -> {ok, #tunit{}} | {error, {module(), term()}}.
 files(Files0) ->

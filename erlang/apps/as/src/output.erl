@@ -52,7 +52,7 @@
         ]).
 
 -include("tunit.hrl").
--include_lib("lib/include/pdp10_elf36.hrl").
+-include_lib("lib/include/libelf.hrl").
 
 -record(strtab,
         { map :: #{string() => non_neg_integer()}
