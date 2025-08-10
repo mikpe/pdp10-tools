@@ -148,11 +148,11 @@ input_elf(File, FP, Base, Limit, DefMap, UndefMap) ->
 %% Read ELF symtab =============================================================
 
 read_elf_symtab(FP, Base, Limit) ->
-  case pdp10_elf36:read_Ehdr(FP, Base, Limit) of
+  case libelf:read_Ehdr(FP, Base, Limit) of
     {ok, Ehdr} ->
-      case pdp10_elf36:read_ShTab(FP, Base, Limit, Ehdr) of
+      case libelf:read_ShTab(FP, Base, Limit, Ehdr) of
         {ok, ShTab} ->
-          case pdp10_elf36:read_SymTab(FP, Base, Limit, ShTab) of
+          case libelf:read_SymTab(FP, Base, Limit, ShTab) of
             {ok, {SymTab, ShNdx}} -> {ok, {ShTab, SymTab, ShNdx}};
             {error, _Reason} = Error -> Error
           end;

@@ -54,7 +54,7 @@ load(Exe, ArgvStrings, EnvStrings) ->
   end.
 
 load_fp(FP, ArgvStrings, EnvStrings) ->
-  case pdp10_elf36:read_Ehdr(FP) of
+  case libelf:read_Ehdr(FP) of
     {ok, Ehdr} -> load(FP, Ehdr, ArgvStrings, EnvStrings);
     {error, _Reason} = Error -> Error
   end.
@@ -62,7 +62,7 @@ load_fp(FP, ArgvStrings, EnvStrings) ->
 load(FP, Ehdr, ArgvStrings, EnvStrings) ->
   case Ehdr#elf_Ehdr.e_type of
     ?ET_EXEC ->
-      case pdp10_elf36:read_PhTab(FP, Ehdr) of
+      case libelf:read_PhTab(FP, Ehdr) of
         {ok, PhTab} -> load(FP, Ehdr, PhTab, ArgvStrings, EnvStrings);
         {error, _Reason} = Error -> Error
       end;

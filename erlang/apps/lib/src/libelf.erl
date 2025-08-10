@@ -1,6 +1,6 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
-%%% I/O of PDP10 Elf36 entities
+%%% I/O of ELF-36 entities
 %%% Copyright (C) 2013-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
@@ -18,7 +18,7 @@
 %%% You should have received a copy of the GNU General Public License
 %%% along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
 
--module(pdp10_elf36).
+-module(libelf).
 
 -export([ read_Ehdr/1
         , read_Ehdr/3
