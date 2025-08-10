@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% ELF output for pdp10-elf ld
-%%% Copyright (C) 2020-2023  Mikael Pettersson
+%%% Copyright (C) 2020-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -81,11 +81,11 @@ output_elf_header(Entry, Segments, _GlobalMap, _FileMap, FP, Offset = 0) ->
   true = PhNum < ?PN_XNUM, % assert; TODO: otherwise store PhNum in Shdr0.sh_info
   PhOff = ?ELF36_EHDR_SIZEOF,
   Ehdr0 = pdp10_elf36:make_Ehdr(),
-  Ehdr = Ehdr0#elf36_Ehdr{ e_type = ?ET_EXEC
-                         , e_entry = Entry
-                         , e_phoff = PhOff
-                         , e_phnum = PhNum
-                         },
+  Ehdr = Ehdr0#elf_Ehdr{ e_type = ?ET_EXEC
+                       , e_entry = Entry
+                       , e_phoff = PhOff
+                       , e_phnum = PhNum
+                       },
   case pdp10_elf36:write_Ehdr(FP, Ehdr) of
     ok -> {ok, Offset + ?ELF36_EHDR_SIZEOF};
     {error, _Reason} = Error -> Error
@@ -118,7 +118,7 @@ output_segments([Segment | Segments], GlobalMap, FileMap, FP, Offset) ->
 
 output_segment(Segment, GlobalMap, FileMap, FP, Offset) ->
   #segment{phdr = Phdr, sections = Sections} = Segment,
-  #elf36_Phdr{p_offset = SegOffset} = Phdr,
+  #elf_Phdr{p_offset = SegOffset} = Phdr,
   case output_padding(SegOffset - Offset, FP) of
     ok -> output_sections(Sections, GlobalMap, FileMap, FP, SegOffset);
     {error, _Reason} = Error -> Error
@@ -139,7 +139,7 @@ output_sections([Section | Sections], GlobalMap, FileMap, FP, SegOffset, Offset)
 
 output_section(Section, GlobalMap, FileMap, FP, SegOffset, Offset) ->
   #section{shdr = Shdr, frags = Frags} = Section,
-  #elf36_Shdr{sh_offset = ShOffset} = Shdr,
+  #elf_Shdr{sh_offset = ShOffset} = Shdr,
   case output_padding(ShOffset - Offset, FP) of
     ok -> output_frags(Frags, GlobalMap, FileMap, FP, SegOffset + ShOffset);
     {error, _Reason} = Error -> Error
@@ -178,8 +178,8 @@ output_frags([Frag | Frags], GlobalMap, FileMap, FP, SectOffset, Offset) ->
 output_frag(Frag, GlobalMap, FileMap, FP, Offset) ->
   case input_init(Frag) of
     {ok, {Input, Relocs}} ->
-      SortedRelocs = lists:keysort(#elf36_Rela.r_offset, Relocs),
-      #sectfrag{file = File, shdr = #elf36_Shdr{sh_name = ShName}} = Frag,
+      SortedRelocs = lists:keysort(#elf_Rela.r_offset, Relocs),
+      #sectfrag{file = File, shdr = #elf_Shdr{sh_name = ShName}} = Frag,
       case output_frag(Input, File, ShName, FP, SortedRelocs, GlobalMap, FileMap) of
         {ok, FragOffset} -> {ok, Offset + FragOffset};
         {error, _Reason} = Error -> Error
@@ -207,7 +207,7 @@ output_frag(Input, Relocs, File, GlobalMap, FileMap, FP, FragOffset, Buffer) ->
 output_frag(Byte, Input, Relocs, File, GlobalMap, FileMap, FP, FragOffset, Buffer) ->
   case Relocs of
     [] -> output_byte(Byte, Input, Relocs, File, GlobalMap, FileMap, FP, FragOffset);
-    [#elf36_Rela{r_offset = RelOffset} = Reloc | NewRelocs] ->
+    [#elf_Rela{r_offset = RelOffset} = Reloc | NewRelocs] ->
       case FragOffset < RelOffset of
         true -> output_byte(Byte, Input, Relocs, File, GlobalMap, FileMap, FP, FragOffset);
         false ->
@@ -245,7 +245,7 @@ word_to_buffer(1, Byte) -> [Byte].
 
 %% Relocations -----------------------------------------------------------------
 
-sizeof_reloc(#elf36_Rela{r_info = Info}) ->
+sizeof_reloc(#elf_Rela{r_info = Info}) ->
   case ?ELF36_R_TYPE(Info) of
     ?R_PDP10_IFIW      -> 4;
     ?R_PDP10_EFIW      -> 4;
@@ -260,7 +260,7 @@ sizeof_reloc(#elf36_Rela{r_info = Info}) ->
   end.
 
 apply_reloc(Reloc, File, GlobalMap, FileMap, Word) ->
-  #elf36_Rela{r_info = Info, r_addend = Addend} = Reloc,
+  #elf_Rela{r_info = Info, r_addend = Addend} = Reloc,
   Type = ?ELF36_R_TYPE(Info),
   SymNdx = ?ELF36_R_SYM(Info),
   case symbol_value(SymNdx, File, FileMap, GlobalMap) of
@@ -357,7 +357,7 @@ input_init(Frag) ->
     {ok, FP} ->
       case input_relocs(FP, Base, Limit, RelocShdr) of
         {ok, Relocs} ->
-          #elf36_Shdr{sh_offset = ShOffset, sh_size = ShSize, sh_name = ShName} = Shdr,
+          #elf_Shdr{sh_offset = ShOffset, sh_size = ShSize, sh_name = ShName} = Shdr,
           case pdp10_stdio:fseek(FP, {bof, Base + ShOffset}) of
             ok ->
               Input = #frag_input{fp = FP, file = File, sh_name = ShName, size = ShSize, pushback = []},

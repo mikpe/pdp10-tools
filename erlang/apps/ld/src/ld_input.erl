@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% input processing for pdp10-elf ld
-%%% Copyright (C) 2020-2023  Mikael Pettersson
+%%% Copyright (C) 2020-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -173,7 +173,7 @@ update_sym_maps([], _File, DefMap, UndefMap) ->
   {ok, {DefMap, UndefMap}}.
 
 do_update_sym_maps(Sym, File, DefMap, UndefMap) ->
-  #elf36_Sym{st_name = Name} = Sym,
+  #elf_Sym{st_name = Name} = Sym,
   case classify_sym(Sym) of
     local -> {ok, {DefMap, UndefMap}};
     undefined ->
@@ -193,9 +193,9 @@ do_update_sym_maps(Sym, File, DefMap, UndefMap) ->
   end.
 
 classify_sym(Sym) ->
-  case ?ELF36_ST_BIND(Sym#elf36_Sym.st_info) of
+  case ?ELF_ST_BIND(Sym#elf_Sym.st_info) of
     ?STB_GLOBAL ->
-      case Sym#elf36_Sym.st_shndx of
+      case Sym#elf_Sym.st_shndx of
         ?SHN_UNDEF -> undefined;
         _ -> defined
       end;

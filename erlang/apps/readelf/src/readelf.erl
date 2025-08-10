@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% 'readelf' for pdp10-elf
-%%% Copyright (C) 2013-2023  Mikael Pettersson
+%%% Copyright (C) 2013-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -215,8 +215,8 @@ readelf_symtab(Opts, FP, ShTab) ->
 %% print_ehdr ==================================================================
 
 print_ehdr(#options{file_header = false}, _Ehdr) -> ok;
-print_ehdr(_Opts, Ehdr = #elf36_Ehdr{}) ->
-  EIdent = Ehdr#elf36_Ehdr.e_ident,
+print_ehdr(_Opts, Ehdr = #elf_Ehdr{}) ->
+  EIdent = Ehdr#elf_Ehdr.e_ident,
   io:format("ELF Header:\n"),
   print_e_ident(EIdent),
   print_ei_class(lists:nth(1 + ?EI_CLASS, EIdent)),
@@ -224,19 +224,19 @@ print_ehdr(_Opts, Ehdr = #elf36_Ehdr{}) ->
   print_ei_version(lists:nth(1 + ?EI_VERSION, EIdent)),
   print_ei_osabi(lists:nth(1 + ?EI_OSABI, EIdent)),
   print_ei_abiversion(lists:nth(1 + ?EI_ABIVERSION, EIdent)),
-  print_e_type(Ehdr#elf36_Ehdr.e_type),
-  print_e_machine(Ehdr#elf36_Ehdr.e_machine),
-  print_e_version(Ehdr#elf36_Ehdr.e_version),
-  print_e_entry(Ehdr#elf36_Ehdr.e_entry),
-  print_e_phoff(Ehdr#elf36_Ehdr.e_phoff),
-  print_e_shoff(Ehdr#elf36_Ehdr.e_shoff),
-  print_e_flags(Ehdr#elf36_Ehdr.e_flags),
-  print_e_ehsize(Ehdr#elf36_Ehdr.e_ehsize),
-  print_e_phentsize(Ehdr#elf36_Ehdr.e_phentsize),
-  print_e_phnum(Ehdr#elf36_Ehdr.e_phnum),
-  print_e_shentsize(Ehdr#elf36_Ehdr.e_shentsize),
-  print_e_shnum(Ehdr#elf36_Ehdr.e_shnum),
-  print_e_shstrndx(Ehdr#elf36_Ehdr.e_shstrndx),
+  print_e_type(Ehdr#elf_Ehdr.e_type),
+  print_e_machine(Ehdr#elf_Ehdr.e_machine),
+  print_e_version(Ehdr#elf_Ehdr.e_version),
+  print_e_entry(Ehdr#elf_Ehdr.e_entry),
+  print_e_phoff(Ehdr#elf_Ehdr.e_phoff),
+  print_e_shoff(Ehdr#elf_Ehdr.e_shoff),
+  print_e_flags(Ehdr#elf_Ehdr.e_flags),
+  print_e_ehsize(Ehdr#elf_Ehdr.e_ehsize),
+  print_e_phentsize(Ehdr#elf_Ehdr.e_phentsize),
+  print_e_phnum(Ehdr#elf_Ehdr.e_phnum),
+  print_e_shentsize(Ehdr#elf_Ehdr.e_shentsize),
+  print_e_shnum(Ehdr#elf_Ehdr.e_shnum),
+  print_e_shstrndx(Ehdr#elf_Ehdr.e_shstrndx),
   io:format("\n").
 
 print_e_ident(EIdent) ->
@@ -357,14 +357,14 @@ print_shdrs([Shdr | Shdrs], I) ->
             [ I
             , sh_name(Shdr)
             , sh_type(Shdr)
-            , Shdr#elf36_Shdr.sh_addr
-            , Shdr#elf36_Shdr.sh_offset
-            , Shdr#elf36_Shdr.sh_size
-            , Shdr#elf36_Shdr.sh_entsize
+            , Shdr#elf_Shdr.sh_addr
+            , Shdr#elf_Shdr.sh_offset
+            , Shdr#elf_Shdr.sh_size
+            , Shdr#elf_Shdr.sh_entsize
             , sh_flags(Shdr)
-            , Shdr#elf36_Shdr.sh_link
-            , Shdr#elf36_Shdr.sh_info
-            , Shdr#elf36_Shdr.sh_addralign
+            , Shdr#elf_Shdr.sh_link
+            , Shdr#elf_Shdr.sh_info
+            , Shdr#elf_Shdr.sh_addralign
             ]),
   print_shdrs(Shdrs, I + 1);
 print_shdrs([], _I) ->
@@ -374,13 +374,13 @@ print_shdrs([], _I) ->
   io:format("  O (extra OS processing required), o (OS specific), p (processor specific)\n"),
   io:format("\n").
 
-sh_name(#elf36_Shdr{sh_name = ShName}) ->
+sh_name(#elf_Shdr{sh_name = ShName}) ->
   case ShName of
     "" -> "(empty)";
     _ -> ShName
   end.
 
-sh_type(#elf36_Shdr{sh_type = ShType}) ->
+sh_type(#elf_Shdr{sh_type = ShType}) ->
   case ShType of
     ?SHT_NULL -> "NULL";
     ?SHT_PROGBITS -> "PROGBITS";
@@ -409,7 +409,7 @@ sh_type(#elf36_Shdr{sh_type = ShType}) ->
     _ -> io_lib:format("~.10b", [ShType])
   end.
 
-sh_flags(#elf36_Shdr{sh_flags = ShFlags}) ->
+sh_flags(#elf_Shdr{sh_flags = ShFlags}) ->
   sh_flags("WAXxMSILOGTZ", 0, ShFlags, 0, []).
 
 sh_flags([C | Flags], I, ShFlags, Mask, Acc) ->
@@ -461,31 +461,31 @@ do_disassemble_phtab([Phdr | PhTab], PhNdx, FP) ->
 
 disassemble_phdr(Phdr, PhNdx, FP) ->
   case Phdr of
-    #elf36_Phdr{ p_type = ?PT_LOAD
-               , p_offset = Offset
-               , p_vaddr = VAddr
-               , p_filesz = Size
-               , p_flags = Flags
-               } when (Flags band ?PF_X) =/= 0 ->
+    #elf_Phdr{ p_type = ?PT_LOAD
+             , p_offset = Offset
+             , p_vaddr = VAddr
+             , p_filesz = Size
+             , p_flags = Flags
+             } when (Flags band ?PF_X) =/= 0 ->
       io:format("\nDisassembly of segment nr ~.10b:\n", [PhNdx]),
       disassemble_unit(Offset, Size, VAddr, FP, _Labels = []);
-    #elf36_Phdr{} ->
+    #elf_Phdr{} ->
       ok
   end.
 
 print_phdr(Phdr) ->
   io:format("  ~-6s 0~12.8.0b 0~12.8.0b 0~12.8.0b 0x~9.16.0b 0x~9.16.0b ~-3s 0x~.16b\n",
             [ p_type(Phdr)
-            , Phdr#elf36_Phdr.p_offset
-            , Phdr#elf36_Phdr.p_vaddr
-            , Phdr#elf36_Phdr.p_paddr
-            , Phdr#elf36_Phdr.p_filesz
-            , Phdr#elf36_Phdr.p_memsz
+            , Phdr#elf_Phdr.p_offset
+            , Phdr#elf_Phdr.p_vaddr
+            , Phdr#elf_Phdr.p_paddr
+            , Phdr#elf_Phdr.p_filesz
+            , Phdr#elf_Phdr.p_memsz
             , p_flags(Phdr)
-            , Phdr#elf36_Phdr.p_align
+            , Phdr#elf_Phdr.p_align
             ]).
 
-p_type(#elf36_Phdr{p_type = PType}) ->
+p_type(#elf_Phdr{p_type = PType}) ->
   case PType of
     ?PT_NULL -> "NULL";
     ?PT_LOAD -> "LOAD";
@@ -498,7 +498,7 @@ p_type(#elf36_Phdr{p_type = PType}) ->
     _ -> io_lib:format("~.10b", [PType])
   end.
 
-p_flags(#elf36_Phdr{p_flags = PFlags0}) ->
+p_flags(#elf_Phdr{p_flags = PFlags0}) ->
   case lists:foldl(fun({Bit, Ch}, {PFlags, Acc}) ->
                      case PFlags band Bit of
                        0 -> {PFlags, [$\s | Acc]};
@@ -519,7 +519,7 @@ print_relatab(_Opts, FP, SymTab, SymTabShNdx, ShTab) ->
 print_relatab2([Shdr | ShTab], FP, SymTab, SymTabNdx, Any) ->
   NewAny =
     case Shdr of
-      #elf36_Shdr{sh_type = ?SHT_RELA, sh_link = ShLink} ->
+      #elf_Shdr{sh_type = ?SHT_RELA, sh_link = ShLink} ->
         case ShLink of
           SymTabNdx ->
             print_relatab(Shdr, FP, SymTab);
@@ -528,7 +528,7 @@ print_relatab2([Shdr | ShTab], FP, SymTab, SymTabNdx, Any) ->
                                    [sh_name(Shdr), ShLink])
          end,
          true;
-      #elf36_Shdr{} -> Any
+      #elf_Shdr{} -> Any
     end,
   print_relatab2(ShTab, FP, SymTab, SymTabNdx, NewAny);
 print_relatab2([], _FP, _SymTab, _SymTabNdx, _Any = false) ->
@@ -541,7 +541,7 @@ print_relatab(Shdr, FP, SymTab) ->
     {ok, Relas} ->
       NrRelas = length(Relas),
       io:format("Relocation section '~s' at offset 0x~.16b contains ~.10b entr~s:\n",
-                [sh_name(Shdr), Shdr#elf36_Shdr.sh_offset, NrRelas,
+                [sh_name(Shdr), Shdr#elf_Shdr.sh_offset, NrRelas,
                  case NrRelas of 1 -> "y"; _ -> "ies" end]),
       io:format("  Offset  Info      Type         Symbol's Value Symbol's Name + Addend\n"),
       lists:foreach(fun(Rela) -> print_rela(Rela, SymTab) end, Relas),
@@ -552,14 +552,14 @@ print_relatab(Shdr, FP, SymTab) ->
   end.
 
 print_rela(Rela, SymTab) ->
-  #elf36_Rela{r_offset = Offset, r_info = Info, r_addend = Addend} = Rela,
+  #elf_Rela{r_offset = Offset, r_info = Info, r_addend = Addend} = Rela,
   SymNdx = ?ELF36_R_SYM(Info),
   Type = r_type(Rela),
   case SymNdx of
     ?SHN_UNDEF -> print_rela(Offset, Info, Type, _Value = 0, _Name = "", Addend);
     _ ->
       try lists:nth(SymNdx + 1, SymTab) of
-        Sym = #elf36_Sym{st_value = Value} ->
+        Sym = #elf_Sym{st_value = Value} ->
           print_rela(Offset, Info, Type, Value, st_name(Sym), Addend)
       catch _:_ ->
         escript_runtime:errmsg("Relocation refers to bogus symbol index ~p\n", [SymNdx])
@@ -576,7 +576,7 @@ print_rela(Offset, Info, Type, Value, Name, Addend) ->
             , Addend
             ]).
 
-r_type(#elf36_Rela{r_info = Info}) ->
+r_type(#elf_Rela{r_info = Info}) ->
   case ?ELF36_R_TYPE(Info) of
     ?R_PDP10_NONE -> "R_PDP10_NONE";
     ?R_PDP10_IFIW -> "R_PDP10_IFIW";
@@ -606,20 +606,20 @@ print_symtab(_Opts, SymTab, ShNdx, ShTab) ->
 print_syms([Sym | Syms], I) ->
   io:format("  ~.10b 0~12.8.0b ~.10b ~s ~s ~s ~.10b ~s\n",
             [ I
-            , Sym#elf36_Sym.st_value
-            , Sym#elf36_Sym.st_size
+            , Sym#elf_Sym.st_value
+            , Sym#elf_Sym.st_size
             , st_type(Sym)
             , st_bind(Sym)
             , st_vis(Sym)
-            , Sym#elf36_Sym.st_shndx
+            , Sym#elf_Sym.st_shndx
             , st_name(Sym)
             ]),
   print_syms(Syms, I + 1);
 print_syms([], _I) ->
   io:format("\n").
 
-st_type(#elf36_Sym{st_info = StInfo}) ->
-  case ?ELF36_ST_TYPE(StInfo) of
+st_type(#elf_Sym{st_info = StInfo}) ->
+  case ?ELF_ST_TYPE(StInfo) of
     ?STT_NOTYPE -> "NOTYPE";
     ?STT_OBJECT -> "OBJECT";
     ?STT_FUNC -> "FUNC";
@@ -633,8 +633,8 @@ st_type(#elf36_Sym{st_info = StInfo}) ->
     StType -> io_lib:format("~.10b", [StType])
   end.
 
-st_bind(#elf36_Sym{st_info = StInfo}) ->
-  case ?ELF36_ST_BIND(StInfo) of
+st_bind(#elf_Sym{st_info = StInfo}) ->
+  case ?ELF_ST_BIND(StInfo) of
     ?STB_LOCAL -> "LOCAL";
     ?STB_GLOBAL -> "GLOBAL";
     ?STB_WEAK -> "WEAK";
@@ -642,15 +642,15 @@ st_bind(#elf36_Sym{st_info = StInfo}) ->
     StBind -> io_lib:format("~.10b", [StBind])
   end.
 
-st_vis(#elf36_Sym{st_other = StOther}) ->
-  case ?ELF36_ST_VISIBILITY(StOther) of
+st_vis(#elf_Sym{st_other = StOther}) ->
+  case ?ELF_ST_VISIBILITY(StOther) of
     ?STV_DEFAULT -> "DEFAULT";
     ?STV_INTERNAL -> "INTERNAL";
     ?STV_HIDDEN -> "HIDDEN";
     ?STV_PROTECTED -> "PROTECTED"
   end.
 
-st_name(#elf36_Sym{st_name = StName}) ->
+st_name(#elf_Sym{st_name = StName}) ->
   case StName of
     "" -> "(empty)";
     _ -> StName
@@ -671,16 +671,16 @@ disassemble_sections([Shdr | ShTab], ShNdx, FP, SymTab) ->
 
 disassemble_section(Shdr, ShNdx, FP, SymTab) ->
   case Shdr of
-    #elf36_Shdr{ sh_type = ?SHT_PROGBITS
-               , sh_flags = ?SHF_ALLOC bor ?SHF_EXECINSTR
-               , sh_addr = ShAddr
-               , sh_offset = ShOffset
-               , sh_size = ShSize
-               } ->
+    #elf_Shdr{ sh_type = ?SHT_PROGBITS
+             , sh_flags = ?SHF_ALLOC bor ?SHF_EXECINSTR
+             , sh_addr = ShAddr
+             , sh_offset = ShOffset
+             , sh_size = ShSize
+             } ->
       io:format("Disassembly of section nr ~.10b ~s:\n\n",
                 [ShNdx, sh_name(Shdr)]),
       disassemble_unit(ShOffset, ShSize, ShAddr, FP, labels(SymTab, ShNdx));
-    #elf36_Shdr{} ->
+    #elf_Shdr{} ->
       ok
   end.
 
@@ -729,7 +729,7 @@ disassemble_insn(InsnWord) ->
 
 print_labels([], _Offset) -> [];
 print_labels(Labels = [Label | RestLabels], Offset) ->
-  #elf36_Sym{st_value = StValue} = Label,
+  #elf_Sym{st_value = StValue} = Label,
   if StValue < Offset -> print_labels(RestLabels, Offset);
      StValue =:= Offset ->
        io:format("0~12.8.0b <~s>:\n", [Offset, st_name(Label)]),
@@ -743,10 +743,10 @@ labels(SymTab, TextShNdx) ->
                           SymTab)).
 
 sym_is_label(Sym, TextShNdx) ->
-  #elf36_Sym{st_shndx = StShNdx, st_info = StInfo} = Sym,
+  #elf_Sym{st_shndx = StShNdx, st_info = StInfo} = Sym,
   StShNdx =:= TextShNdx andalso
-  ?ELF36_ST_TYPE(StInfo) =:= ?STT_FUNC andalso % TODO: type of a label?
-  (case ?ELF36_ST_BIND(StInfo) of
+  ?ELF_ST_TYPE(StInfo) =:= ?STT_FUNC andalso % TODO: type of a label?
+  (case ?ELF_ST_BIND(StInfo) of
      ?STB_GLOBAL -> true;
      ?STB_LOCAL -> true;
      ?STB_WEAK -> true;
@@ -754,4 +754,4 @@ sym_is_label(Sym, TextShNdx) ->
    end).
 
 sym_cmp_by_value(Sym1, Sym2) ->
-  Sym1#elf36_Sym.st_value =< Sym2#elf36_Sym.st_value.
+  Sym1#elf_Sym.st_value =< Sym2#elf_Sym.st_value.

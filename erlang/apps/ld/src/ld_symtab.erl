@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% Build symbol tables for pdp10-elf ld
-%%% Copyright (C) 2020-2023  Mikael Pettersson
+%%% Copyright (C) 2020-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -63,7 +63,7 @@ scan_syms(Syms, File, FragMap, GlobalMap) ->
   {NewGlobalMap, LocalSymTab}.
 
 enter_sym(Sym, SymNdx, File, FragMap, GlobalMap0, SymTab0) ->
-  #elf36_Sym{st_name = Name, st_value = Value, st_info = Info, st_shndx = ShNdx} = Sym,
+  #elf_Sym{st_name = Name, st_value = Value, st_info = Info, st_shndx = ShNdx} = Sym,
   true = is_list(Name), % assert in-core name is string()
   SymVal =
     case ShNdx of
@@ -80,7 +80,7 @@ enter_sym(Sym, SymNdx, File, FragMap, GlobalMap0, SymTab0) ->
     end,
   SymTab = maps:put(SymNdx, SymVal, SymTab0),
   GlobalMap =
-    case ?ELF36_ST_BIND(Info) of
+    case ?ELF_ST_BIND(Info) of
       ?STB_LOCAL -> GlobalMap0;
       ?STB_GLOBAL when ShNdx =:= ?SHN_UNDEF -> GlobalMap0;
       ?STB_GLOBAL -> maps:put(Name, SymVal, GlobalMap0)
@@ -96,12 +96,12 @@ enter_sym(Sym, SymNdx, File, FragMap, GlobalMap0, SymTab0) ->
 build_fragmap(Segments) ->
   lists:foldl(fun scan_segment/2, _FragMap = maps:new(), Segments).
 
-scan_segment(#segment{phdr = #elf36_Phdr{p_vaddr = SegmentBase}, sections = Sections}, FragMap0) ->
+scan_segment(#segment{phdr = #elf_Phdr{p_vaddr = SegmentBase}, sections = Sections}, FragMap0) ->
   lists:foldl(fun(Section, FragMap) ->
                 scan_section(Section, FragMap, SegmentBase)
                end, FragMap0, Sections).
 
-scan_section(#section{shdr = #elf36_Shdr{sh_offset = SectionOffset}, frags = Frags}, FragMap0, SegmentBase) ->
+scan_section(#section{shdr = #elf_Shdr{sh_offset = SectionOffset}, frags = Frags}, FragMap0, SegmentBase) ->
   SectionBase = SegmentBase + SectionOffset,
   lists:foldl(fun(Frag, FragMap) ->
                 enter_frag(Frag, FragMap, SectionBase)

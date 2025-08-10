@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% linking phase 2 for pdp10-elf ld
-%%% Copyright (C) 2020-2023  Mikael Pettersson
+%%% Copyright (C) 2020-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -86,7 +86,7 @@ segments_add_section(Section, Segments) ->
   setelement(Index, Segments, PreSegment#pre_segment{sections = [Section | Sections]}).
 
 section_segment_index(Section) ->
-  #section{shdr = #elf36_Shdr{sh_type = Type, sh_flags = Flags}} = Section,
+  #section{shdr = #elf_Shdr{sh_type = Type, sh_flags = Flags}} = Section,
   case {Type, Flags} of
     {?SHT_PROGBITS, ?SHF_ALLOC bor ?SHF_EXECINSTR} -> #pre_segments.text;
     {?SHT_PROGBITS, ?SHF_ALLOC bor ?SHF_WRITE} -> #pre_segments.data;
@@ -101,15 +101,15 @@ segment_to_list(#pre_segment{sections = []}) -> [];
 segment_to_list(#pre_segment{p_flags = Flags, sections = Sections0}) ->
   Sections1 = order_sections(Sections0),
   {Sections, FileSz, MemSz, Align} = sections_layout(Sections1),
-  Phdr = #elf36_Phdr{ p_type = ?PT_LOAD
-                    , p_offset = 0
-                    , p_vaddr = 0
-                    , p_paddr = 0
-                    , p_filesz = FileSz
-                    , p_memsz = MemSz
-                    , p_flags = Flags
-                    , p_align = Align
-                    },
+  Phdr = #elf_Phdr{ p_type = ?PT_LOAD
+                  , p_offset = 0
+                  , p_vaddr = 0
+                  , p_paddr = 0
+                  , p_filesz = FileSz
+                  , p_memsz = MemSz
+                  , p_flags = Flags
+                  , p_align = Align
+                  },
   [#segment{phdr = Phdr, sections = Sections}].
 
 %% Order sections within their segment =========================================
@@ -158,7 +158,7 @@ sections_le({Index1, Section1}, {Index2, Section2}) ->
       end
   end.
 
-section_name(#section{shdr = #elf36_Shdr{sh_name = Name}}) -> Name.
+section_name(#section{shdr = #elf_Shdr{sh_name = Name}}) -> Name.
 
 name_known(Name) ->
   case Name of
@@ -183,7 +183,7 @@ sections_layout(Sections0) ->
 
 section_layout(Section0, {Sections, FileSz0, MemSz0, Align0}) ->
   #section{shdr = Shdr0} = Section0,
-  #elf36_Shdr{sh_type = ShType, sh_size = ShSize, sh_addralign = ShAlign0} = Shdr0,
+  #elf_Shdr{sh_type = ShType, sh_size = ShSize, sh_addralign = ShAlign0} = Shdr0,
   ShAlign = max(1, ShAlign0),
   ShFileSz =
     case ShType of
@@ -191,7 +191,7 @@ section_layout(Section0, {Sections, FileSz0, MemSz0, Align0}) ->
       ?SHT_PROGBITS -> ShSize
     end,
   ShOffset = (MemSz0 + (ShAlign - 1)) band bnot (ShAlign - 1),
-  Shdr = Shdr0#elf36_Shdr{sh_offset = ShOffset},
+  Shdr = Shdr0#elf_Shdr{sh_offset = ShOffset},
   Section = Section0#section{shdr = Shdr},
   FileSz = FileSz0 + ShFileSz,
   MemSz = ShOffset + ShSize,

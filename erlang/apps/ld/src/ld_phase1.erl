@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% linking phase 1 for pdp10-elf ld
-%%% Copyright (C) 2020-2023  Mikael Pettersson
+%%% Copyright (C) 2020-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -42,13 +42,13 @@
 
 -record(output, % accumulates fragments for a given section
         { nr :: non_neg_integer() % determines output order
-        , shdr :: #elf36_Shdr{}
+        , shdr :: #elf_Shdr{}
         , frags :: [#sectfrag{}]
         }).
 
 -type outputsmap() :: #{#section_key{} => #output{}}.
 
--type relocsmap() :: #{non_neg_integer() => #elf36_Shdr{}}.
+-type relocsmap() :: #{non_neg_integer() => #elf_Shdr{}}.
 
 %% Linking Phase 1 =============================================================
 
@@ -80,7 +80,7 @@ maybe_output_section(Shdr, ShNdx, File, RelocsMap, OutputsMap) ->
   end.
 
 should_output_section(Shdr) ->
-  #elf36_Shdr{sh_type = Type, sh_flags = Flags} = Shdr,
+  #elf_Shdr{sh_type = Type, sh_flags = Flags} = Shdr,
   should_output_type(Type) andalso should_output_flags(Flags).
 
 should_output_type(Type) ->
@@ -115,13 +115,13 @@ output_section(Shdr, ShNdx, File, RelocsMap, OutputsMap) ->
 output_get(SectionKey, OutputsMap, Shdr) ->
   case maps:get(SectionKey, OutputsMap, false) of
     false ->
-      OutputShdr = Shdr#elf36_Shdr{ sh_addr = 0
-                                  , sh_offset = 0
-                                  , sh_size = 0
-                                  , sh_link = 0
-                                  , sh_info = 0
-                                  , sh_addralign = 0
-                                  },
+      OutputShdr = Shdr#elf_Shdr{ sh_addr = 0
+                                , sh_offset = 0
+                                , sh_size = 0
+                                , sh_link = 0
+                                , sh_info = 0
+                                , sh_addralign = 0
+                                },
       #output{nr = maps:size(OutputsMap), shdr = OutputShdr, frags = []};
     Output -> Output
   end.
@@ -135,26 +135,26 @@ output_append(Output, File, Shdr, ShNdx, Relocs) ->
   FragSize = section_size(Shdr),
   FragOffset = align(OutputSize, FragAlignment),
   NewSize = FragOffset + FragSize,
-  NewOutputShdr = OutputShdr#elf36_Shdr{ sh_size = NewSize
-                                       , sh_addralign = NewAlignment
-                                       },
+  NewOutputShdr = OutputShdr#elf_Shdr{ sh_size = NewSize
+                                     , sh_addralign = NewAlignment
+                                     },
   Frag = #sectfrag{file = File, shdr = Shdr, shndx = ShNdx, relocs = Relocs, offset = FragOffset},
   Output#output{shdr = NewOutputShdr, frags = [Frag | Frags]}.
 
 section_alignment(Shdr) ->
-  case Shdr#elf36_Shdr.sh_addralign of
+  case Shdr#elf_Shdr.sh_addralign of
     0 -> 1;
     Alignment -> Alignment
   end.
 
 section_size(Shdr) ->
-  Shdr#elf36_Shdr.sh_size.
+  Shdr#elf_Shdr.sh_size.
 
 align(Offset, Alignment) ->
   (Offset + Alignment - 1) band bnot (Alignment - 1).
 
 section_key(Shdr) ->
-  #elf36_Shdr{sh_name = Name, sh_type = Type, sh_flags = Flags} = Shdr,
+  #elf_Shdr{sh_name = Name, sh_type = Type, sh_flags = Flags} = Shdr,
   #section_key{sh_name = Name, sh_type = Type, sh_flags = Flags}.
 
 %% Relocs Map ==================================================================
@@ -162,7 +162,7 @@ section_key(Shdr) ->
 %% The Relocs Map is a mapping from a section's section header index to the section
 %% header for the SHT_RELA which applies to that section, if any.
 
--spec relocs_map([#elf36_Shdr{}], non_neg_integer()) -> relocsmap().
+-spec relocs_map([#elf_Shdr{}], non_neg_integer()) -> relocsmap().
 relocs_map(ShTab, StShNdx) ->
   lists:foldl(
     fun(Shdr, RelocsMap) ->
@@ -171,12 +171,12 @@ relocs_map(ShTab, StShNdx) ->
 
 relocs_map(Shdr, RelocsMap, StShNdx) -> % FIXME: ok | error
   case Shdr of
-    #elf36_Shdr{sh_type = ?SHT_RELA, sh_link = Link, sh_info = Info} ->
+    #elf_Shdr{sh_type = ?SHT_RELA, sh_link = Link, sh_info = Info} ->
       Link = StShNdx, % assert
       maps:put(Info, Shdr, RelocsMap);
-    #elf36_Shdr{} -> RelocsMap
+    #elf_Shdr{} -> RelocsMap
   end.
 
--spec relocs_get(non_neg_integer(), relocsmap()) -> #elf36_Shdr{} | false.
+-spec relocs_get(non_neg_integer(), relocsmap()) -> #elf_Shdr{} | false.
 relocs_get(ShNdx, RelocsMap) ->
   maps:get(ShNdx, RelocsMap, false).

@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% simulator for pdp10-elf
-%%% Copyright (C) 2020  Mikael Pettersson
+%%% Copyright (C) 2020-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -60,7 +60,7 @@ load_fp(FP, ArgvStrings, EnvStrings) ->
   end.
 
 load(FP, Ehdr, ArgvStrings, EnvStrings) ->
-  case Ehdr#elf36_Ehdr.e_type of
+  case Ehdr#elf_Ehdr.e_type of
     ?ET_EXEC ->
       case pdp10_elf36:read_PhTab(FP, Ehdr) of
         {ok, PhTab} -> load(FP, Ehdr, PhTab, ArgvStrings, EnvStrings);
@@ -134,7 +134,7 @@ byte_address_to_global_byte_pointer(ByteAddress) ->
   (PS bsl 30) bor Y.
 
 load_phtab(_FP, Ehdr, _PhTab = [], _PhdrIx, _Mem) ->
-  {ok, byte_address_to_global_word_address(Ehdr#elf36_Ehdr.e_entry)};
+  {ok, byte_address_to_global_word_address(Ehdr#elf_Ehdr.e_entry)};
 load_phtab(FP, Ehdr, [Phdr | PhTab], PhdrIx, Mem) ->
   case load_phdr(FP, Phdr, PhdrIx, Mem) of
     ok -> load_phtab(FP, Ehdr, PhTab, PhdrIx + 1, Mem);
@@ -142,7 +142,7 @@ load_phtab(FP, Ehdr, [Phdr | PhTab], PhdrIx, Mem) ->
   end.
 
 load_phdr(FP, Phdr, PhdrIx, Mem) ->
-  case Phdr#elf36_Phdr.p_type of
+  case Phdr#elf_Phdr.p_type of
     ?PT_NULL -> ok;
     ?PT_LOAD ->
       case is_valid_phdr(Phdr) of
@@ -153,11 +153,11 @@ load_phdr(FP, Phdr, PhdrIx, Mem) ->
   end.
 
 do_load_phdr(FP, Phdr, Mem) ->
-  #elf36_Phdr{ p_offset = Offset
-             , p_vaddr = VAddr
-             , p_filesz = FileSz
-             , p_memsz = MemSz
-             , p_flags = Flags } = Phdr,
+  #elf_Phdr{ p_offset = Offset
+           , p_vaddr = VAddr
+           , p_filesz = FileSz
+           , p_memsz = MemSz
+           , p_flags = Flags } = Phdr,
   %% TODO: change this use demand paging to read the file lazily
   case pdp10_stdio:fseek(FP, {bof, Offset}) of
     ok ->
@@ -211,11 +211,11 @@ remap_read_only(Mem, VAddr, Size) when Size > 0 ->
 remap_read_only(_Mem, _VAddr, _Size) -> ok.
 
 is_valid_phdr(Phdr) ->
-  #elf36_Phdr{ p_offset = Offset
-             , p_vaddr = VAddr
-             , p_filesz = FileSz
-             , p_memsz = MemSz
-             , p_flags = Flags } = Phdr,
+  #elf_Phdr{ p_offset = Offset
+           , p_vaddr = VAddr
+           , p_filesz = FileSz
+           , p_memsz = MemSz
+           , p_flags = Flags } = Phdr,
   is_page_aligned(Offset) andalso
   is_page_aligned(VAddr) andalso
   MemSz >= FileSz andalso

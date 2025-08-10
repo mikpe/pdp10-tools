@@ -29,35 +29,45 @@
 
 -include("pdp10_stdint.hrl").
 
--type elf36_Addr()  :: uint36_t().
--type elf36_Half()  :: uint18_t().
--type elf36_Off()   :: uint36_t().
--type elf36_Sword() :: int36_t().
--type elf36_Uchar() :: uint9_t().
--type elf36_Word()  :: uint36_t().
+-type uint8_t()  :: 0..((1 bsl 8) - 1).
+-type uint16_t() :: 0..((1 bsl 16) - 1).
+-type int32_t()  :: (-((1 bsl (32 - 1)) - 1) - 1)..((1 bsl (32 - 1)) - 1).
+-type uint32_t() :: 0..((1 bsl 32) - 1).
+-type int64_t()  :: (-((1 bsl (64 - 1)) - 1) - 1)..((1 bsl (64 - 1)) - 1).
+-type uint64_t() :: 0..((1 bsl 64) - 1).
+
+-type elf_Addr()        :: uint32_t() | uint36_t() | uint64_t().
+-type elf_Half()        :: uint16_t() | uint18_t().
+-type elf_Off()         :: uint32_t() | uint36_t() | uint64_t().
+-type elf_Uchar()       :: uint8_t() | uint9_t().
+-type elf_Sxword()      :: int32_t() | int36_t() | int64_t().
+-type elf_Word()        :: uint32_t() | uint36_t().
+-type elf_Xword()       :: uint32_t() | uint36_t() | uint64_t().
 
 %% ELF Header
 
 -define(EI_NIDENT, 16).
 
--record(elf36_Ehdr,
-        { e_ident       :: [elf36_Uchar()]      % ELF magic, ?EI_NIDENT elements
-        , e_type        :: elf36_Half()         % Identifies object file type
-        , e_machine     :: elf36_Half()         % Specifies required architecture
-        , e_version     :: elf36_Word()         % Identifies object file version
-        , e_entry       :: elf36_Addr()         % Entry point virtual address
-        , e_phoff       :: elf36_Off()          % Program header table file offset
-        , e_shoff       :: elf36_Off()          % Section header table file offset
-        , e_flags       :: elf36_Word()         % Processor-specific flags
-        , e_ehsize      :: elf36_Half()         % ELF header size in bytes
-        , e_phentsize   :: elf36_Half()         % Program header table entry size
-        , e_phnum       :: elf36_Half()         % Program header table entry count
-        , e_shentsize   :: elf36_Half()         % Section header table entry size
-        , e_shnum       :: elf36_Half()         % Section header table entry count
-        , e_shstrndx    :: elf36_Half()         % Section header string table index
+-record(elf_Ehdr,
+        { e_ident       :: [elf_Uchar()]        % ELF magic, ?EI_NIDENT elements
+        , e_type        :: elf_Half()           % Identifies object file type
+        , e_machine     :: elf_Half()           % Specifies required architecture
+        , e_version     :: elf_Word()           % Identifies object file version
+        , e_entry       :: elf_Addr()           % Entry point virtual address
+        , e_phoff       :: elf_Off()            % Program header table file offset
+        , e_shoff       :: elf_Off()            % Section header table file offset
+        , e_flags       :: elf_Word()           % Processor-specific flags
+        , e_ehsize      :: elf_Half()           % ELF header size in bytes
+        , e_phentsize   :: elf_Half()           % Program header table entry size
+        , e_phnum       :: elf_Half()           % Program header table entry count
+        , e_shentsize   :: elf_Half()           % Section header table entry size
+        , e_shnum       :: elf_Half()           % Section header table entry count
+        , e_shstrndx    :: elf_Half()           % Section header string table index
         }).
 
--define(ELF36_EHDR_SIZEOF, (8 * 2 + 5 * 4 + ?EI_NIDENT)).
+-define(ELF32_EHDR_SIZEOF, (8 * 2 + 5 * 4 + ?EI_NIDENT)).
+-define(ELF64_EHDR_SIZEOF, (8 * 2 + 2 * 4 + 3 * 8 + ?EI_NIDENT)).
+-define(ELF36_EHDR_SIZEOF, ?ELF32_EHDR_SIZEOF). % size in _nonets_ not octets
 
 %% e_ident[] identification indexes
 
@@ -496,21 +506,23 @@
 
 %% Section header
 
--record(elf36_Shdr,
-        { sh_name       :: elf36_Word()         % Section name, index in string tbl
+-record(elf_Shdr,
+        { sh_name       :: elf_Word()           % Section name, index in string tbl
                          | string()             % Name (in-core only)
-        , sh_type       :: elf36_Word()         % Type of section
-        , sh_flags      :: elf36_Word()         % Miscellaneous section attributes
-        , sh_addr       :: elf36_Addr()         % Section virtual addr at execution
-        , sh_offset     :: elf36_Off()          % Section file offset
-        , sh_size       :: elf36_Word()         % Size of section in bytes
-        , sh_link       :: elf36_Word()         % Index of another section
-        , sh_info       :: elf36_Word()         % Additional section information
-        , sh_addralign  :: elf36_Word()         % Section alignment
-        , sh_entsize    :: elf36_Word()         % Entry size if section holds table
+        , sh_type       :: elf_Word()           % Type of section
+        , sh_flags      :: elf_Xword()          % Miscellaneous section attributes
+        , sh_addr       :: elf_Addr()           % Section virtual addr at execution
+        , sh_offset     :: elf_Off()            % Section file offset
+        , sh_size       :: elf_Xword()          % Size of section in bytes
+        , sh_link       :: elf_Word()           % Index of another section
+        , sh_info       :: elf_Word()           % Additional section information
+        , sh_addralign  :: elf_Xword()          % Section alignment
+        , sh_entsize    :: elf_Xword()          % Entry size if section holds table
         }).
 
--define(ELF36_SHDR_SIZEOF, (10 * 4)).
+-define(ELF32_SHDR_SIZEOF, (10 * 4)).
+-define(ELF64_SHDR_SIZEOF, (4 * 4 + 6 * 8)).
+-define(ELF36_SHDR_SIZEOF, ?ELF32_SHDR_SIZEOF). % size in _nonets_ not octets
 
 %% Special section indices, which may show up in st_shndx fields, among
 %% other places.
@@ -637,10 +649,10 @@
 
 %% Compression Header
 
--record(elf36_Chdr,
-        { ch_type       :: elf36_Word() % Type of compression
-        , ch_size       :: elf36_Word() % Size of uncompressed data in bytes
-        , ch_addralign  :: elf36_Word() % Alignment of uncompressed data
+-record(elf_Chdr,
+        { ch_type       :: elf_Word()   % Type of compression
+        , ch_size       :: elf_Xword()  % Size of uncompressed data in bytes
+        , ch_addralign  :: elf_Xword()  % Alignment of uncompressed data
         }).
 
 %% Compression types.
@@ -654,17 +666,19 @@
 
 %% Symbol table entry
 
--record(elf36_Sym,
-        { st_name       :: elf36_Word()         % Symbol name, index in string tbl
+-record(elf_Sym,
+        { st_name       :: elf_Word()           % Symbol name, index in string tbl
                          | string()             % Name (in-core only)
-        , st_value      :: elf36_Addr()         % Value of the symbol
-        , st_size       :: elf36_Word()         % Associated symbol size
-        , st_info       :: elf36_Uchar()        % Type and binding attributes
-        , st_other      :: elf36_Uchar()        % No defined meaning, 0
-        , st_shndx      :: elf36_Half()         % Associated section index
+        , st_value      :: elf_Addr()           % Value of the symbol
+        , st_size       :: elf_Xword()          % Associated symbol size
+        , st_info       :: elf_Uchar()          % Type and binding attributes
+        , st_other      :: elf_Uchar()          % No defined meaning, 0
+        , st_shndx      :: elf_Half()           % Associated section index
         }).
 
--define(ELF36_SYM_SIZEOF,       (3 * 4 + 2 + 1 + 1)).
+-define(ELF32_SYM_SIZEOF, (3 * 4 + 2 + 1 + 1)).
+-define(ELF64_SYM_SIZEOF, (2 * 8 + 4 + 2 + 1 + 1)).
+-define(ELF36_SYM_SIZEOF, ?ELF32_SYM_SIZEOF). % size in _nonets_ not octets
 
 -ifdef(notdef).
 -record(elf_External_Sym_Shndx,
@@ -678,15 +692,12 @@
 %% which contains the symbol binding and symbol type.  The STB_ and STT_
 %% defines identify the binding and type.
 
--define(ELF_ST_BIND(Val),               (((Val) band ?PDP10_UINT9_MAX) bsr 4)).
+-define(ELF_ST_BIND(Val),               (((Val) band 16#FF) bsr 4)).
 -define(ELF_ST_TYPE(Val),               ((Val) band 16#F)).
 -define(ELF_ST_INFO(Bind, Type),        (((Bind) bsl 4) + ((Type) band 16#F))).
 
-%% The 64bit, 36bit, and 32bit versions of these macros are identical, but
-%% the ELF spec defines them, so here they are.
--define(ELF36_ST_BIND(Val),             ?ELF_ST_BIND((Val))).
--define(ELF36_ST_TYPE(Val),             ?ELF_ST_TYPE((Val))).
--define(ELF36_ST_INFO(Bind, Type),      ?ELF_ST_INFO((Bind), (Type))).
+%% We deliberately do not define the ELF<nn>_ST_ macros as they are all
+%% identical to the ELF_ST_ ones.
 
 -define(STB_LOCAL,      0).     % Symbol not visible outside obj
 -define(STB_GLOBAL,     1).     % Symbol visible outside obj
@@ -719,7 +730,8 @@
 %% The remaining bits in the st_other field are not currently used.
 %% They should be set to zero.
 
--define(ELF36_ST_VISIBILITY(V), ?ELF_ST_VISIBILITY((V))).
+%% We deliberately do not define the ELF<nn>_ST_VISIBILITY macros as they are all
+%% identicial to ELF_ST_VISIBILITY.
 
 %% The following constants control how a symbol may be accessed once it has
 %% become part of an executable or shared library.
@@ -730,25 +742,34 @@
 -define(STV_PROTECTED,  3).     % Treat as STB_LOCAL inside current component
 
 %% Relocation Entries
--record(elf36_Rel,
-        { r_offset      :: elf36_Addr() % Location at which to apply the action
-        , r_info        :: elf36_Word() % index and type of relocation
+-record(elf_Rel,
+        { r_offset      :: elf_Addr()   % Location at which to apply the action
+        , r_info        :: elf_Xword()  % index and type of relocation
         }).
 
--record(elf36_Rela,
-        { r_offset      :: elf36_Addr()  % Location at which to apply the action
-        , r_info        :: elf36_Word()  % index and type of relocation
-        , r_addend      :: elf36_Sword() % Constant addend used to compute value
+-record(elf_Rela,
+        { r_offset      :: elf_Addr()    % Location at which to apply the action
+        , r_info        :: elf_Xword()   % index and type of relocation
+        , r_addend      :: elf_Sxword()  % Constant addend used to compute value
         }).
 
--define(ELF36_RELA_SIZEOF, (3 * 4)).
+-define(ELF32_RELA_SIZEOF, (3 * 4)).
+-define(ELF64_RELA_SIZEOF, (3 * 8)).
+-define(ELF36_RELA_SIZEOF, ?ELF32_RELA_SIZEOF). % size in _nonets_ not octets
 
 %% Relocation info handling macros.
 
--define(ELF36_R_SYM(I),         ((I) bsr 8)).
--define(ELF36_R_TYPE(I),        ((I) band 16#ff)).
-%% TODO: GNU binutils casts (S) below to unsigned
--define(ELF36_R_INFO(S,T),      (((S) bsl 8) + ((T) band 16#ff))).
+-define(ELF32_R_SYM(I),         ((I) bsr 8)).
+-define(ELF32_R_TYPE(I),        ((I) band 16#ff)).
+-define(ELF32_R_INFO(S,T),      (((S) bsl 8) + ((T) band 16#ff))).
+
+-define(ELF64_R_SYM(I),         ((I) bsr 32)).
+-define(ELF64_R_TYPE(I),        ((I) band ((1 bsl 32) - 1))).
+-define(ELF64_R_INFO(S,T),      (((S) bsl 32) + (T)).
+
+-define(ELF36_R_SYM(I),         ?ELF32_R_SYM((I))).
+-define(ELF36_R_TYPE(I),        ?ELF32_R_TYPE((I))).
+-define(ELF36_R_INFO(S,T),      ?ELF32_R_INFO((S),(T))).
 
 %% Processor-specific relocation types.
 
@@ -767,11 +788,11 @@
 
 %% Note segments
 
--record(elf36_Note,
-        { n_namesz      :: elf36_Word() % Size of entry's owner string
-        , n_descsz      :: elf36_Word() % Size of the note descriptor
-        , n_type        :: elf36_Word() % Interpretation of the descriptor
-        , n_name        :: [elf36_Uchar()] % Start of the name+desc data
+-record(elf_Note,
+        { n_namesz      :: elf_Word()   % Size of entry's owner string
+        , n_descsz      :: elf_Word()   % Size of the note descriptor
+        , n_type        :: elf_Word()   % Interpretation of the descriptor
+        , n_name        :: [elf_Uchar()] % Start of the name+desc data
         }).
 
 %% Values of note segment descriptor types for core files.
@@ -1223,18 +1244,20 @@
 
 %% Program header
 
--record(elf36_Phdr,
-        { p_type        :: elf36_Word() % Identifies program segment type
-        , p_offset      :: elf36_Off()  % Segment file offset
-        , p_vaddr       :: elf36_Addr() % Segment virtual address
-        , p_paddr       :: elf36_Addr() % Segment physical address
-        , p_filesz      :: elf36_Word() % Segment size in file
-        , p_memsz       :: elf36_Word() % Segment size in memory
-        , p_flags       :: elf36_Word() % Segment flags
-        , p_align       :: elf36_Word() % Segment alignment, file & memory
+-record(elf_Phdr,
+        { p_type        :: elf_Word()   % Identifies program segment type
+        , p_offset      :: elf_Off()    % Segment file offset
+        , p_vaddr       :: elf_Addr()   % Segment virtual address
+        , p_paddr       :: elf_Addr()   % Segment physical address
+        , p_filesz      :: elf_Xword()  % Segment size in file
+        , p_memsz       :: elf_Xword()  % Segment size in memory
+        , p_flags       :: elf_Word()   % Segment flags
+        , p_align       :: elf_Xword()  % Segment alignment, file & memory
         }).
 
--define(ELF36_PHDR_SIZEOF, (8 * 4)).
+-define(ELF32_PHDR_SIZEOF, (8 * 4)).
+-define(ELF64_PHDR_SIZEOF, (6 * 8 + 2 * 4)).
+-define(ELF36_PHDR_SIZEOF, ?ELF32_PHDR_SIZEOF). % size in _nonets_ not octets
 
 %% Values for program header, p_type field.
 
@@ -1292,9 +1315,9 @@
 
 %% dynamic section structure
 
--record(elf36_Dyn,
-        { d_tag         :: elf36_Sword()        % entry tag value
-        , d_valOrPtr    :: elf36_Word()         % val (Addr) or ptr (Addr)
+-record(elf_Dyn,
+        { d_tag         :: elf_Sxword()         % entry tag value
+        , d_valOrPtr    :: elf_Addr()           % val (Xword) or ptr (Addr)
         }).
 
 %% Dynamic section tags.
@@ -1465,23 +1488,23 @@
 
 %% This structure appears in a SHT_GNU_verdef section.
 
--record(elf36_Verdef,
-        { vd_version    :: elf36_Half()
-        , vd_flags      :: elf36_Half()
-        , vd_ndx        :: elf36_Half()
-        , vd_cnt        :: elf36_Half()
-        , vd_hash       :: elf36_Word()
-        , vd_aud        :: elf36_Word()
-        , vd_next       :: elf36_Word()
+-record(elf_Verdef,
+        { vd_version    :: elf_Half()
+        , vd_flags      :: elf_Half()
+        , vd_ndx        :: elf_Half()
+        , vd_cnt        :: elf_Half()
+        , vd_hash       :: elf_Word()
+        , vd_aud        :: elf_Word()
+        , vd_next       :: elf_Word()
         }).
 
-%% These constants are used for the version number of a Elf36_Verdef
+%% These constants are used for the version number of a Elf_Verdef
 %% structure.
 
 -define(VER_DEF_NONE,           0).
 -define(VER_DEF_CURRENT,        1).
 
-%% These constants appear in the vd_flags field of a Elf36_Verdef
+%% These constants appear in the vd_flags field of a Elf_Verdef
 %% structure.
 %%
 %% Cf. the Solaris Linker and Libraries Guide, Ch. 7, Object File Format,
@@ -1495,22 +1518,22 @@
 
 %% This structure appears in a SHT_GNU_verdef section.
 
--record(elf36_Verdaux,
-        { vda_name      :: elf36_Word()
-        , vda_next      :: elf36_Word()
+-record(elf_Verdaux,
+        { vda_name      :: elf_Word()
+        , vda_next      :: elf_Word()
         }).
 
 %% This structure appears in a SHT_GNU_verneed section.
 
--record(elf36_Verneed,
-        { vn_version    :: elf36_Half()
-        , vn_cnt        :: elf36_Half()
-        , vn_file       :: elf36_Word()
-        , vn_aux        :: elf36_Word()
-        , vn_next       :: elf36_Word()
+-record(elf_Verneed,
+        { vn_version    :: elf_Half()
+        , vn_cnt        :: elf_Half()
+        , vn_file       :: elf_Word()
+        , vn_aux        :: elf_Word()
+        , vn_next       :: elf_Word()
         }).
 
-%% These constants are used for the version number of a Elf36_Verneed
+%% These constants are used for the version number of a Elf_Verneed
 %% structure.
 
 -define(VER_NEED_NONE,          0).
@@ -1518,22 +1541,22 @@
 
 %% This structure appears in a SHT_GNU_verneed section.
 
--record(elf36_Vernaux,
-        { vna_hash      :: elf36_Word()
-        , vna_flags     :: elf36_Half()
-        , vna_other     :: elf36_Half()
-        , vna_name      :: elf36_Word()
-        , vna_next      :: elf36_Word()
+-record(elf_Vernaux,
+        { vna_hash      :: elf_Word()
+        , vna_flags     :: elf_Half()
+        , vna_other     :: elf_Half()
+        , vna_name      :: elf_Word()
+        , vna_next      :: elf_Word()
         }).
 
 %% This structure appears in a SHT_GNU_versym section.  This is not a
-%% standard ELF structure; ELF just uses Elf36_Half.
+%% standard ELF structure; ELF just uses Elf32_Half.
 
--record(elf36_Versym,
-        { vs_vers       :: elf36_Half()
+-record(elf_Versym,
+        { vs_vers       :: elf_Half()
         }).
 
-%% These special constants can be found in an Elf36_Versym field.
+%% These special constants can be found in an Elf_Versym field.
 
 -define(VER_NDX_LOCAL,          0).
 -define(VER_NDX_GLOBAL,         1).
@@ -1557,9 +1580,9 @@
 -define(ELF_VER_CHR,    $@).
 
 %% Structure for syminfo section.
--record(elf36_Syminfo,
-        { si_boundto    :: elf36_Half()
-        , si_flags      :: elf36_Half()
+-record(elf_Syminfo,
+        { si_boundto    :: elf_Half()
+        , si_flags      :: elf_Half()
         }).
 
 %% Possible values for si_boundto.
@@ -1582,9 +1605,9 @@
 -define(SYMINFO_NUM,            2).
 
 %% This structure appears on the stack and in NT_AUXV core file notes.
--record(elf36_Auxv,
-        { a_type        :: elf36_Word()
-        , a_val         :: elf36_Addr()
+-record(elf_Auxv,
+        { a_type        :: elf_Xword()
+        , a_val         :: elf_Addr()
         }).
 
 %% Auxv a_type values.

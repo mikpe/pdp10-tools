@@ -459,7 +459,7 @@ read_elf(File) ->
 
 read_elf(FP, Ehdr) ->
   case Ehdr of
-    #elf36_Ehdr{e_type = ?ET_EXEC, e_entry = Entry} when Entry band 3 =:= 0 ->
+    #elf_Ehdr{e_type = ?ET_EXEC, e_entry = Entry} when Entry band 3 =:= 0 ->
       case pdp10_elf36:read_PhTab(FP, Ehdr) of
         {ok, PhTab} ->
           case frags(PhTab) of
@@ -483,15 +483,15 @@ frags([Phdr | PhTab], PhdrIx, Frags) ->
 
 frag(Phdr) ->
   case Phdr of
-    #elf36_Phdr{p_type = ?PT_NULL} -> false;
-    #elf36_Phdr{p_type = ?PT_LOAD, p_filesz = 0} -> false;
-    #elf36_Phdr{ p_type = ?PT_LOAD
-               , p_offset = Offset
-               , p_vaddr = VAddr
-               , p_filesz = FileSz
-               , p_memsz = MemSz
-               , p_flags = Flags
-               } ->
+    #elf_Phdr{p_type = ?PT_NULL} -> false;
+    #elf_Phdr{p_type = ?PT_LOAD, p_filesz = 0} -> false;
+    #elf_Phdr{ p_type = ?PT_LOAD
+             , p_offset = Offset
+             , p_vaddr = VAddr
+             , p_filesz = FileSz
+             , p_memsz = MemSz
+             , p_flags = Flags
+             } ->
       case (is_page_aligned(Offset) andalso
             is_page_aligned(VAddr) andalso
             MemSz >= FileSz andalso

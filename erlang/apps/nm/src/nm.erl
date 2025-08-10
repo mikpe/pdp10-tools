@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% 'nm' for pdp10-elf
-%%% Copyright (C) 2013-2023  Mikael Pettersson
+%%% Copyright (C) 2013-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -228,7 +228,7 @@ print_symtab(Opts, File, ShTab, SymTab) ->
    || Sym <- syms_sort(Opts, syms_assemble(ShTab, SymTab))],
   ok.
 
-sym_print(Opts, File, ShTab, {Sym = #elf36_Sym{st_name = Name}, Value}) ->
+sym_print(Opts, File, ShTab, {Sym = #elf_Sym{st_name = Name}, Value}) ->
   case sym_type_letter(ShTab, Sym) of
     0 -> ok; % ignored
     Type ->
@@ -247,9 +247,9 @@ sym_print(Opts, File, ShTab, {Sym = #elf36_Sym{st_name = Name}, Value}) ->
   end.
 
 sym_type_letter(ShTab, Sym) ->
-  #elf36_Sym{st_info = Info, st_shndx = ShNdx} = Sym,
-  Type = ?ELF36_ST_TYPE(Info),
-  Bind = ?ELF36_ST_BIND(Info),
+  #elf_Sym{st_info = Info, st_shndx = ShNdx} = Sym,
+  Type = ?ELF_ST_TYPE(Info),
+  Bind = ?ELF_ST_BIND(Info),
   case ShNdx of
     ?SHN_ABS ->
       if Type =:= ?STT_NOTYPE; Type =:= ?STT_OBJECT; Type =:= ?STT_FUNC ->
@@ -277,7 +277,7 @@ sym_type_letter(ShTab, Sym) ->
     _ when Type =:= ?STT_GNU_IFUNC -> $i;
     _ when ShNdx >= length(ShTab) -> 0;
     _ ->
-      #elf36_Shdr{sh_type = ShType, sh_flags = ShFlags} = lists:nth(ShNdx + 1, ShTab),
+      #elf_Shdr{sh_type = ShType, sh_flags = ShFlags} = lists:nth(ShNdx + 1, ShTab),
       case ShType of
         ?SHT_NOBITS ->
           if (ShFlags band (?SHF_ALLOC bor ?SHF_WRITE)) =:= (?SHF_ALLOC bor ?SHF_WRITE) ->
@@ -337,22 +337,22 @@ syms_cmpfn(Opts) ->
 sym_cmp_value({_, Val1}, {_, Val2}) -> Val1 =< Val2.
 
 sym_cmp_name({Sym1, _}, {Sym2, _}) ->
-  Sym1#elf36_Sym.st_name =< Sym2#elf36_Sym.st_name.
+  Sym1#elf_Sym.st_name =< Sym2#elf_Sym.st_name.
 
 syms_assemble(ShTab, SymTab) ->
   lists:map(fun(Sym) ->
                     {Sym, sym_value(ShTab, Sym)}
             end, SymTab).
 
-sym_value(ShTab, #elf36_Sym{st_shndx = ShNdx, st_value = Value}) ->
+sym_value(ShTab, #elf_Sym{st_shndx = ShNdx, st_value = Value}) ->
   ShNum = length(ShTab),
   Base =
     case ShNdx > 0 andalso ShNdx < ShNum andalso ShNdx =/= ?SHN_ABS andalso ShNdx =/= ?SHN_COMMON of
       true ->
-        #elf36_Shdr{ sh_type = Type
-                   , sh_flags = Flags
-                   , sh_addr = Addr
-                   } = lists:nth(ShNdx + 1, ShTab),
+        #elf_Shdr{ sh_type = Type
+                 , sh_flags = Flags
+                 , sh_addr = Addr
+                 } = lists:nth(ShNdx + 1, ShTab),
         case Type =:= ?SHT_PROGBITS andalso (Flags band ?SHF_ALLOC) =/= 0 of
           true -> Addr;
           false -> 0

@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% Assigning addresses for pdp10-elf ld
-%%% Copyright (C) 2020-2023  Mikael Pettersson
+%%% Copyright (C) 2020-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -44,11 +44,11 @@ assign(Segments) ->
 
 assign(Segment, {Offset, VAddr, NewSegments}) ->
   #segment{phdr = Phdr} = Segment,
-  #elf36_Phdr{p_filesz = FileSz, p_memsz = MemSz, p_align = Align} = Phdr,
+  #elf_Phdr{p_filesz = FileSz, p_memsz = MemSz, p_align = Align} = Phdr,
   SegAlign = max(4096, Align), % align to page boundary; TODO: target-specific
   SegOffset = align(Offset, SegAlign),
   SegVAddr = align(VAddr, SegAlign),
-  NewPhdr = Phdr#elf36_Phdr{p_offset = SegOffset, p_vaddr = SegVAddr, p_align = SegAlign},
+  NewPhdr = Phdr#elf_Phdr{p_offset = SegOffset, p_vaddr = SegVAddr, p_align = SegAlign},
   NewSegment = Segment#segment{phdr = NewPhdr},
   {SegOffset + FileSz, SegVAddr + MemSz, [NewSegment | NewSegments]}.
 

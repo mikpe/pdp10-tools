@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% internal declarations for pdp10-elf ld.
-%%% Copyright (C) 2020-2023  Mikael Pettersson
+%%% Copyright (C) 2020-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -32,26 +32,26 @@
 
 -record(input,
         { file    :: ifile()
-        , shtab   :: [#elf36_Shdr{}]
-        , symtab  :: [#elf36_Sym{}]
+        , shtab   :: [#elf_Shdr{}]
+        , symtab  :: [#elf_Sym{}]
         , stshndx :: non_neg_integer()
         }).
 
 -record(sectfrag,
         { file   :: ifile()
-        , shdr   :: #elf36_Shdr{}
+        , shdr   :: #elf_Shdr{}
         , shndx  :: non_neg_integer()
-        , relocs :: #elf36_Shdr{} | false
+        , relocs :: #elf_Shdr{} | false
         , offset :: non_neg_integer() % within enclosing #section{}
         }).
 
 -record(section,
-        { shdr  :: #elf36_Shdr{}
+        { shdr  :: #elf_Shdr{}
         , frags :: [#sectfrag{}]
         }).
 
 -record(segment,
-        { phdr     :: #elf36_Phdr{}
+        { phdr     :: #elf_Phdr{}
         , sections :: [#section{}]
         }).
 

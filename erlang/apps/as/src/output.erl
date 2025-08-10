@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% ELF output for pdp10-elf as
-%%% Copyright (C) 2013-2020  Mikael Pettersson
+%%% Copyright (C) 2013-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -247,13 +247,13 @@ create_symtab(Context) ->
 
 symbols_image(Symbols) ->
   ElfSym0 =
-    #elf36_Sym{ st_name = 0
-              , st_value = 0
-              , st_size = 0
-              , st_info = ?ELF36_ST_INFO(?STB_LOCAL, ?STT_NOTYPE)
-              , st_other = 0
-              , st_shndx = ?SHN_UNDEF
-              },
+    #elf_Sym{ st_name = 0
+            , st_value = 0
+            , st_size = 0
+            , st_info = ?ELF_ST_INFO(?STB_LOCAL, ?STT_NOTYPE)
+            , st_other = 0
+            , st_shndx = ?SHN_UNDEF
+            },
   [elf36_Sym_image(ElfSym0) |
    lists:map(fun symbol_image/1, Symbols)].
 
@@ -265,25 +265,25 @@ symbol_image(Symbol) ->
          , st_shndx = StShndx
          } = Symbol,
   ElfSym =
-    #elf36_Sym{ st_name = StName
-              , st_value = if StValue =:= false -> 0; true -> StValue end
-              , st_size = if StSize =:= false -> 0; true -> StSize end
-              , st_info = StInfo
-              , st_other = ?STV_DEFAULT % FIXME: should be set earlier
-              , st_shndx = StShndx
-              },
+    #elf_Sym{ st_name = StName
+            , st_value = if StValue =:= false -> 0; true -> StValue end
+            , st_size = if StSize =:= false -> 0; true -> StSize end
+            , st_info = StInfo
+            , st_other = ?STV_DEFAULT % FIXME: should be set earlier
+            , st_shndx = StShndx
+            },
   elf36_Sym_image(ElfSym).
 
 %% FIXME: the code below belongs in a library
 
 elf36_Sym_image(ElfSym) ->
-  #elf36_Sym{ st_name = StName
-            , st_value = StValue
-            , st_size = StSize
-            , st_info = StInfo
-            , st_other = StOther
-            , st_shndx = StShndx
-            } = ElfSym,
+  #elf_Sym{ st_name = StName
+          , st_value = StValue
+          , st_size = StSize
+          , st_info = StInfo
+          , st_other = StOther
+          , st_shndx = StShndx
+          } = ElfSym,
   [ elf36_Word_image(StName)
   , elf36_Addr_image(StValue)
   , elf36_Word_image(StSize)
@@ -390,19 +390,19 @@ reloc_image(SymNdxMap, Rela) ->
   SymNdx = maps:get(SymName, SymNdxMap),
   Info = ?ELF36_R_INFO(SymNdx, Type),
   ElfRela =
-    #elf36_Rela{ r_offset = Offset
-               , r_info = Info
-               , r_addend = Addend
-               },
+    #elf_Rela{ r_offset = Offset
+             , r_info = Info
+             , r_addend = Addend
+             },
   elf36_Rela_image(ElfRela).
 
 %% FIXME: the code below belongs in a library
 
 elf36_Rela_image(ElfRela) ->
-  #elf36_Rela{ r_offset = Offset
-             , r_info = Info
-             , r_addend = Addend
-             } = ElfRela,
+  #elf_Rela{ r_offset = Offset
+           , r_info = Info
+           , r_addend = Addend
+           } = ElfRela,
   [ elf36_Addr_image(Offset)
   , elf36_Word_image(Info)
   , elf36_Sword_image(Addend)
@@ -458,21 +458,21 @@ emit_elf_header(Context, FP, Offset = 0) ->
       false -> 0
     end,
   ElfHdr =
-    #elf36_Ehdr{ e_ident = e_ident()
-               , e_type = ?ET_REL
-               , e_machine = ?EM_PDP10 % FIXME: target-specific
-               , e_version = ?EV_CURRENT
-               , e_entry = 0
-               , e_phoff = 0
-               , e_shoff = Context#context.offset
-               , e_flags = 0
-               , e_ehsize = ?ELF36_EHDR_SIZEOF
-               , e_phentsize = 0
-               , e_phnum = 0
-               , e_shentsize = ?ELF36_SHDR_SIZEOF
-               , e_shnum = Context#context.shnum
-               , e_shstrndx = ShStrTabShndx
-               },
+    #elf_Ehdr{ e_ident = e_ident()
+             , e_type = ?ET_REL
+             , e_machine = ?EM_PDP10 % FIXME: target-specific
+             , e_version = ?EV_CURRENT
+             , e_entry = 0
+             , e_phoff = 0
+             , e_shoff = Context#context.offset
+             , e_flags = 0
+             , e_ehsize = ?ELF36_EHDR_SIZEOF
+             , e_phentsize = 0
+             , e_phnum = 0
+             , e_shentsize = ?ELF36_SHDR_SIZEOF
+             , e_shnum = Context#context.shnum
+             , e_shstrndx = ShStrTabShndx
+             },
   emit_image(elf36_Ehdr_image(ElfHdr), ?ELF36_EHDR_SIZEOF, FP, Offset).
 
 emit_sections(Context, FP, Offset = ?ELF36_EHDR_SIZEOF) ->
@@ -539,50 +539,50 @@ emit_shdr(Section, FP, Offset) ->
               , sh_entsize = ShEntSize
               } = Section,
       ElfShdr =
-        #elf36_Shdr{ sh_name = ShName
-                   , sh_type = ShType
-                   , sh_flags = ShFlags
-                   , sh_addr = 0
-                   , sh_offset = ShOffset
-                   , sh_size = Dot
-                   , sh_link = ShLink
-                   , sh_info = ShInfo % FIXME: for symtab, LAST_LOCAL + 1
-                   , sh_addralign = ShAddrAlign
-                   , sh_entsize = ShEntSize
-                   },
+        #elf_Shdr{ sh_name = ShName
+                 , sh_type = ShType
+                 , sh_flags = ShFlags
+                 , sh_addr = 0
+                 , sh_offset = ShOffset
+                 , sh_size = Dot
+                 , sh_link = ShLink
+                 , sh_info = ShInfo % FIXME: for symtab, LAST_LOCAL + 1
+                 , sh_addralign = ShAddrAlign
+                 , sh_entsize = ShEntSize
+                 },
       emit_elf36_Shdr(ElfShdr, FP, Offset)
   end.
 
 emit_shdr0(FP, Offset) ->
   ElfShdr0 =
-    #elf36_Shdr{ sh_name = 0
-               , sh_type = ?SHT_NULL
-               , sh_flags = 0
-               , sh_addr = 0
-               , sh_offset = 0
-               , sh_size = 0
-               , sh_link = ?SHN_UNDEF
-               , sh_info = 0
-               , sh_addralign = 0
-               , sh_entsize = 0
-               },
+    #elf_Shdr{ sh_name = 0
+             , sh_type = ?SHT_NULL
+             , sh_flags = 0
+             , sh_addr = 0
+             , sh_offset = 0
+             , sh_size = 0
+             , sh_link = ?SHN_UNDEF
+             , sh_info = 0
+             , sh_addralign = 0
+             , sh_entsize = 0
+             },
   emit_elf36_Shdr(ElfShdr0, FP, Offset).
 
 emit_elf36_Shdr(Shdr, FP, Offset) ->
   emit_image(elf36_Shdr_image(Shdr), ?ELF36_SHDR_SIZEOF, FP, Offset).
 
 elf36_Shdr_image(ElfShdr) ->
-  #elf36_Shdr{ sh_name = ShName
-             , sh_type = ShType
-             , sh_flags = ShFlags
-             , sh_addr = ShAddr
-             , sh_offset = ShOffset
-             , sh_size = ShSize
-             , sh_link = ShLink
-             , sh_info = ShInfo
-             , sh_addralign = ShAddrAlign
-             , sh_entsize = ShEntSize
-             } = ElfShdr,
+  #elf_Shdr{ sh_name = ShName
+           , sh_type = ShType
+           , sh_flags = ShFlags
+           , sh_addr = ShAddr
+           , sh_offset = ShOffset
+           , sh_size = ShSize
+           , sh_link = ShLink
+           , sh_info = ShInfo
+           , sh_addralign = ShAddrAlign
+           , sh_entsize = ShEntSize
+           } = ElfShdr,
   [ elf36_Word_image(ShName)
   , elf36_Word_image(ShType)
   , elf36_Word_image(ShFlags)
@@ -609,21 +609,21 @@ order_by_shndx(Section1, Section2) ->
   Section1#section.shndx =< Section2#section.shndx.
 
 elf36_Ehdr_image(ElfHdr) ->
-  #elf36_Ehdr{ e_ident = EIdent
-             , e_type = EType
-             , e_machine = EMachine
-             , e_version = EVersion
-             , e_entry = EEntry
-             , e_phoff = EPhOff
-             , e_shoff = EShOff
-             , e_flags = EFlags
-             , e_ehsize = EEhSize
-             , e_phentsize = EPhEntSize
-             , e_phnum = EPhNum
-             , e_shentsize = EShEntSize
-             , e_shnum = EShNum
-             , e_shstrndx = EShStrNdx
-             } = ElfHdr,
+  #elf_Ehdr{ e_ident = EIdent
+           , e_type = EType
+           , e_machine = EMachine
+           , e_version = EVersion
+           , e_entry = EEntry
+           , e_phoff = EPhOff
+           , e_shoff = EShOff
+           , e_flags = EFlags
+           , e_ehsize = EEhSize
+           , e_phentsize = EPhEntSize
+           , e_phnum = EPhNum
+           , e_shentsize = EShEntSize
+           , e_shnum = EShNum
+           , e_shstrndx = EShStrNdx
+           } = ElfHdr,
   [ EIdent % already a list of bytes
   , elf36_Half_image(EType)
   , elf36_Half_image(EMachine)

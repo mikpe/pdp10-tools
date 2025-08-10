@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% Support for reading and writing 'ar' archive files for pdp10-elf
-%%% Copyright (C) 2013-2023  Mikael Pettersson
+%%% Copyright (C) 2013-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -434,8 +434,8 @@ read_member_symtab(FP, Base, Limit) ->
 
 filter_member_symtab(SymTab) ->
   lists:filtermap(
-    fun(#elf36_Sym{st_info = Info, st_shndx = ShNdx, st_name = Name}) ->
-      case ?ELF36_ST_BIND(Info) of
+    fun(#elf_Sym{st_info = Info, st_shndx = ShNdx, st_name = Name}) ->
+      case ?ELF_ST_BIND(Info) of
         ?STB_GLOBAL when ShNdx =/= ?SHN_UNDEF -> {true, Name};
         ?STB_WEAK -> {true, Name}; % FIXME: does a later non-weak definition override this one?
         _ -> false
