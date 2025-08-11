@@ -59,6 +59,9 @@
 %%%
 %%% - stdin and stdout are non-seekable even when bound to regular files, this
 %%%   is a limitation of the Erlang standard_io implementation.
+%%%
+%%% - fread() has been simplified to return an error on premature EOF.  This
+%%%   matches what all our use cases want.
 
 -module(stdio9).
 -behaviour(gen_server).
@@ -67,7 +70,7 @@
 -export([ fopen/2
         , fclose/1
         , fgetc/1
-        , fread/3
+        , fread/2
         , fputc/2
         , fputs/2
         , fseek/2
@@ -135,10 +138,10 @@ fclose(#file{pid = Pid}) ->
 fgetc(#file{pid = Pid}) ->
   gen_server:call(Pid, fgetc, infinity).
 
--spec fread(non_neg_integer(), non_neg_integer(), file())
+-spec fread(non_neg_integer(), file())
         -> {ok, [nonet()]} | eof | {error, {module(), term()}}.
-fread(Size, NMemb, #file{pid = Pid}) ->
-  gen_server:call(Pid, {fread, Size, NMemb}, infinity).
+fread(NrNonets, #file{pid = Pid}) ->
+  gen_server:call(Pid, {fread, NrNonets}, infinity).
 
 -spec fputc(nonet(), file()) -> ok | {error, {module(), term()}}.
 fputc(Nonet, #file{pid = Pid}) ->
@@ -173,8 +176,6 @@ format_error(Reason) ->
       "no I/O direction";
     {bad_mode, Mode} ->
       io_lib:format("bad mode ~p", [Mode]);
-    {bad_fread, Size, NMemb} ->
-      io_lib:format("bad fread size ~p nmemb ~p", [Size, NMemb]);
     eof ->
       "end-of-file during fread";
     write_only ->
@@ -213,8 +214,8 @@ handle_call(Req, _From, State) ->
       handle_fclose(State);
     fgetc ->
       handle_fgetc(State);
-    {fread, Size, NMemb} ->
-      handle_fread(Size, NMemb, State);
+    {fread, NrNonets} ->
+      handle_fread(NrNonets, State);
     {fputc, Nonet} ->
       handle_fputc(Nonet, State);
     {fputs, Nonets} ->
@@ -395,13 +396,9 @@ fgetc_octet(State) ->
 
 %% fread -----------------------------------------------------------------------
 
-handle_fread(Size, NMemb, State0) ->
+handle_fread(NrNonets, State0) ->
   case prepare_to_read(State0) of
-    {ok, State} ->
-      case freadwrite_params_ok(Size, NMemb) of
-        false -> {reply, mkerror({bad_fread, Size, NMemb}), State};
-        true -> fread_loop(Size * NMemb, [], State)
-      end;
+    {ok, State} -> fread_loop(NrNonets, [], State);
     {error, _Reason} = Error -> {reply, Error, State0}
   end.
 
@@ -413,25 +410,6 @@ fread_loop(N, Acc, State0) ->
     {eof, State} -> {reply, mkerror(eof), State};
     {{error, _Reason} = Error, State} -> {reply, Error, State}
   end.
-
-%% On an octet-based host, in-core data structures representing nonet-based
-%% target data will actually contain oversize octet-based host data with
-%% padding.  For example, 9, 18, and 36-bit target integers are typically
-%% stored in 16, 32, and 64-bit host integers, respectively.
-%%
-%% This means that I/O of aggregate structures must be avoided, and instead
-%% be performed on each primitive data field individually, using explicit
-%% marshalling code for multi-nonet primitive data types.
-%%
-%% To detect mistakes in I/O, fread and fwrite only accept strings (size == 1)
-%% and single marshalled primitive data values (nmemb == 1, size == 1, 2, or 4).
-
-freadwrite_params_ok(_Size = 0, _NMemb    ) -> true;
-freadwrite_params_ok(_Size,     _NMemb = 0) -> true;
-freadwrite_params_ok(_Size = 1, _NMemb    ) -> true;
-freadwrite_params_ok(_Size = 2, _NMemb = 1) -> true;
-freadwrite_params_ok(_Size = 4, _NMemb = 1) -> true;
-freadwrite_params_ok(_Size,     _NMemb    ) -> false.
 
 %% prepare_to_read -------------------------------------------------------------
 
