@@ -483,7 +483,7 @@ read_StrTab(FP, Base, Limit, ShTab, Index) ->
         ?SHT_STRTAB ->
           case pdp10_stdio:fseek(FP, {bof, Base + Offset}) of
             ok ->
-              case pdp10_stdio:fread(1, Size, FP) of
+              case fread(Size, FP) of
                 {ok, _StrTab} = Result ->
                   case (Limit =:= false) orelse (pdp10_stdio:ftell(FP) =< Limit) of
                     true -> Result;
@@ -720,14 +720,15 @@ read_sint36(FP) -> read(FP, 4, fun sint36_from_ext/1).
 sint36_from_ext(Bytes) ->
   sext:sext(extint:uint36_from_ext(Bytes), 36).
 
-read(FP, N, ConvFun) when N >= 0 -> read(FP, N, ConvFun, []).
-
-read(_FP, 0, ConvFun, Acc) -> {ok, ConvFun(lists:reverse(Acc))};
-read(FP, N, ConvFun, Acc) ->
-  case read_uint9(FP) of
-    {ok, Nonet} -> read(FP, N - 1, ConvFun, [Nonet | Acc]);
+read(FP, N, ConvFun) ->
+  case fread(N, FP) of
+    {ok, Bytes} -> {ok, ConvFun(Bytes)};
+    eof -> {error, {?MODULE, eof}};
     {error, _Reason} = Error -> Error
   end.
+
+fread(N, FP) ->
+  pdp10_stdio:fread(1, N, FP).
 
 write_Addr(FP, UInt36) -> write_uint36(FP, UInt36).
 write_Half(FP, UInt18) -> write_uint18(FP, UInt18).
