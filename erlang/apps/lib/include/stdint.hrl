@@ -25,25 +25,29 @@
 -ifndef(STDINT_HRL).
 -define(STDINT_HRL, 1).
 
--define(UINT9_MAX, ((1 bsl 9) - 1)).
+-define(_STDINT_UMAX(N), ((1 bsl (N)) - 1)).
+-define(_STDINT_IMAX(N), ((1 bsl ((N) - 1)) - 1)).
+-define(_STDINT_IMIN(N), (-?_STDINT_IMAX((N)) - 1)).
+
+-define(UINT9_MAX, ?_STDINT_UMAX(9)).
 -type uint9_t() :: 0..?UINT9_MAX.
 
--define(INT9_MAX, ((1 bsl (9 - 1)) - 1)).
--define(INT9_MIN, (-?INT9_MAX - 1)).
+-define(INT9_MAX, ?_STDINT_IMAX(9)).
+-define(INT9_MIN, ?_STDINT_IMIN(9)).
 -type int9_t() :: ?INT9_MIN..?INT9_MAX.
 
--define(UINT18_MAX, ((1 bsl 18) - 1)).
+-define(UINT18_MAX, ?_STDINT_UMAX(18)).
 -type uint18_t() :: 0..?UINT18_MAX.
 
--define(INT18_MAX, ((1 bsl (18 - 1)) - 1)).
--define(INT18_MIN, (-?INT18_MAX - 1)).
+-define(INT18_MAX, ?_STDINT_IMAX(18)).
+-define(INT18_MIN, ?_STDINT_IMIN(18)).
 -type int18_t() :: ?INT18_MIN..?INT18_MAX.
 
--define(UINT36_MAX, ((1 bsl 36) - 1)).
+-define(UINT36_MAX, ?_STDINT_UMAX(36)).
 -type uint36_t() :: 0..?UINT36_MAX.
 
--define(INT36_MAX, ((1 bsl (36 - 1)) - 1)).
--define(INT36_MIN, (-?INT36_MAX - 1)).
+-define(INT36_MAX, ?_STDINT_IMAX(36)).
+-define(INT36_MIN, ?_STDINT_IMIN(36)).
 -type int36_t() :: ?INT36_MIN..?INT36_MAX.
 
 -endif. % STDINT_HRL
