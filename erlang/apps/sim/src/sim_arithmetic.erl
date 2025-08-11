@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% simulator for pdp10-elf
-%%% Copyright (C) 2020  Mikael Pettersson
+%%% Copyright (C) 2020-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -933,9 +933,7 @@ sub1(Word) ->
 %% Sign-extend a uint36_t() to the full width of its representation type.
 -spec sext36(uint36_t()) -> integer().
 sext36(X) ->
-  UInt36Sbit = 1 bsl (36 - 1),
-  UInt36Max = (1 bsl 36) - 1,
-  ((X band UInt36Max) bxor UInt36Sbit) - UInt36Sbit.
+  sext:sext(X, 36).
 
 set_non_zero_ac(Core, IR, Word) ->
   case IR band 8#17 of

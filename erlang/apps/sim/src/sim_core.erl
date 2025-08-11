@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% simulator for pdp10-elf
-%%% Copyright (C) 2018-2020  Mikael Pettersson
+%%% Copyright (C) 2018-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -606,9 +606,7 @@ bit36(X, BIT) -> bits36(X, BIT, BIT).
 %% Sign-extend a uint18_t() to the full width of its representation type.
 -spec sext18(uint18_t()) -> integer().
 sext18(X) ->
-  UInt18Sbit = 1 bsl (18 - 1),
-  UInt18Max = (1 bsl 18) - 1,
-  ((X band UInt18Max) bxor UInt18Sbit) - UInt18Sbit.
+  sext:sext(X, 18).
 
 %% This implements Word := C(E).
 -spec c(#core{}, sim_mem:mem(), #ea{})

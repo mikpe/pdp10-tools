@@ -707,7 +707,7 @@ read_Word(FP)  -> read_uint36(FP).
 
 read_sint36(FP) ->
   case read_uint36(FP) of
-    {ok, UInt36} -> {ok, (UInt36 bxor (1 bsl 35)) - (1 bsl 35)}; % sign-extend
+    {ok, UInt36} -> {ok, sext:sext(UInt36, 36)};
     {error, _Reason} = Error -> Error
   end.
 

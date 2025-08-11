@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% 'od' for files with 9-bit bytes
-%%% Copyright (C) 2013-2023  Mikael Pettersson
+%%% Copyright (C) 2013-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -333,7 +333,7 @@ print_number(Opts, UInt) ->
   OutputType = Opts#options.output_type,
   Number =
     case OutputType of
-      $d -> sign_extend(UInt, 9 * Opts#options.bytes_per_datum);
+      $d -> sext:sext(UInt, 9 * Opts#options.bytes_per_datum);
       _ -> UInt
     end,
   {Base, Pad} =
@@ -344,11 +344,6 @@ print_number(Opts, UInt) ->
       $x -> {16, $0}
     end,
   io:format(" ~*.*.*B", [Opts#options.chars_per_datum, Base, Pad, Number]).
-
-sign_extend(UInt, NrBits) ->
-  Max = (1 bsl NrBits) - 1,
-  SignBit = 1 bsl (NrBits - 1),
-  ((UInt band Max) bxor SignBit) - SignBit.
 
 bytes_to_uint(B1, B2) -> % PDP10 has big-endian byte order
   ((B1 band 16#1FF) bsl 9) bor (B2 band 16#1FF).
