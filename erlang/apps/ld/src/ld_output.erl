@@ -236,12 +236,12 @@ output_byte(Byte, Input, Relocs, File, GlobalMap, FileMap, FP, FragOffset) ->
     {error, _Reason} = Error -> Error
   end.
 
-buffer_to_word(4, Buffer) -> pdp10_extint:uint36_from_ext(Buffer);
-buffer_to_word(2, Buffer) -> pdp10_extint:uint18_from_ext(Buffer);
+buffer_to_word(4, Buffer) -> extint:uint36_from_ext(Buffer);
+buffer_to_word(2, Buffer) -> extint:uint18_from_ext(Buffer);
 buffer_to_word(1, [Byte]) -> Byte.
 
-word_to_buffer(4, Word) -> pdp10_extint:uint36_to_ext(Word);
-word_to_buffer(2, Word) -> pdp10_extint:uint18_to_ext(Word);
+word_to_buffer(4, Word) -> extint:uint36_to_ext(Word);
+word_to_buffer(2, Word) -> extint:uint18_to_ext(Word);
 word_to_buffer(1, Byte) -> [Byte].
 
 %% Relocations -----------------------------------------------------------------

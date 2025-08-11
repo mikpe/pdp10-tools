@@ -110,12 +110,12 @@ store_strings([String | Strings], Mem, Stack, Acc) ->
   store_strings(Strings, Mem, NewStack, [Pointer | Acc]).
 
 store_string([B0, B1, B2, B3 | Rest], Mem, Stack) ->
-  Word = pdp10_extint:uint36_from_ext([B0, B1, B2, B3]),
+  Word = extint:uint36_from_ext([B0, B1, B2, B3]),
   write_word(Mem, Stack, Word),
   store_string(Rest, Mem, Stack + 4);
 store_string(Tail, Mem, Stack) ->
   Pad = lists:duplicate(4 - length(Tail), 0),
-  Word = pdp10_extint:uint36_from_ext(Tail ++ Pad),
+  Word = extint:uint36_from_ext(Tail ++ Pad),
   write_word(Mem, Stack, Word),
   Stack + 4.
 
@@ -184,7 +184,7 @@ map_zero_core(_Mem, _VAddr, _Size) -> ok.
 copy_file_to_core(Mem, VAddr, FP, Size) when Size >= 4 ->
   case read(FP, 4) of
     {ok, Nonets} ->
-      Word = pdp10_extint:uint36_from_ext(Nonets),
+      Word = extint:uint36_from_ext(Nonets),
       write_word(Mem, VAddr, Word),
       copy_file_to_core(Mem, VAddr + 4, FP, Size - 4);
     {error, _Reason} = Error -> Error
@@ -192,7 +192,7 @@ copy_file_to_core(Mem, VAddr, FP, Size) when Size >= 4 ->
 copy_file_to_core(Mem, VAddr, FP, Size) when Size > 0 ->
   case read(FP, Size) of
     {ok, Nonets} ->
-      Word = pdp10_extint:uint36_from_ext(Nonets ++ lists:duplicate(4 - Size, 0)),
+      Word = extint:uint36_from_ext(Nonets ++ lists:duplicate(4 - Size, 0)),
       write_word(Mem, VAddr, Word);
     {error, _Reason} = Error -> Error
   end;

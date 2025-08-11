@@ -303,10 +303,10 @@ uint9_image(Uint9) ->
   Uint9 band 511.
 
 uint18_image(Uint18) ->
-  pdp10_extint:uint18_to_ext(Uint18).
+  extint:uint18_to_ext(Uint18).
 
 uint36_image(Uint36) ->
-  pdp10_extint:uint36_to_ext(Uint36).
+  extint:uint36_to_ext(Uint36).
 
 image_size(Image) -> image_size(Image, 0).
 

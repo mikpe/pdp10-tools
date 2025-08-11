@@ -717,9 +717,9 @@ read_uint9(FP) ->
     Other -> Other % {ok, _Nonet} or {error, _Reason}
   end.
 
-read_uint18(FP) -> read(FP, 2, fun pdp10_extint:uint18_from_ext/1).
+read_uint18(FP) -> read(FP, 2, fun extint:uint18_from_ext/1).
 
-read_uint36(FP) -> read(FP, 4, fun pdp10_extint:uint36_from_ext/1).
+read_uint36(FP) -> read(FP, 4, fun extint:uint36_from_ext/1).
 
 read(FP, N, ConvFun) when N >= 0 -> read(FP, N, ConvFun, []).
 
@@ -741,10 +741,10 @@ write_uint9(FP, UInt9) ->
   pdp10_stdio:fputc(UInt9, FP).
 
 write_uint18(FP, UInt18) ->
-  fputs(pdp10_extint:uint18_to_ext(UInt18), FP).
+  fputs(extint:uint18_to_ext(UInt18), FP).
 
 write_uint36(FP, UInt36) ->
-  fputs(pdp10_extint:uint36_to_ext(UInt36), FP).
+  fputs(extint:uint36_to_ext(UInt36), FP).
 
 fputs(Nonets, FP) ->
   pdp10_stdio:fputs(Nonets, FP).

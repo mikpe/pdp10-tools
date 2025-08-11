@@ -296,7 +296,7 @@ outfp_fputw(Word, {c36, IoDev}) ->
   Bytes = [B0, B1, B2, B3, B4],
   stdio8:fputs(Bytes, IoDev);
 outfp_fputw(Word, {h36, OutFP}) ->
-  stdio9:fputs(pdp10_extint:uint36_to_ext(Word), OutFP).
+  stdio9:fputs(extint:uint36_to_ext(Word), OutFP).
 
 %% Optional debugging output ===================================================
 

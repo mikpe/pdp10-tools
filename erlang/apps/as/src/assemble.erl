@@ -157,7 +157,7 @@ dot_byte_image(#s_dot_byte{exprs = Exprs}, Tunit, SectionName, Dot) ->
 
 dot_long_image(#s_dot_long{exprs = Exprs}, Tunit, SectionName, Dot) ->
   integer_data_directive(Exprs, Tunit, SectionName, Dot, _Size = 4, _Context = long,
-                         fun pdp10_extint:uint36_to_ext/1).
+                         fun extint:uint36_to_ext/1).
 
 integer_data_directive(Exprs, Tunit, SectionName, Dot, Size, Context, ValueToExt) ->
   {ok, {Values, Relocs}} = exprs_values(Exprs, Tunit, SectionName, Dot, Size, Context),
@@ -165,17 +165,17 @@ integer_data_directive(Exprs, Tunit, SectionName, Dot, Size, Context, ValueToExt
 
 dot_short_image(#s_dot_short{exprs = Exprs}, Tunit, SectionName, Dot) ->
   integer_data_directive(Exprs, Tunit, SectionName, Dot, _Size = 2, _Context = short,
-                         fun pdp10_extint:uint18_to_ext/1).
+                         fun extint:uint18_to_ext/1).
 
 %% TODO: merge with .short handling?
 dot_2byte_image(#s_dot_2byte{exprs = Exprs}, Tunit, SectionName, Dot) ->
   integer_data_directive(Exprs, Tunit, SectionName, Dot, _Size = 2, _Context = short,
-                         fun pdp10_extint:uint18_to_ext/1).
+                         fun extint:uint18_to_ext/1).
 
 %% TODO: merge with .long handling?
 dot_4byte_image(#s_dot_4byte{exprs = Exprs}, Tunit, SectionName, Dot) ->
   integer_data_directive(Exprs, Tunit, SectionName, Dot, _Size = 4, _Context = long,
-                         fun pdp10_extint:uint36_to_ext/1).
+                         fun extint:uint36_to_ext/1).
 
 insn_image(Stmt, Tunit, SectionName, Dot) ->
   #s_insn{ high13 = High13
@@ -188,7 +188,7 @@ insn_image(Stmt, Tunit, SectionName, Dot) ->
           ((case At of true -> 1; false -> 0 end) bsl (36 - 14)) bor
           ((Index band ((1 bsl 4) - 1)) bsl (36 - 18)) bor
           (Address band ((1 bsl 18) - 1))),
-  {ok, {pdp10_extint:uint36_to_ext(Word), Dot + 4, Relocs}}.
+  {ok, {extint:uint36_to_ext(Word), Dot + 4, Relocs}}.
 
 exprs_values(Exprs, Tunit, SectionName, Dot, Size, Context) ->
   exprs_values(Exprs, Tunit, SectionName, Dot, Size, Context, [], []).

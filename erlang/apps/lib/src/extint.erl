@@ -18,7 +18,7 @@
 %%% You should have received a copy of the GNU General Public License
 %%% along with pdp10-tools.  If not, see <http://www.gnu.org/licenses/>.
 
--module(pdp10_extint).
+-module(extint).
 
 -export([ uint18_to_ext/1
         , uint18_from_ext/1
