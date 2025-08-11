@@ -153,7 +153,7 @@ dot_ascii_image(#s_dot_ascii{z = Z, strings = Strings}, _Tunit, _SectionName, Do
 
 dot_byte_image(#s_dot_byte{exprs = Exprs}, Tunit, SectionName, Dot) ->
   integer_data_directive(Exprs, Tunit, SectionName, Dot, _Size = 1, _Context = byte,
-                         fun(Value) -> Value band ?PDP10_UINT9_MAX end).
+                         fun(Value) -> Value band ?UINT9_MAX end).
 
 dot_long_image(#s_dot_long{exprs = Exprs}, Tunit, SectionName, Dot) ->
   integer_data_directive(Exprs, Tunit, SectionName, Dot, _Size = 4, _Context = long,
@@ -287,25 +287,25 @@ make_abs36_h(Value) when Value >= 0, Value =< ((1 bsl 32) - 1), (Value band 1) =
 
 make_abs36(Value) ->
   case Value of
-    _ when Value >= 0, Value =< ?PDP10_UINT36_MAX ->
+    _ when Value >= 0, Value =< ?UINT36_MAX ->
       Value;
-    _ when Value >= ?PDP10_INT36_MIN, Value =< ?PDP10_INT36_MAX ->
+    _ when Value >= ?INT36_MIN, Value =< ?INT36_MAX ->
       Value band ((1 bsl 36) - 1)
   end.
 
 make_abs18(Value) ->
   case Value of
-    _ when Value >= 0, Value =< ?PDP10_UINT18_MAX ->
+    _ when Value >= 0, Value =< ?UINT18_MAX ->
       Value;
-    _ when Value >= ?PDP10_INT18_MIN, Value =< ?PDP10_INT18_MAX ->
+    _ when Value >= ?INT18_MIN, Value =< ?INT18_MAX ->
       Value band ((1 bsl 18) - 1)
   end.
 
 make_abs9(Value) ->
   case Value of
-    _ when Value >= 0, Value =< ?PDP10_UINT9_MAX ->
+    _ when Value >= 0, Value =< ?UINT9_MAX ->
       Value;
-    _ when Value >= ?PDP10_INT9_MIN, Value =< ?PDP10_INT9_MAX ->
+    _ when Value >= ?INT9_MIN, Value =< ?INT9_MAX ->
       Value band ((1 bsl 9) - 1)
   end.
 

@@ -29,7 +29,7 @@
 -ifndef(LIBELF_HRL).
 -define(LIBELF_HRL, 1).
 
--include("pdp10_stdint.hrl").
+-include("stdint.hrl").
 
 -type uint8_t()  :: 0..((1 bsl 8) - 1).
 -type uint16_t() :: 0..((1 bsl 16) - 1).

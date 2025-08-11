@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% pdp10_ar.hrl -- AR definitions for pdp10-elf
-%%% Copyright (C) 2013-2023  Mikael Pettersson
+%%% Copyright (C) 2013-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -28,7 +28,7 @@
 -ifndef(PDP10_AR_HRL).
 -define(PDP10_AR_HRL, 1).
 
--include_lib("lib/include/pdp10_stdint.hrl").                   % uint9_t()
+-include_lib("lib/include/stdint.hrl").                         % uint9_t()
 
 -define(PDP10_ARMAG, [$!, $<, $a, $r, $c, $h, $>, $\n]).        % String that begins an archive file.
 -define(PDP10_SARMAG, 8).                                       % Size of that string.

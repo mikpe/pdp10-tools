@@ -295,7 +295,7 @@ elf36_Sym_image(ElfSym) ->
 elf36_Addr_image(Addr) -> uint36_image(Addr).
 elf36_Half_image(Half) -> uint18_image(Half).
 elf36_Off_image(Off) -> uint36_image(Off).
-elf36_Sword_image(Sword) -> uint36_image(Sword band ?PDP10_UINT36_MAX).
+elf36_Sword_image(Sword) -> uint36_image(Sword band ?UINT36_MAX).
 elf36_Word_image(Word) -> uint36_image(Word).
 elf36_Uchar_image(Uchar) -> uint9_image(Uchar).
 

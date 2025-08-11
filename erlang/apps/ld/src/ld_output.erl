@@ -276,7 +276,7 @@ apply_reloc(Type, Value, Word) ->
       Address = Value div 4,
       %% TODO: check that location and value are in same section
       %% TODO: handle cross-section references
-      {ok, (Word band bnot ?PDP10_UINT18_MAX) bor (Address band ?PDP10_UINT18_MAX)};
+      {ok, (Word band bnot ?UINT18_MAX) bor (Address band ?UINT18_MAX)};
     ?R_PDP10_EFIW      ->
       0 = (Value band 3), % assert alignment
       Address = Value div 4,
@@ -287,23 +287,23 @@ apply_reloc(Type, Value, Word) ->
       0 = (Value band 3), % assert alignment
       Address = Value div 4,
       %% TODO: handle non-zero sections
-      0 = (Address band bnot ?PDP10_UINT18_MAX), % assert section
-      {ok, Address band ?PDP10_UINT18_MAX};
+      0 = (Address band bnot ?UINT18_MAX), % assert section
+      {ok, Address band ?UINT18_MAX};
     ?R_PDP10_LOCAL_B   ->
       Address = Value div 4,
       %% TODO: handle non-zero sections
-      0 = (Address band bnot ?PDP10_UINT18_MAX), % assert section
+      0 = (Address band bnot ?UINT18_MAX), % assert section
       P = (3 - (Value band 3)) * 9, % P \in {0, 9, 18, 27}
       S = 9,
-      {ok, (P bsl 30) bor (S bsl 24) bor (Address band ?PDP10_UINT18_MAX)};
+      {ok, (P bsl 30) bor (S bsl 24) bor (Address band ?UINT18_MAX)};
     ?R_PDP10_LOCAL_H   ->
       0 = (Value band 1), % assert alignment
       Address = Value div 4,
       %% TODO: handle non-zero sections
-      0 = (Address band bnot ?PDP10_UINT18_MAX), % assert section
+      0 = (Address band bnot ?UINT18_MAX), % assert section
       P = (2 - (Value band 3)) * 9, % P \in {0, 18}
       S = 18,
-      {ok, (P bsl 30) bor (S bsl 24) bor (Address band ?PDP10_UINT18_MAX)};
+      {ok, (P bsl 30) bor (S bsl 24) bor (Address band ?UINT18_MAX)};
     ?R_PDP10_GLOBAL_B  ->
       Address = Value div 4,
       0 = (Address band bnot ((1 bsl 30) - 1)), % assert
@@ -315,13 +315,13 @@ apply_reloc(Type, Value, Word) ->
       PS = 8#75 + ((Value band 2) bsr 1),
       {ok, (PS bsl 30) bor (Address band ((1 bsl 30) - 1))};
     ?R_PDP10_LITERAL_W ->
-      Value = (Value band ?PDP10_UINT36_MAX), % assert
+      Value = (Value band ?UINT36_MAX), % assert
       {ok, Value};
     ?R_PDP10_LITERAL_H ->
-      Value = (Value band ?PDP10_UINT18_MAX), % assert
+      Value = (Value band ?UINT18_MAX), % assert
       {ok, Value};
     ?R_PDP10_LITERAL_B ->
-      Value = (Value band ?PDP10_UINT9_MAX), % assert
+      Value = (Value band ?UINT9_MAX), % assert
       {ok, Value}
   end.
 

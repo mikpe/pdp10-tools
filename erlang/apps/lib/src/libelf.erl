@@ -38,7 +38,7 @@
         ]).
 
 -include_lib("lib/include/libelf.hrl").
--include_lib("lib/include/pdp10_stdint.hrl").
+-include_lib("lib/include/stdint.hrl").
 
 -type read_field() :: fun((pdp10_stdio:file())
                       -> {ok, integer()} | {error, {module(), term()}}).
@@ -733,7 +733,7 @@ read(FP, N, ConvFun, Acc) ->
 write_Addr(FP, UInt36) -> write_uint36(FP, UInt36).
 write_Half(FP, UInt18) -> write_uint18(FP, UInt18).
 write_Off(FP,  UInt36) -> write_uint36(FP, UInt36).
-write_Sword(FP, SInt36) -> write_uint36(FP, SInt36 band ?PDP10_UINT36_MAX).
+write_Sword(FP, SInt36) -> write_uint36(FP, SInt36 band ?UINT36_MAX).
 write_Uchar(FP, UInt9) -> write_uint9(FP, UInt9).
 write_Word(FP, UInt36) -> write_uint36(FP, UInt36).
 
