@@ -31,13 +31,6 @@
 
 -include("stdint.hrl").
 
--type uint8_t()  :: 0..((1 bsl 8) - 1).
--type uint16_t() :: 0..((1 bsl 16) - 1).
--type int32_t()  :: (-((1 bsl (32 - 1)) - 1) - 1)..((1 bsl (32 - 1)) - 1).
--type uint32_t() :: 0..((1 bsl 32) - 1).
--type int64_t()  :: (-((1 bsl (64 - 1)) - 1) - 1)..((1 bsl (64 - 1)) - 1).
--type uint64_t() :: 0..((1 bsl 64) - 1).
-
 -type elf_Addr()        :: uint32_t() | uint36_t() | uint64_t().
 -type elf_Half()        :: uint16_t() | uint18_t().
 -type elf_Off()         :: uint32_t() | uint36_t() | uint64_t().
