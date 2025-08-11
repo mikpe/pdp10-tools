@@ -705,12 +705,6 @@ read_Sword(FP) -> read_sint36(FP).
 read_Uchar(FP) -> read_uint9(FP).
 read_Word(FP)  -> read_uint36(FP).
 
-read_sint36(FP) ->
-  case read_uint36(FP) of
-    {ok, UInt36} -> {ok, sext:sext(UInt36, 36)};
-    {error, _Reason} = Error -> Error
-  end.
-
 read_uint9(FP) ->
   case pdp10_stdio:fgetc(FP) of
     eof -> {error, {?MODULE, eof}};
@@ -720,6 +714,11 @@ read_uint9(FP) ->
 read_uint18(FP) -> read(FP, 2, fun extint:uint18_from_ext/1).
 
 read_uint36(FP) -> read(FP, 4, fun extint:uint36_from_ext/1).
+
+read_sint36(FP) -> read(FP, 4, fun sint36_from_ext/1).
+
+sint36_from_ext(Bytes) ->
+  sext:sext(extint:uint36_from_ext(Bytes), 36).
 
 read(FP, N, ConvFun) when N >= 0 -> read(FP, N, ConvFun, []).
 
