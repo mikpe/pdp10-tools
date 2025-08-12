@@ -1,6 +1,6 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
-%%% I/O of ELF-32/36 entities
+%%% I/O of ELF-32/36/64 entities
 %%% Copyright (C) 2013-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
@@ -39,7 +39,7 @@
 -include_lib("lib/include/libelf.hrl").
 -include_lib("lib/include/stdint.hrl").
 
--type elfclass() :: ?ELFCLASS32 | ?ELFCLASS36.
+-type elfclass() :: ?ELFCLASS32 | ?ELFCLASS36 | ?ELFCLASS64.
 -type iodev() :: stdio8:file() | stdio9:file().
 
 -export_type([ elfclass/0
@@ -119,6 +119,8 @@ make_Ehdr(EC) ->
            , e_shstrndx = 0
            }.
 
+ehdr_params(?ELFCLASS64) ->
+  {?ELF64_EHDR_SIZEOF, ?ELF64_PHDR_SIZEOF, ?ELF64_SHDR_SIZEOF};
 ehdr_params(_) ->
   {?ELF32_EHDR_SIZEOF, ?ELF32_PHDR_SIZEOF, ?ELF32_SHDR_SIZEOF}. % ELF-36 is the same
 
@@ -128,6 +130,7 @@ write_Ehdr(EC, IoDev, Ehdr) ->
   FP = {EC, IoDev},
   write_record(FP, Ehdr, elf_Ehdr_desc()).
 
+%% ELF-64 has the same field order as ELF-32/36, but Addr/Off fields get larger.
 elf_Ehdr_desc() ->
   #record_desc{ tag = elf_Ehdr
               , fields =
@@ -218,7 +221,7 @@ check_Ehdr_ei_class(Ehdr) ->
   #elf_Ehdr{e_ident = Ident} = Ehdr,
   Class = lists:nth(?EI_CLASS + 1, Ident),
   case Class of
-    %% FIXME: extend
+    ?ELFCLASS64 -> ok;
     ?ELFCLASS32 -> ok;
     ?ELFCLASS36 -> ok;
     _ -> {error, {?MODULE, {wrong_ei_class, Class}}}
@@ -293,7 +296,7 @@ check_Ehdr_e_version(Ehdr) ->
 check_Ehdr_e_ehsize(Ehdr) ->
   #elf_Ehdr{e_ehsize = EhSize} = Ehdr,
   case EhSize of
-    %% FIXME: extend
+    ?ELF64_EHDR_SIZEOF -> ok;
     ?ELF32_EHDR_SIZEOF -> ok; % ELF-36 is the same
     _ -> {error, {?MODULE, {wrong_e_ehsize, EhSize}}}
   end.
@@ -302,7 +305,7 @@ check_Ehdr_e_phentsize(Ehdr) ->
   #elf_Ehdr{e_phoff = PhOff, e_phentsize = PhEntSize} = Ehdr,
   case {PhOff, PhEntSize} of
     {0, _} -> ok;
-    %% FIXME: extend
+    {_, ?ELF64_PHDR_SIZEOF} -> ok;
     {_, ?ELF32_PHDR_SIZEOF} -> ok; % ELF-36 is the same
     _ -> {error, {?MODULE, {wrong_e_phentsize, PhEntSize}}}
   end.
@@ -311,7 +314,7 @@ check_Ehdr_e_shentsize(Ehdr) ->
   #elf_Ehdr{e_shoff = ShOff, e_shentsize = ShEntSize} = Ehdr,
   case {ShOff, ShEntSize} of
     {0, _} -> ok;
-    %% FIXME: extend
+    {_, ?ELF64_SHDR_SIZEOF} -> ok;
     {_, ?ELF32_SHDR_SIZEOF} -> ok; % ELF-36 is the same
     _ -> {error, {?MODULE, {wrong_e_shentsize, ShEntSize}}}
   end.
@@ -611,17 +614,30 @@ read_Sym_name(Sym = #elf_Sym{st_name = StName}, StrTab) ->
 
 %% I/O of #elf_Phdr{} ==========================================================
 
-read_Phdr(FP) -> read_record(FP, elf_Phdr_desc()).
+read_Phdr({EC, _IoDev} = FP) ->
+  read_Phdr_reorder(EC, read_record(FP, elf_Phdr_desc(EC))).
 
 -spec write_Phdr(elfclass(), iodev(), #elf_Phdr{})
       -> ok | {error, {module(), term()}}.
 write_Phdr(EC, IoDev, Phdr) ->
   FP = {EC, IoDev},
-  write_record(FP, Phdr, elf_Phdr_desc()).
+  write_record(FP, write_Phdr_reorder(EC, Phdr), elf_Phdr_desc(EC)).
 
-%% FIXME: take EI_CLASS as parameter
-%% FIXME: ELF-64 stores the fields in a different order
-elf_Phdr_desc() ->
+%% ELF-64 has a different field order than ELF-32/36, and Addr/Off/Xword fields get larger.
+elf_Phdr_desc(?ELFCLASS64) ->
+  #record_desc{ tag = elf_Phdr
+              , fields =
+                  [ {fun read_Word/1, fun write_Word/2} % p_type
+                  , {fun read_Word/1, fun write_Word/2} % p_flags
+                  , {fun read_Off/1,  fun write_Off/2}  % p_offset
+                  , {fun read_Addr/1, fun write_Addr/2} % p_vaddr
+                  , {fun read_Addr/1, fun write_Addr/2} % p_paddr
+                  , {fun read_Xword/1, fun write_Xword/2} % p_filesz
+                  , {fun read_Xword/1, fun write_Xword/2} % p_memsz
+                  , {fun read_Xword/1, fun write_Xword/2} % p_align
+                  ]
+              };
+elf_Phdr_desc(_) ->
   #record_desc{ tag = elf_Phdr
               , fields =
                   [ {fun read_Word/1, fun write_Word/2} % p_type
@@ -635,17 +651,28 @@ elf_Phdr_desc() ->
                   ]
               }.
 
+read_Phdr_reorder(?ELFCLASS64, {ok, {elf_Phdr, Type, Flags, Offset, VAddr, PAddr, FileSz, MemSz, Align}}) ->
+  {ok, #elf_Phdr{p_type = Type, p_offset = Offset, p_vaddr = VAddr, p_paddr = PAddr, p_filesz = FileSz,
+                 p_memsz = MemSz, p_flags = Flags, p_align = Align}};
+read_Phdr_reorder(_, Result) -> Result.
+
+write_Phdr_reorder(?ELFCLASS64, Phdr) ->
+  #elf_Phdr{p_type = Type, p_offset = Offset, p_vaddr = VAddr, p_paddr = PAddr, p_filesz = FileSz,
+            p_memsz = MemSz, p_flags = Flags, p_align = Align} = Phdr,
+  {elf_Phdr, Type, Flags, Offset, VAddr, PAddr, FileSz, MemSz, Align};
+write_Phdr_reorder(_, Phdr) -> Phdr.
+
 %% I/O of #elf_Rela{} ==========================================================
 
 read_Rela(FP) -> read_record(FP, elf_Rela_desc()).
 
-%% FIXME: take EI_CLASS as parameter
+%% ELF-64 has the same field order as ELF-32/36, but Addr/Sxword/Xword fields get larger.
 elf_Rela_desc() ->
   #record_desc{ tag = elf_Rela
               , fields =
-                  [ {fun read_Addr/1,  fun write_Addr/2}  % r_offset
-                  , {fun read_Word/1,  fun write_Word/2}  % r_info
-                  , {fun read_Sword/1, fun write_Sword/2} % r_addend
+                  [ {fun read_Addr/1,  fun write_Addr/2}    % r_offset
+                  , {fun read_Xword/1,  fun write_Xword/2}  % r_info
+                  , {fun read_Sxword/1, fun write_Sxword/2} % r_addend
                   ]
               }.
 
@@ -653,30 +680,41 @@ elf_Rela_desc() ->
 
 read_Shdr(FP) -> read_record(FP, elf_Shdr_desc()).
 
-%% FIXME: take EI_CLASS as parameter
+%% ELF-64 has the same field order as ELF-32/36, but Addr/Off/Xword fields get larger.
 elf_Shdr_desc() ->
   #record_desc{ tag = elf_Shdr
               , fields =
                   [ {fun read_Word/1, fun write_Word/2} % sh_name
                   , {fun read_Word/1, fun write_Word/2} % sh_type
-                  , {fun read_Word/1, fun write_Word/2} % sh_flags (FIXME: Xword)
+                  , {fun read_Xword/1, fun write_Xword/2} % sh_flags
                   , {fun read_Addr/1, fun write_Addr/2} % sh_addr
                   , {fun read_Off/1,  fun write_Off/2}  % sh_offset
-                  , {fun read_Word/1, fun write_Word/2} % sh_size (FIXME: Xword)
+                  , {fun read_Xword/1, fun write_Xword/2} % sh_size
                   , {fun read_Word/1, fun write_Word/2} % sh_link
                   , {fun read_Word/1, fun write_Word/2} % sh_info
-                  , {fun read_Word/1, fun write_Word/2} % sh_addralign (FIXME: Xword)
-                  , {fun read_Word/1, fun write_Word/2} % sh_entsize (FIXME: Xword)
+                  , {fun read_Xword/1, fun write_Xword/2} % sh_addralign
+                  , {fun read_Xword/1, fun write_Xword/2} % sh_entsize
                   ]
                }.
 
 %% I/O of #elf_Sym{} ===========================================================
 
-read_Sym(FP) -> read_record(FP, elf_Sym_desc()).
+read_Sym({EC, _IoDev} = FP) ->
+  read_Sym_reorder(EC, read_record(FP, elf_Sym_desc(EC))).
 
-%% FIXME: take EI_CLASS as parameter
-%% FIXME: ELF-64 orders the fields differently
-elf_Sym_desc() ->
+%% ELF-64 has a different field order than ELF-32/36, and Addr/Xword fields get larger.
+elf_Sym_desc(?ELFCLASS64) ->
+  #record_desc{ tag = elf_Sym
+              , fields =
+                  [ {fun read_Word/1,  fun write_Word/2}   % st_name
+                  , {fun read_Uchar/1, fun write_Uchar/2}  % st_info
+                  , {fun read_Uchar/1, fun write_Uchar/2}  % st_other
+                  , {fun read_Half/1,  fun write_Half/2}   % st_shndx
+                  , {fun read_Addr/1,  fun write_Addr/2}   % st_value
+                  , {fun read_Xword/1,  fun write_Xword/2} % st_size
+                  ]
+               };
+elf_Sym_desc(_) ->
   #record_desc{ tag = elf_Sym
               , fields =
                   [ {fun read_Word/1,  fun write_Word/2}  % st_name
@@ -687,6 +725,11 @@ elf_Sym_desc() ->
                   , {fun read_Half/1,  fun write_Half/2}  % st_shndx
                   ]
                }.
+
+read_Sym_reorder(?ELFCLASS64, {ok, {elf_Sym, Name, Info, Other, Shndx, Value, Size}}) ->
+  {ok, #elf_Sym{st_name = Name, st_value = Value, st_size = Size, st_info = Info,
+                st_other = Other, st_shndx = Shndx}};
+read_Sym_reorder(_, Result) -> Result.
 
 %% I/O of records ==============================================================
 
@@ -715,17 +758,23 @@ do_write_record(_FP, _Fields = [], _Values = []) ->
 
 %% I/O of scalar items =========================================================
 
+read_Addr({?ELFCLASS64, _} = FP) -> read_u8(FP);
 read_Addr(FP)  -> read_u4(FP).
 
 read_Half(FP)  -> read_u2(FP).
 
+read_Off({?ELFCLASS64, _} = FP) -> read_u8(FP);
 read_Off(FP)   -> read_u4(FP).
 
-read_Sword(FP) -> read_s4(FP).
+read_Sxword({?ELFCLASS64, _} = FP) -> read_s8(FP);
+read_Sxword(FP) -> read_s4(FP).
 
 read_Uchar(FP) -> read_u1(FP).
 
 read_Word(FP)  -> read_u4(FP).
+
+read_Xword({?ELFCLASS64, _} = FP) -> read_u8(FP);
+read_Xword(FP) -> read_u4(FP).
 
 read_u1(FP) ->
   case fgetc(FP) of
@@ -742,11 +791,18 @@ read_u4(FP) -> read(FP, 4, fun extint:uint32_from_ext/1).
 read_s4({?ELFCLASS36, _} = FP) -> read(FP, 4, fun sint36_from_ext/1);
 read_s4(FP) -> read(FP, 4, fun sint32_from_ext/1).
 
+read_s8(FP) -> read(FP, 8, fun sint64_from_ext/1).
+
 sint32_from_ext(Bytes) ->
   sext:sext(extint:uint32_from_ext(Bytes), 32).
 
 sint36_from_ext(Bytes) ->
   sext:sext(extint:uint36_from_ext(Bytes), 36).
+
+sint64_from_ext(Bytes) ->
+  sext:sext(extint:uint64_from_ext(Bytes), 64).
+
+read_u8(FP) -> read(FP, 8, fun extint:uint64_from_ext/1).
 
 read(FP, N, ConvFun) ->
   case fread(N, FP) of
@@ -755,18 +811,24 @@ read(FP, N, ConvFun) ->
     {error, _Reason} = Error -> Error
   end.
 
+write_Addr({?ELFCLASS64, _} = FP, Addr) -> write_u8(FP, Addr);
 write_Addr(FP, Addr) -> write_u4(FP, Addr).
 
 write_Half(FP, Half) -> write_u2(FP, Half).
 
+write_Off({?ELFCLASS64, _} = FP, Off) -> write_u8(FP, Off);
 write_Off(FP, Off) -> write_u4(FP, Off).
 
-write_Sword({?ELFCLASS36, _} = FP, Sword) -> write_u4(FP, Sword band ?UINT36_MAX);
-write_Sword(FP, Sword) -> write_u4(FP, Sword band ?UINT32_MAX).
+write_Sxword({?ELFCLASS64, _} = FP, Sxword) -> write_u8(FP, Sxword band ?UINT64_MAX);
+write_Sxword({?ELFCLASS36, _} = FP, Sxword) -> write_u4(FP, Sxword band ?UINT36_MAX);
+write_Sxword(FP, Sxword) -> write_u4(FP, Sxword band ?UINT32_MAX).
 
 write_Uchar(FP, Uchar) -> write_u1(FP, Uchar).
 
 write_Word(FP, Word) -> write_u4(FP, Word).
+
+write_Xword({?ELFCLASS64, _} = FP, Xword) -> write_u8(FP, Xword);
+write_Xword(FP, Xword) -> write_u4(FP, Xword).
 
 write_u1(FP, Uchar) ->
   fputc(Uchar, FP).
@@ -780,6 +842,9 @@ write_u4({?ELFCLASS36, _} = FP, Word) ->
   fputs(extint:uint36_to_ext(Word), FP);
 write_u4(FP, Word) ->
   fputs(extint:uint32_to_ext(Word), FP).
+
+write_u8(FP, Word) ->
+  fputs(extint:uint64_to_ext(Word), FP).
 
 %% I/O dispatchers =============================================================
 
