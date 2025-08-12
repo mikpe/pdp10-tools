@@ -697,24 +697,24 @@ do_write_record(_FP, _Fields = [], _Values = []) ->
 
 %% I/O of scalar items =========================================================
 
-read_Addr(FP)  -> read_uint36(FP).
-read_Half(FP)  -> read_uint18(FP).
-read_Off(FP)   -> read_uint36(FP).
-read_Sword(FP) -> read_sint36(FP).
-read_Uchar(FP) -> read_uint9(FP).
-read_Word(FP)  -> read_uint36(FP).
+read_Addr(FP)  -> read_u4(FP).
+read_Half(FP)  -> read_u2(FP).
+read_Off(FP)   -> read_u4(FP).
+read_Sword(FP) -> read_s4(FP).
+read_Uchar(FP) -> read_u1(FP).
+read_Word(FP)  -> read_u4(FP).
 
-read_uint9(FP) ->
+read_u1(FP) ->
   case fgetc(FP) of
     eof -> {error, {?MODULE, eof}};
-    Other -> Other % {ok, _Nonet} or {error, _Reason}
+    Other -> Other % {ok, _Byte} or {error, _Reason}
   end.
 
-read_uint18(FP) -> read(FP, 2, fun extint:uint18_from_ext/1).
+read_u2(FP) -> read(FP, 2, fun extint:uint18_from_ext/1).
 
-read_uint36(FP) -> read(FP, 4, fun extint:uint36_from_ext/1).
+read_u4(FP) -> read(FP, 4, fun extint:uint36_from_ext/1).
 
-read_sint36(FP) -> read(FP, 4, fun sint36_from_ext/1).
+read_s4(FP) -> read(FP, 4, fun sint36_from_ext/1).
 
 sint36_from_ext(Bytes) ->
   sext:sext(extint:uint36_from_ext(Bytes), 36).
@@ -726,21 +726,21 @@ read(FP, N, ConvFun) ->
     {error, _Reason} = Error -> Error
   end.
 
-write_Addr(FP, UInt36) -> write_uint36(FP, UInt36).
-write_Half(FP, UInt18) -> write_uint18(FP, UInt18).
-write_Off(FP,  UInt36) -> write_uint36(FP, UInt36).
-write_Sword(FP, SInt36) -> write_uint36(FP, SInt36 band ?UINT36_MAX).
-write_Uchar(FP, UInt9) -> write_uint9(FP, UInt9).
-write_Word(FP, UInt36) -> write_uint36(FP, UInt36).
+write_Addr(FP, UInt36) -> write_u4(FP, UInt36).
+write_Half(FP, UInt18) -> write_u2(FP, UInt18).
+write_Off(FP,  UInt36) -> write_u4(FP, UInt36).
+write_Sword(FP, SInt36) -> write_u4(FP, SInt36 band ?UINT36_MAX).
+write_Uchar(FP, UInt9) -> write_u1(FP, UInt9).
+write_Word(FP, UInt36) -> write_u4(FP, UInt36).
 
-write_uint9(FP, UInt9) ->
-  fputc(UInt9, FP).
+write_u1(FP, Uchar) ->
+  fputc(Uchar, FP).
 
-write_uint18(FP, UInt18) ->
-  fputs(extint:uint18_to_ext(UInt18), FP).
+write_u2(FP, Half) ->
+  fputs(extint:uint18_to_ext(Half), FP).
 
-write_uint36(FP, UInt36) ->
-  fputs(extint:uint36_to_ext(UInt36), FP).
+write_u4(FP, Word) ->
+  fputs(extint:uint36_to_ext(Word), FP).
 
 %% I/O dispatchers =============================================================
 
