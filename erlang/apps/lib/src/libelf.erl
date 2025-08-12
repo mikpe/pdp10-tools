@@ -30,7 +30,6 @@
         , read_ShTab/4
         , read_SymTab/2
         , read_SymTab/4
-        , read_uint36/1
         , make_Ehdr/0
         , write_Ehdr/2
         , write_Phdr/2

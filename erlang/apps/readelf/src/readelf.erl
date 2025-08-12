@@ -692,7 +692,7 @@ disassemble_unit(FileOffset, Size, VAddr, FP, Labels) ->
   end.
 
 disassemble_insns(Offset, Size, VAddr, FP, Labels) when Offset < Size ->
-  case libelf:read_uint36(FP) of
+  case read_uint36(FP) of
     {ok, InsnWord} ->
       RestLabels = print_labels(Labels, Offset),
       io:format(" 0~12.8.0b:\t0~12.8.0b\t", [VAddr + Offset, InsnWord]),
@@ -701,6 +701,15 @@ disassemble_insns(Offset, Size, VAddr, FP, Labels) when Offset < Size ->
     {error, _Reason} = Error -> Error
   end;
 disassemble_insns(_Offset, _Size, _VAddr, _FP, _Labels) -> ok.
+
+%% TODO: for ELF-64 read 4 nonets from 8 octets and combine
+read_uint36(FP) ->
+  case pdp10_stdio:fread(1, 4, FP) of
+    {ok, [B0, B1, B2, B3]} ->
+      {ok, (((((B0 bsl 9) bor B1) bsl 9) bor B2) bsl 9) bor B3};
+    eof -> {error, eof};
+    {error, _Reason} = Error -> Error
+  end.
 
 disassemble_insn(InsnWord) ->
   Models = ?PDP10_KL10_271up,
