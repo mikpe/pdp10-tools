@@ -188,7 +188,7 @@ readelf_file(Opts, File) ->
   end.
 
 readelf_ehdr(Opts, FP) ->
-  case libelf:read_Ehdr(FP) of
+  case libelf:read_Ehdr(?ELFCLASS36, FP) of
     {ok, Ehdr} ->
       print_ehdr(Opts, Ehdr),
       readelf_shtab(Opts, FP, Ehdr);
@@ -196,7 +196,7 @@ readelf_ehdr(Opts, FP) ->
   end.
 
 readelf_shtab(Opts, FP, Ehdr) ->
-  case libelf:read_ShTab(FP, Ehdr) of
+  case libelf:read_ShTab(?ELFCLASS36, FP, Ehdr) of
     {ok, ShTab} ->
       print_shtab(Opts, ShTab),
       print_phtab(Opts, FP, Ehdr),
@@ -205,7 +205,7 @@ readelf_shtab(Opts, FP, Ehdr) ->
   end.
 
 readelf_symtab(Opts, FP, ShTab) ->
-  case libelf:read_SymTab(FP, ShTab) of
+  case libelf:read_SymTab(?ELFCLASS36, FP, ShTab) of
     {ok, {SymTab, ShNdx}} ->
       print_relatab(Opts, FP, SymTab, ShNdx, ShTab),
       print_symtab(Opts, SymTab, ShNdx, ShTab),
@@ -436,7 +436,7 @@ sh_flags([], _I, ShFlags, Mask, Acc) ->
 
 print_phtab(#options{segments = false}, _FP, _Ehdr) -> ok;
 print_phtab(Opts, FP, Ehdr) ->
-  case libelf:read_PhTab(FP, Ehdr) of
+  case libelf:read_PhTab(?ELFCLASS36, FP, Ehdr) of
     {ok, []} ->
       io:format("There are no program headers in this file.\n\n");
     {ok, PhTab} ->
@@ -538,7 +538,7 @@ print_relatab2([], _FP, _SymTab, _SymTabNdx, _Any = true) ->
   ok.
 
 print_relatab(Shdr, FP, SymTab) ->
-  case libelf:read_RelaTab(FP, Shdr) of
+  case libelf:read_RelaTab(?ELFCLASS36, FP, Shdr) of
     {ok, Relas} ->
       NrRelas = length(Relas),
       io:format("Relocation section '~s' at offset 0x~.16b contains ~.10b entr~s:\n",

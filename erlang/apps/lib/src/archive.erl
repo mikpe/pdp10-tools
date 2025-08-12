@@ -419,11 +419,11 @@ read_member_symtab(ArchiveFP, Member) ->
   end.
 
 read_member_symtab(FP, Base, Limit) ->
-  case libelf:read_Ehdr(FP, Base, Limit) of
+  case libelf:read_Ehdr(?ELFCLASS36, FP, Base, Limit) of
     {ok, Ehdr} ->
-      case libelf:read_ShTab(FP, Base, Limit, Ehdr) of
+      case libelf:read_ShTab(?ELFCLASS36, FP, Base, Limit, Ehdr) of
         {ok, ShTab} ->
-          case libelf:read_SymTab(FP, Base, Limit, ShTab) of
+          case libelf:read_SymTab(?ELFCLASS36, FP, Base, Limit, ShTab) of
             {ok, {SymTab, _ShNdx}} -> filter_member_symtab(SymTab);
             {error, _Reason} -> false
           end;

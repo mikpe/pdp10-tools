@@ -87,7 +87,7 @@ output_elf_header(Entry, Segments, _GlobalMap, _FileMap, FP, Offset = 0) ->
                        , e_phoff = PhOff
                        , e_phnum = PhNum
                        },
-  case libelf:write_Ehdr(FP, Ehdr) of
+  case libelf:write_Ehdr(?ELFCLASS36, FP, Ehdr) of
     ok -> {ok, Offset + ?ELF36_EHDR_SIZEOF};
     {error, _Reason} = Error -> Error
   end.
@@ -100,7 +100,7 @@ output_phtab(_Entry, Segments, _GlobalMap, _FileMap, FP, Offset = ?ELF36_EHDR_SI
 
 output_phtab(_Segments = [], _FP, Offset) -> {ok, Offset};
 output_phtab([#segment{phdr = Phdr} | Segments], FP, Offset) ->
-  case libelf:write_Phdr(FP, Phdr) of
+  case libelf:write_Phdr(?ELFCLASS36, FP, Phdr) of
     ok -> output_phtab(Segments, FP, Offset + ?ELF36_PHDR_SIZEOF);
     {error, _Reason} = Error -> Error
   end.
@@ -374,7 +374,7 @@ ifile_props({Archive, _Name, Offset, Size}) -> {Archive, _Base = Offset, _Limit 
 ifile_props(File) when is_list(File) -> {File, _Base = 0, _Limit = false}.
 
 input_relocs(_FP, _Base, _Limit, false) -> {ok, []};
-input_relocs(FP, Base, Limit, Shdr) -> libelf:read_RelaTab(FP, Base, Limit, Shdr).
+input_relocs(FP, Base, Limit, Shdr) -> libelf:read_RelaTab(?ELFCLASS36, FP, Base, Limit, Shdr).
 
 input_fini(#frag_input{fp = FP}) ->
   pdp10_stdio:fclose(FP).

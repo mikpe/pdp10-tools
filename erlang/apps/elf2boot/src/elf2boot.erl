@@ -450,7 +450,7 @@ entry_frag(Entry) ->
 read_elf(File) ->
   case stdio9:fopen(File, [raw, read]) of
     {ok, FP} ->
-      case libelf:read_Ehdr(FP) of
+      case libelf:read_Ehdr(?ELFCLASS36, FP) of
         {ok, Ehdr} -> read_elf(FP, Ehdr);
         {error, _Reason} = Error -> Error
       end;
@@ -460,7 +460,7 @@ read_elf(File) ->
 read_elf(FP, Ehdr) ->
   case Ehdr of
     #elf_Ehdr{e_type = ?ET_EXEC, e_entry = Entry} when Entry band 3 =:= 0 ->
-      case libelf:read_PhTab(FP, Ehdr) of
+      case libelf:read_PhTab(?ELFCLASS36, FP, Ehdr) of
         {ok, PhTab} ->
           case frags(PhTab) of
             {ok, Frags} -> {ok, {FP, Entry, Frags}};

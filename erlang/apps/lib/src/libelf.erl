@@ -20,28 +20,37 @@
 
 -module(libelf).
 
--export([ read_Ehdr/1
-        , read_Ehdr/3
-        , read_PhTab/2
-        , read_PhTab/4
-        , read_RelaTab/2
-        , read_RelaTab/4
-        , read_ShTab/2
-        , read_ShTab/4
-        , read_SymTab/2
-        , read_SymTab/4
+-export([ read_Ehdr/2
+        , read_Ehdr/4
+        , read_PhTab/3
+        , read_PhTab/5
+        , read_RelaTab/3
+        , read_RelaTab/5
+        , read_ShTab/3
+        , read_ShTab/5
+        , read_SymTab/3
+        , read_SymTab/5
         , make_Ehdr/0
-        , write_Ehdr/2
-        , write_Phdr/2
+        , write_Ehdr/3
+        , write_Phdr/3
         , format_error/1
         ]).
 
 -include_lib("lib/include/libelf.hrl").
 -include_lib("lib/include/stdint.hrl").
 
--type read_field() :: fun((pdp10_stdio:file())
+-type elfclass() :: ?ELFCLASS36.
+-type iodev() :: stdio9:file().
+
+-export_type([ elfclass/0
+             , iodev/0
+             ]).
+
+-type file() :: {elfclass(), iodev()}.
+
+-type read_field() :: fun((file())
                       -> {ok, integer()} | {error, {module(), term()}}).
--type write_field() :: fun((pdp10_stdio:file(), integer())
+-type write_field() :: fun((file(), integer())
                        -> ok | {error, term()}).
 
 -record(record_desc,
@@ -51,15 +60,15 @@
 
 %% I/O of #elf_Ehdr{} ==========================================================
 
--spec read_Ehdr(pdp10_stdio:file())
+-spec read_Ehdr(elfclass(), iodev())
       -> {ok, #elf_Ehdr{}} | {error, {module(), term()}}.
-read_Ehdr(FP) ->
-  read_Ehdr(FP, _Base = 0, _Limit = false).
+read_Ehdr(EC, IoDev) ->
+  read_Ehdr(EC, IoDev, _Base = 0, _Limit = false).
 
-%% FIXME: take EI_CLASS as parameter
--spec read_Ehdr(pdp10_stdio:file(), non_neg_integer(), false | non_neg_integer())
+-spec read_Ehdr(elfclass(), iodev(), non_neg_integer(), false | non_neg_integer())
       -> {ok, #elf_Ehdr{}} | {error, {module(), term()}}.
-read_Ehdr(FP, Base, Limit) ->
+read_Ehdr(EC, IoDev, Base, Limit) ->
+  FP = {EC, IoDev},
   case fseek(FP, {bof, Base}) of
     ok ->
       case read_record(FP, elf_Ehdr_desc()) of
@@ -110,10 +119,10 @@ make_Ehdr() ->
            , e_shstrndx = 0
            }.
 
-%% FIXME: take EI_CLASS as parameter
--spec write_Ehdr(pdp10_stdio:file(), #elf_Ehdr{})
+-spec write_Ehdr(elfclass(), iodev(), #elf_Ehdr{})
       -> ok | {error, {module(), term()}}.
-write_Ehdr(FP, Ehdr) ->
+write_Ehdr(EC, IoDev, Ehdr) ->
+  FP = {EC, IoDev},
   write_record(FP, Ehdr, elf_Ehdr_desc()).
 
 elf_Ehdr_desc() ->
@@ -305,14 +314,15 @@ check_Ehdr_e_shentsize(Ehdr) ->
 
 %% I/O of PhTab ================================================================
 
--spec read_PhTab(pdp10_stdio:file(), #elf_Ehdr{})
+-spec read_PhTab(elfclass(), iodev(), #elf_Ehdr{})
       -> {ok, [#elf_Phdr{}]} | {error, {module(), term()}}.
-read_PhTab(FP, Ehdr) ->
-  read_PhTab(FP, _Base = 0, _Limit = false, Ehdr).
+read_PhTab(EC, IoDev, Ehdr) ->
+  read_PhTab(EC, IoDev, _Base = 0, _Limit = false, Ehdr).
 
--spec read_PhTab(pdp10_stdio:file(), non_neg_integer(), false | non_neg_integer(), #elf_Ehdr{})
+-spec read_PhTab(elfclass(), iodev(), non_neg_integer(), false | non_neg_integer(), #elf_Ehdr{})
       -> {ok, [#elf_Phdr{}]} | {error, {module(), term()}}.
-read_PhTab(FP, Base, Limit, Ehdr) ->
+read_PhTab(EC, IoDev, Base, Limit, Ehdr) ->
+  FP = {EC, IoDev},
   #elf_Ehdr{ e_phoff = PhOff
            , e_phentsize = PhEntSize
            , e_phnum = PhNum } = Ehdr,
@@ -344,14 +354,15 @@ do_read_PhTab(FP, PhNum, Phdrs) ->
 
 %% I/O of relocation tables ====================================================
 
--spec read_RelaTab(pdp10_stdio:file(), #elf_Shdr{})
+-spec read_RelaTab(elfclass(), iodev(), #elf_Shdr{})
       -> {ok, [#elf_Rela{}]} | {error, {module(), term()}}.
-read_RelaTab(FP, Shdr) ->
-  read_RelaTab(FP, _Base = 0, _Limit = false, Shdr).
+read_RelaTab(EC, IoDev, Shdr) ->
+  read_RelaTab(EC, IoDev, _Base = 0, _Limit = false, Shdr).
 
--spec read_RelaTab(pdp10_stdio:file(), non_neg_integer(), false | non_neg_integer(), #elf_Shdr{})
+-spec read_RelaTab(elfclass(), iodev(), non_neg_integer(), false | non_neg_integer(), #elf_Shdr{})
       -> {ok, [#elf_Rela{}]} | {error, {module(), term()}}.
-read_RelaTab(FP, Base, Limit, Shdr) ->
+read_RelaTab(EC, IoDev, Base, Limit, Shdr) ->
+  FP = {EC, IoDev},
   #elf_Shdr{ sh_type = ShType
            , sh_size = ShSize
            , sh_offset = ShOffset
@@ -396,14 +407,15 @@ do_read_RelaTab(FP, RelaNum, Relas) when RelaNum > 0 ->
 
 %% I/O of ShTab ================================================================
 
--spec read_ShTab(pdp10_stdio:file(), #elf_Ehdr{})
+-spec read_ShTab(elfclass(), iodev(), #elf_Ehdr{})
       -> {ok, [#elf_Shdr{}]} | {error, {module(), term()}}.
-read_ShTab(FP, Ehdr) ->
-  read_ShTab(FP, _Base = 0, _Limit = false, Ehdr).
+read_ShTab(EC, IoDev, Ehdr) ->
+  read_ShTab(EC, IoDev, _Base = 0, _Limit = false, Ehdr).
 
--spec read_ShTab(pdp10_stdio:file(), non_neg_integer(), false | non_neg_integer(), #elf_Ehdr{})
+-spec read_ShTab(elfclass(), iodev(), non_neg_integer(), false | non_neg_integer(), #elf_Ehdr{})
       -> {ok, [#elf_Shdr{}]} | {error, {module(), term()}}.
-read_ShTab(FP, Base, Limit, Ehdr) ->
+read_ShTab(EC, IoDev, Base, Limit, Ehdr) ->
+  FP = {EC, IoDev},
   #elf_Ehdr{ e_shoff = ShOff
            , e_shnum = ShNum0
            , e_shstrndx = ShStrNdx } = Ehdr,
@@ -514,14 +526,15 @@ get_name(_C, [], _Acc) -> {error, {?MODULE, strtab_not_nul_terminated}}.
 
 %% I/O of SymTab ===============================================================
 
--spec read_SymTab(pdp10_stdio:file(), [#elf_Shdr{}])
+-spec read_SymTab(elfclass(), iodev(), [#elf_Shdr{}])
       -> {ok, {[#elf_Sym{}],non_neg_integer()}} | {error, {module(), term()}}.
-read_SymTab(FP, ShTab) ->
-  read_SymTab(FP, _Base = 0, _Limit = false, ShTab).
+read_SymTab(EC, IoDev, ShTab) ->
+  read_SymTab(EC, IoDev, _Base = 0, _Limit = false, ShTab).
 
--spec read_SymTab(pdp10_stdio:file(), non_neg_integer(), false | non_neg_integer(), [#elf_Shdr{}])
+-spec read_SymTab(elfclass(), iodev(), non_neg_integer(), false | non_neg_integer(), [#elf_Shdr{}])
       -> {ok, {[#elf_Sym{}],non_neg_integer()}} | {error, {module(), term()}}.
-read_SymTab(FP, Base, Limit, ShTab) ->
+read_SymTab(EC, IoDev, Base, Limit, ShTab) ->
+  FP = {EC, IoDev},
   case find_SymTab(ShTab) of
     false -> {ok, {[], ?SHN_UNDEF}};
     {ok, {Shdr, ShNdx}} ->
@@ -596,9 +609,10 @@ read_Sym_name(Sym = #elf_Sym{st_name = StName}, StrTab) ->
 
 read_Phdr(FP) -> read_record(FP, elf_Phdr_desc()).
 
--spec write_Phdr(pdp10_stdio:file(), #elf_Phdr{})
+-spec write_Phdr(elfclass(), iodev(), #elf_Phdr{})
       -> ok | {error, {module(), term()}}.
-write_Phdr(FP, Phdr) ->
+write_Phdr(EC, IoDev, Phdr) ->
+  FP = {EC, IoDev},
   write_record(FP, Phdr, elf_Phdr_desc()).
 
 %% FIXME: take EI_CLASS as parameter
@@ -698,10 +712,15 @@ do_write_record(_FP, _Fields = [], _Values = []) ->
 %% I/O of scalar items =========================================================
 
 read_Addr(FP)  -> read_u4(FP).
+
 read_Half(FP)  -> read_u2(FP).
+
 read_Off(FP)   -> read_u4(FP).
+
 read_Sword(FP) -> read_s4(FP).
+
 read_Uchar(FP) -> read_u1(FP).
+
 read_Word(FP)  -> read_u4(FP).
 
 read_u1(FP) ->
@@ -710,11 +729,11 @@ read_u1(FP) ->
     Other -> Other % {ok, _Byte} or {error, _Reason}
   end.
 
-read_u2(FP) -> read(FP, 2, fun extint:uint18_from_ext/1).
+read_u2({?ELFCLASS36, _} = FP) -> read(FP, 2, fun extint:uint18_from_ext/1).
 
-read_u4(FP) -> read(FP, 4, fun extint:uint36_from_ext/1).
+read_u4({?ELFCLASS36, _} = FP) -> read(FP, 4, fun extint:uint36_from_ext/1).
 
-read_s4(FP) -> read(FP, 4, fun sint36_from_ext/1).
+read_s4({?ELFCLASS36, _} = FP) -> read(FP, 4, fun sint36_from_ext/1).
 
 sint36_from_ext(Bytes) ->
   sext:sext(extint:uint36_from_ext(Bytes), 36).
@@ -726,35 +745,40 @@ read(FP, N, ConvFun) ->
     {error, _Reason} = Error -> Error
   end.
 
-write_Addr(FP, UInt36) -> write_u4(FP, UInt36).
-write_Half(FP, UInt18) -> write_u2(FP, UInt18).
-write_Off(FP,  UInt36) -> write_u4(FP, UInt36).
-write_Sword(FP, SInt36) -> write_u4(FP, SInt36 band ?UINT36_MAX).
-write_Uchar(FP, UInt9) -> write_u1(FP, UInt9).
-write_Word(FP, UInt36) -> write_u4(FP, UInt36).
+write_Addr(FP, Addr) -> write_u4(FP, Addr).
+
+write_Half(FP, Half) -> write_u2(FP, Half).
+
+write_Off(FP, Off) -> write_u4(FP, Off).
+
+write_Sword(FP, Sword) -> write_u4(FP, Sword band ?UINT36_MAX).
+
+write_Uchar(FP, Uchar) -> write_u1(FP, Uchar).
+
+write_Word(FP, Word) -> write_u4(FP, Word).
 
 write_u1(FP, Uchar) ->
   fputc(Uchar, FP).
 
-write_u2(FP, Half) ->
+write_u2({?ELFCLASS36, _} = FP, Half) ->
   fputs(extint:uint18_to_ext(Half), FP).
 
-write_u4(FP, Word) ->
+write_u4({?ELFCLASS36, _} = FP, Word) ->
   fputs(extint:uint36_to_ext(Word), FP).
 
 %% I/O dispatchers =============================================================
 
-fgetc(IoDev) -> stdio9:fgetc(IoDev).
+fgetc({?ELFCLASS36, IoDev}) -> stdio9:fgetc(IoDev).
 
-fputc(Byte, IoDev) -> stdio9:fputc(Byte, IoDev).
+fputc(Byte, {?ELFCLASS36, IoDev}) -> stdio9:fputc(Byte, IoDev).
 
-fputs(Bytes, IoDev) -> stdio9:fputs(Bytes, IoDev).
+fputs(Bytes, {?ELFCLASS36, IoDev}) -> stdio9:fputs(Bytes, IoDev).
 
-fread(NrBytes, IoDev) -> stdio9:fread(NrBytes, IoDev).
+fread(NrBytes, {?ELFCLASS36, IoDev}) -> stdio9:fread(NrBytes, IoDev).
 
-fseek(IoDev, Position) -> stdio9:fseek(IoDev, Position).
+fseek({?ELFCLASS36, IoDev}, Position) -> stdio9:fseek(IoDev, Position).
 
-ftell(IoDev) -> stdio9:ftell(IoDev).
+ftell({?ELFCLASS36, IoDev}) -> stdio9:ftell(IoDev).
 
 %% Error Formatting ============================================================
 
