@@ -60,11 +60,11 @@ read_Ehdr(FP) ->
 -spec read_Ehdr(pdp10_stdio:file(), non_neg_integer(), false | non_neg_integer())
       -> {ok, #elf_Ehdr{}} | {error, {module(), term()}}.
 read_Ehdr(FP, Base, Limit) ->
-  case pdp10_stdio:fseek(FP, {bof, Base}) of
+  case fseek(FP, {bof, Base}) of
     ok ->
       case read_record(FP, elf_Ehdr_desc()) of
         {ok, Ehdr} = Result ->
-          case (Limit =:= false) orelse (pdp10_stdio:ftell(FP) =< Limit) of
+          case (Limit =:= false) orelse (ftell(FP) =< Limit) of
             true ->
               case check_Ehdr(Ehdr) of
                 ok -> Result;
@@ -321,11 +321,11 @@ read_PhTab(FP, Base, Limit, Ehdr) ->
      true ->
        true = PhEntSize =:= ?ELF36_PHDR_SIZEOF, % assert
        %% FIXME: if PhNum = ?PN_XNUM the real PhNum is stored in Shdr0.sh_info
-       case pdp10_stdio:fseek(FP, {bof, Base + PhOff}) of
+       case fseek(FP, {bof, Base + PhOff}) of
          ok ->
            case read_PhTab(FP, PhNum, []) of
              {ok, _PhTab} = Result ->
-               case (Limit =:= false) orelse (pdp10_stdio:ftell(FP) =< Limit) of
+               case (Limit =:= false) orelse (ftell(FP) =< Limit) of
                  true -> Result;
                  false -> {error, {?MODULE, {limit, "PhTab"}}}
                end;
@@ -367,11 +367,11 @@ read_RelaTab(FP, Base, Limit, Shdr) ->
               case RelaNum of
                 0 -> {ok, []};
                 _ ->
-                  case pdp10_stdio:fseek(FP, {bof, Base + ShOffset}) of
+                  case fseek(FP, {bof, Base + ShOffset}) of
                     ok ->
                       case read_RelaTab(FP, RelaNum, []) of
                         {ok, _RelaTab} = Result ->
-                          case (Limit =:= false) orelse (pdp10_stdio:ftell(FP) =< Limit) of
+                          case (Limit =:= false) orelse (ftell(FP) =< Limit) of
                             true -> Result;
                             false -> {error, {?MODULE, {limit, "RelaTab"}}}
                           end;
@@ -410,14 +410,14 @@ read_ShTab(FP, Base, Limit, Ehdr) ->
   case ShOff of
     0 -> {ok, []};
     _ ->
-      case pdp10_stdio:fseek(FP, {bof, Base + ShOff}) of
+      case fseek(FP, {bof, Base + ShOff}) of
         ok ->
           case read_Shdr(FP) of
             {ok, Shdr0} ->
               ShNum = actual_ShNum(ShNum0, Shdr0),
               case read_ShTab(FP, ShNum - 1, [Shdr0]) of
                 {ok, ShTab} ->
-                  case (Limit =:= false) orelse (pdp10_stdio:ftell(FP) =< Limit) of
+                  case (Limit =:= false) orelse (ftell(FP) =< Limit) of
                     true ->
                       case read_ShStrTab(FP, Base, Limit, ShTab, ShStrNdx, Shdr0) of
                         {ok, ShStrTab} -> read_ShTab_names(ShTab, ShStrTab);
@@ -480,11 +480,11 @@ read_StrTab(FP, Base, Limit, ShTab, Index) ->
                } = lists:nth(Index + 1, ShTab),
       case Type of
         ?SHT_STRTAB ->
-          case pdp10_stdio:fseek(FP, {bof, Base + Offset}) of
+          case fseek(FP, {bof, Base + Offset}) of
             ok ->
               case fread(Size, FP) of
                 {ok, _StrTab} = Result ->
-                  case (Limit =:= false) orelse (pdp10_stdio:ftell(FP) =< Limit) of
+                  case (Limit =:= false) orelse (ftell(FP) =< Limit) of
                     true -> Result;
                     false -> {error, {?MODULE, {limit, "StrTab"}}}
                   end;
@@ -541,11 +541,11 @@ read_SymTab(FP, Base, Limit, ShTab) ->
                case SymNum of
                  0 -> {ok, {[], ShNdx}};
                  _ ->
-                   case pdp10_stdio:fseek(FP, {bof, Base + ShOffset}) of
+                   case fseek(FP, {bof, Base + ShOffset}) of
                      ok ->
                        case read_SymTab(FP, SymNum, []) of
                          {ok, SymTab} ->
-                           case (Limit =:= false) orelse (pdp10_stdio:ftell(FP) =< Limit) of
+                           case (Limit =:= false) orelse (ftell(FP) =< Limit) of
                              true ->
                                case read_SymTab_names(SymTab, StrTab) of
                                  {ok, NewSymTab} -> {ok, {NewSymTab, ShNdx}};
@@ -705,7 +705,7 @@ read_Uchar(FP) -> read_uint9(FP).
 read_Word(FP)  -> read_uint36(FP).
 
 read_uint9(FP) ->
-  case pdp10_stdio:fgetc(FP) of
+  case fgetc(FP) of
     eof -> {error, {?MODULE, eof}};
     Other -> Other % {ok, _Nonet} or {error, _Reason}
   end.
@@ -726,9 +726,6 @@ read(FP, N, ConvFun) ->
     {error, _Reason} = Error -> Error
   end.
 
-fread(N, FP) ->
-  pdp10_stdio:fread(1, N, FP).
-
 write_Addr(FP, UInt36) -> write_uint36(FP, UInt36).
 write_Half(FP, UInt18) -> write_uint18(FP, UInt18).
 write_Off(FP,  UInt36) -> write_uint36(FP, UInt36).
@@ -737,7 +734,7 @@ write_Uchar(FP, UInt9) -> write_uint9(FP, UInt9).
 write_Word(FP, UInt36) -> write_uint36(FP, UInt36).
 
 write_uint9(FP, UInt9) ->
-  pdp10_stdio:fputc(UInt9, FP).
+  fputc(UInt9, FP).
 
 write_uint18(FP, UInt18) ->
   fputs(extint:uint18_to_ext(UInt18), FP).
@@ -745,8 +742,19 @@ write_uint18(FP, UInt18) ->
 write_uint36(FP, UInt36) ->
   fputs(extint:uint36_to_ext(UInt36), FP).
 
-fputs(Nonets, FP) ->
-  pdp10_stdio:fputs(Nonets, FP).
+%% I/O dispatchers =============================================================
+
+fgetc(IoDev) -> stdio9:fgetc(IoDev).
+
+fputc(Byte, IoDev) -> stdio9:fputc(Byte, IoDev).
+
+fputs(Bytes, IoDev) -> stdio9:fputs(Bytes, IoDev).
+
+fread(NrBytes, IoDev) -> stdio9:fread(NrBytes, IoDev).
+
+fseek(IoDev, Position) -> stdio9:fseek(IoDev, Position).
+
+ftell(IoDev) -> stdio9:ftell(IoDev).
 
 %% Error Formatting ============================================================
 
