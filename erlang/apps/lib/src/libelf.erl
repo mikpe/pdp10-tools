@@ -323,7 +323,7 @@ read_PhTab(FP, Base, Limit, Ehdr) ->
        %% FIXME: if PhNum = ?PN_XNUM the real PhNum is stored in Shdr0.sh_info
        case fseek(FP, {bof, Base + PhOff}) of
          ok ->
-           case read_PhTab(FP, PhNum, []) of
+           case do_read_PhTab(FP, PhNum, []) of
              {ok, _PhTab} = Result ->
                case (Limit =:= false) orelse (ftell(FP) =< Limit) of
                  true -> Result;
@@ -335,10 +335,10 @@ read_PhTab(FP, Base, Limit, Ehdr) ->
        end
   end.
 
-read_PhTab(_FP, 0, Phdrs) -> {ok, lists:reverse(Phdrs)};
-read_PhTab(FP, PhNum, Phdrs) ->
+do_read_PhTab(_FP, 0, Phdrs) -> {ok, lists:reverse(Phdrs)};
+do_read_PhTab(FP, PhNum, Phdrs) ->
   case read_Phdr(FP) of
-    {ok, Phdr} -> read_PhTab(FP, PhNum - 1, [Phdr | Phdrs]);
+    {ok, Phdr} -> do_read_PhTab(FP, PhNum - 1, [Phdr | Phdrs]);
     {error, _Reason} = Error -> Error
   end.
 
@@ -369,7 +369,7 @@ read_RelaTab(FP, Base, Limit, Shdr) ->
                 _ ->
                   case fseek(FP, {bof, Base + ShOffset}) of
                     ok ->
-                      case read_RelaTab(FP, RelaNum, []) of
+                      case do_read_RelaTab(FP, RelaNum, []) of
                         {ok, _RelaTab} = Result ->
                           case (Limit =:= false) orelse (ftell(FP) =< Limit) of
                             true -> Result;
@@ -387,10 +387,10 @@ read_RelaTab(FP, Base, Limit, Shdr) ->
     _ -> {error, {?MODULE, {wrong_relatab_sh_type, ShType}}}
   end.
 
-read_RelaTab(_FP, _RelaNum = 0, Relas) -> {ok, lists:reverse(Relas)};
-read_RelaTab(FP, RelaNum, Relas) when RelaNum > 0 ->
+do_read_RelaTab(_FP, _RelaNum = 0, Relas) -> {ok, lists:reverse(Relas)};
+do_read_RelaTab(FP, RelaNum, Relas) when RelaNum > 0 ->
   case read_Rela(FP) of
-    {ok, Rela} -> read_RelaTab(FP, RelaNum - 1, [Rela | Relas]);
+    {ok, Rela} -> do_read_RelaTab(FP, RelaNum - 1, [Rela | Relas]);
     {error, _Reason} = Error -> Error
   end.
 
@@ -415,7 +415,7 @@ read_ShTab(FP, Base, Limit, Ehdr) ->
           case read_Shdr(FP) of
             {ok, Shdr0} ->
               ShNum = actual_ShNum(ShNum0, Shdr0),
-              case read_ShTab(FP, ShNum - 1, [Shdr0]) of
+              case do_read_ShTab(FP, ShNum - 1, [Shdr0]) of
                 {ok, ShTab} ->
                   case (Limit =:= false) orelse (ftell(FP) =< Limit) of
                     true ->
@@ -436,10 +436,10 @@ read_ShTab(FP, Base, Limit, Ehdr) ->
 actual_ShNum(0, #elf_Shdr{sh_size = ShNum} = _Shdr0) -> ShNum;
 actual_ShNum(ShNum, _Shdr0) -> ShNum.
 
-read_ShTab(_FP, 0, Shdrs) -> {ok, lists:reverse(Shdrs)};
-read_ShTab(FP, ShNum, Shdrs) ->
+do_read_ShTab(_FP, 0, Shdrs) -> {ok, lists:reverse(Shdrs)};
+do_read_ShTab(FP, ShNum, Shdrs) ->
   case read_Shdr(FP) of
-    {ok, Shdr} -> read_ShTab(FP, ShNum - 1, [Shdr | Shdrs]);
+    {ok, Shdr} -> do_read_ShTab(FP, ShNum - 1, [Shdr | Shdrs]);
     {error, _Reason} = Error -> Error
   end.
 
@@ -543,7 +543,7 @@ read_SymTab(FP, Base, Limit, ShTab) ->
                  _ ->
                    case fseek(FP, {bof, Base + ShOffset}) of
                      ok ->
-                       case read_SymTab(FP, SymNum, []) of
+                       case do_read_SymTab(FP, SymNum, []) of
                          {ok, SymTab} ->
                            case (Limit =:= false) orelse (ftell(FP) =< Limit) of
                              true ->
@@ -563,10 +563,10 @@ read_SymTab(FP, Base, Limit, ShTab) ->
       end
   end.
 
-read_SymTab(_FP, _SymNum = 0, Syms) -> {ok, lists:reverse(Syms)};
-read_SymTab(FP, SymNum, Syms) when SymNum > 0 ->
+do_read_SymTab(_FP, _SymNum = 0, Syms) -> {ok, lists:reverse(Syms)};
+do_read_SymTab(FP, SymNum, Syms) when SymNum > 0 ->
   case read_Sym(FP) of
-    {ok, Sym} -> read_SymTab(FP, SymNum - 1, [Sym | Syms]);
+    {ok, Sym} -> do_read_SymTab(FP, SymNum - 1, [Sym | Syms]);
     {error, _Reason} = Error -> Error
   end.
 
