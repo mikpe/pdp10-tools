@@ -1,6 +1,6 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
-%%% I/O of ELF-36 entities
+%%% I/O of ELF-32/36 entities
 %%% Copyright (C) 2013-2025  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
@@ -30,7 +30,7 @@
         , read_ShTab/5
         , read_SymTab/3
         , read_SymTab/5
-        , make_Ehdr/0
+        , make_Ehdr/1
         , write_Ehdr/3
         , write_Phdr/3
         , format_error/1
@@ -39,8 +39,8 @@
 -include_lib("lib/include/libelf.hrl").
 -include_lib("lib/include/stdint.hrl").
 
--type elfclass() :: ?ELFCLASS36.
--type iodev() :: stdio9:file().
+-type elfclass() :: ?ELFCLASS32 | ?ELFCLASS36.
+-type iodev() :: stdio8:file() | stdio9:file().
 
 -export_type([ elfclass/0
              , iodev/0
@@ -86,9 +86,9 @@ read_Ehdr(EC, IoDev, Base, Limit) ->
     {error, _Reason} = Error -> Error
   end.
 
-%% FIXME: take EI_CLASS as parameter
--spec make_Ehdr() -> #elf_Ehdr{}.
-make_Ehdr() ->
+-spec make_Ehdr(elfclass()) -> #elf_Ehdr{}.
+make_Ehdr(EC) ->
+  {EhSize, PhEntSize, ShEntSize} = ehdr_params(EC),
   Ident =
     tuple_to_list(
       erlang:make_tuple(
@@ -97,7 +97,7 @@ make_Ehdr() ->
         , {1 + ?EI_MAG1, ?ELFMAG1}
         , {1 + ?EI_MAG2, ?ELFMAG2}
         , {1 + ?EI_MAG3, ?ELFMAG3}
-        , {1 + ?EI_CLASS, ?ELFCLASS36} % TODO: target-specific
+        , {1 + ?EI_CLASS, EC}
         , {1 + ?EI_DATA, ?ELFDATA2MSB} % TODO: target-specific
         , {1 + ?EI_VERSION, ?EV_CURRENT}
         , {1 + ?EI_OSABI, ?ELFOSABI_NONE} % TODO: ELFOSABI_LINUX instead?
@@ -111,13 +111,16 @@ make_Ehdr() ->
            , e_phoff = 0
            , e_shoff = 0
            , e_flags = 0
-           , e_ehsize = ?ELF36_EHDR_SIZEOF
-           , e_phentsize = ?ELF36_PHDR_SIZEOF
+           , e_ehsize = EhSize
+           , e_phentsize = PhEntSize
            , e_phnum = 0
-           , e_shentsize = ?ELF36_SHDR_SIZEOF
+           , e_shentsize = ShEntSize
            , e_shnum = 0
            , e_shstrndx = 0
            }.
+
+ehdr_params(_) ->
+  {?ELF32_EHDR_SIZEOF, ?ELF32_PHDR_SIZEOF, ?ELF32_SHDR_SIZEOF}. % ELF-36 is the same
 
 -spec write_Ehdr(elfclass(), iodev(), #elf_Ehdr{})
       -> ok | {error, {module(), term()}}.
@@ -216,6 +219,7 @@ check_Ehdr_ei_class(Ehdr) ->
   Class = lists:nth(?EI_CLASS + 1, Ident),
   case Class of
     %% FIXME: extend
+    ?ELFCLASS32 -> ok;
     ?ELFCLASS36 -> ok;
     _ -> {error, {?MODULE, {wrong_ei_class, Class}}}
   end.
@@ -290,7 +294,7 @@ check_Ehdr_e_ehsize(Ehdr) ->
   #elf_Ehdr{e_ehsize = EhSize} = Ehdr,
   case EhSize of
     %% FIXME: extend
-    ?ELF36_EHDR_SIZEOF -> ok;
+    ?ELF32_EHDR_SIZEOF -> ok; % ELF-36 is the same
     _ -> {error, {?MODULE, {wrong_e_ehsize, EhSize}}}
   end.
 
@@ -299,7 +303,7 @@ check_Ehdr_e_phentsize(Ehdr) ->
   case {PhOff, PhEntSize} of
     {0, _} -> ok;
     %% FIXME: extend
-    {_, ?ELF36_PHDR_SIZEOF} -> ok;
+    {_, ?ELF32_PHDR_SIZEOF} -> ok; % ELF-36 is the same
     _ -> {error, {?MODULE, {wrong_e_phentsize, PhEntSize}}}
   end.
 
@@ -308,7 +312,7 @@ check_Ehdr_e_shentsize(Ehdr) ->
   case {ShOff, ShEntSize} of
     {0, _} -> ok;
     %% FIXME: extend
-    {_, ?ELF36_SHDR_SIZEOF} -> ok;
+    {_, ?ELF32_SHDR_SIZEOF} -> ok; % ELF-36 is the same
     _ -> {error, {?MODULE, {wrong_e_shentsize, ShEntSize}}}
   end.
 
@@ -729,11 +733,17 @@ read_u1(FP) ->
     Other -> Other % {ok, _Byte} or {error, _Reason}
   end.
 
-read_u2({?ELFCLASS36, _} = FP) -> read(FP, 2, fun extint:uint18_from_ext/1).
+read_u2({?ELFCLASS36, _} = FP) -> read(FP, 2, fun extint:uint18_from_ext/1);
+read_u2(FP) -> read(FP, 2, fun extint:uint16_from_ext/1).
 
-read_u4({?ELFCLASS36, _} = FP) -> read(FP, 4, fun extint:uint36_from_ext/1).
+read_u4({?ELFCLASS36, _} = FP) -> read(FP, 4, fun extint:uint36_from_ext/1);
+read_u4(FP) -> read(FP, 4, fun extint:uint32_from_ext/1).
 
-read_s4({?ELFCLASS36, _} = FP) -> read(FP, 4, fun sint36_from_ext/1).
+read_s4({?ELFCLASS36, _} = FP) -> read(FP, 4, fun sint36_from_ext/1);
+read_s4(FP) -> read(FP, 4, fun sint32_from_ext/1).
+
+sint32_from_ext(Bytes) ->
+  sext:sext(extint:uint32_from_ext(Bytes), 32).
 
 sint36_from_ext(Bytes) ->
   sext:sext(extint:uint36_from_ext(Bytes), 36).
@@ -751,7 +761,8 @@ write_Half(FP, Half) -> write_u2(FP, Half).
 
 write_Off(FP, Off) -> write_u4(FP, Off).
 
-write_Sword(FP, Sword) -> write_u4(FP, Sword band ?UINT36_MAX).
+write_Sword({?ELFCLASS36, _} = FP, Sword) -> write_u4(FP, Sword band ?UINT36_MAX);
+write_Sword(FP, Sword) -> write_u4(FP, Sword band ?UINT32_MAX).
 
 write_Uchar(FP, Uchar) -> write_u1(FP, Uchar).
 
@@ -761,24 +772,34 @@ write_u1(FP, Uchar) ->
   fputc(Uchar, FP).
 
 write_u2({?ELFCLASS36, _} = FP, Half) ->
-  fputs(extint:uint18_to_ext(Half), FP).
+  fputs(extint:uint18_to_ext(Half), FP);
+write_u2(FP, Half) ->
+  fputs(extint:uint16_to_ext(Half), FP).
 
 write_u4({?ELFCLASS36, _} = FP, Word) ->
-  fputs(extint:uint36_to_ext(Word), FP).
+  fputs(extint:uint36_to_ext(Word), FP);
+write_u4(FP, Word) ->
+  fputs(extint:uint32_to_ext(Word), FP).
 
 %% I/O dispatchers =============================================================
 
-fgetc({?ELFCLASS36, IoDev}) -> stdio9:fgetc(IoDev).
+fgetc({?ELFCLASS36, IoDev}) -> stdio9:fgetc(IoDev);
+fgetc({_, IoDev}) -> stdio8:fgetc(IoDev).
 
-fputc(Byte, {?ELFCLASS36, IoDev}) -> stdio9:fputc(Byte, IoDev).
+fputc(Byte, {?ELFCLASS36, IoDev}) -> stdio9:fputc(Byte, IoDev);
+fputc(Byte, {_, IoDev}) -> stdio8:fputc(Byte, IoDev).
 
-fputs(Bytes, {?ELFCLASS36, IoDev}) -> stdio9:fputs(Bytes, IoDev).
+fputs(Bytes, {?ELFCLASS36, IoDev}) -> stdio9:fputs(Bytes, IoDev);
+fputs(Bytes, {_, IoDev}) -> stdio8:fputs(Bytes, IoDev).
 
-fread(NrBytes, {?ELFCLASS36, IoDev}) -> stdio9:fread(NrBytes, IoDev).
+fread(NrBytes, {?ELFCLASS36, IoDev}) -> stdio9:fread(NrBytes, IoDev);
+fread(NrBytes, {_, IoDev}) -> stdio8:fread(NrBytes, IoDev).
 
-fseek({?ELFCLASS36, IoDev}, Position) -> stdio9:fseek(IoDev, Position).
+fseek({?ELFCLASS36, IoDev}, Position) -> stdio9:fseek(IoDev, Position);
+fseek({_, IoDev}, Position) -> stdio8:fseek(IoDev, Position).
 
-ftell({?ELFCLASS36, IoDev}) -> stdio9:ftell(IoDev).
+ftell({?ELFCLASS36, IoDev}) -> stdio9:ftell(IoDev);
+ftell({_, IoDev}) -> stdio8:ftell(IoDev).
 
 %% Error Formatting ============================================================
 

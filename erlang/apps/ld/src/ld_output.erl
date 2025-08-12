@@ -81,7 +81,7 @@ output_elf_header(Entry, Segments, _GlobalMap, _FileMap, FP, Offset = 0) ->
   PhNum = length(Segments),
   true = PhNum < ?PN_XNUM, % assert; TODO: otherwise store PhNum in Shdr0.sh_info
   PhOff = ?ELF36_EHDR_SIZEOF,
-  Ehdr0 = libelf:make_Ehdr(),
+  Ehdr0 = libelf:make_Ehdr(?ELFCLASS36),
   Ehdr = Ehdr0#elf_Ehdr{ e_type = ?ET_EXEC
                        , e_entry = Entry
                        , e_phoff = PhOff
