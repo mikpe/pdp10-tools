@@ -443,24 +443,24 @@ print_phtab(Opts, {EC, IoDev} = FP, Ehdr) ->
       io:format("Program Headers:\n"),
       io:format("  Type   Offset        VirtAddr      PhysAddr      FileSiz     MemSiz      Flg Align\n"),
       lists:foreach(fun print_phdr/1, PhTab),
-      disassemble_phtab(Opts, FP, PhTab),
+      disassemble_phtab(Opts, FP, PhTab, Ehdr),
       io:format("\n");
     {error, Reason} ->
       escript_runtime:errmsg("Error reading program headers: ~s\n",
                              [error:format(Reason)])
   end.
 
-disassemble_phtab(#options{disassemble = false}, _FP, _PhTab) -> ok;
-disassemble_phtab(_Opts, FP, PhTab) -> do_disassemble_phtab(PhTab, 0, FP).
+disassemble_phtab(#options{disassemble = false}, _FP, _PhTab, _Ehdr) -> ok;
+disassemble_phtab(_Opts, FP, PhTab, Ehdr) -> do_disassemble_phtab(PhTab, 0, FP, Ehdr).
 
-do_disassemble_phtab([], _PhNdx, _FP) -> ok;
-do_disassemble_phtab([Phdr | PhTab], PhNdx, FP) ->
-  case disassemble_phdr(Phdr, PhNdx, FP) of
-    ok -> do_disassemble_phtab(PhTab, PhNdx + 1, FP);
+do_disassemble_phtab([], _PhNdx, _FP, _Ehdr) -> ok;
+do_disassemble_phtab([Phdr | PhTab], PhNdx, FP, Ehdr) ->
+  case disassemble_phdr(Phdr, PhNdx, FP, Ehdr) of
+    ok -> do_disassemble_phtab(PhTab, PhNdx + 1, FP, Ehdr);
     {error, _Reason} = Error -> Error
   end.
 
-disassemble_phdr(Phdr, PhNdx, FP) ->
+disassemble_phdr(Phdr, PhNdx, FP, Ehdr) ->
   case Phdr of
     #elf_Phdr{ p_type = ?PT_LOAD
              , p_offset = Offset
@@ -468,11 +468,43 @@ disassemble_phdr(Phdr, PhNdx, FP) ->
              , p_filesz = Size
              , p_flags = Flags
              } when (Flags band ?PF_X) =/= 0 ->
-      io:format("\nDisassembly of segment nr ~.10b:\n", [PhNdx]),
-      disassemble_unit(Offset, Size, VAddr, FP, _Labels = []);
+      io:format("\nDisassembly of segment nr ~.10b:\n\n", [PhNdx]),
+      AvoidRegions = avoid_regions(Offset, Ehdr),
+      disassemble_unit(Offset, Size, VAddr, FP, _Labels = [], AvoidRegions);
     #elf_Phdr{} ->
       ok
   end.
+
+%% GNU ld tends to create executables with the ELF header and program and section
+%% tables mapped into the main PF_X PT_LOAD segment.  We need to avoid processing
+%% such meta-data as if it was proper PDP-10 encoded code or data.
+avoid_regions(_Offset = 0, Ehdr) ->
+  #elf_Ehdr{ e_phoff = PhOff
+           , e_shoff = ShOff
+           , e_ehsize = EhSize
+           , e_phentsize = PhEntSize
+           , e_phnum = PhNum
+           , e_shentsize = ShEntSize
+           , e_shnum = ShNum
+           } = Ehdr,
+  ShArea =
+    case ShNum of
+      0 -> [];
+      _ -> [{ShOff, ShOff + ShNum * ShEntSize - 1}]
+    end,
+  PhArea =
+    case PhNum of
+      0 -> [];
+      _ -> [{PhOff, PhOff + PhNum * PhEntSize - 1}]
+    end,
+  EhArea = [{0, EhSize - 1}],
+  EhArea ++ PhArea ++ ShArea;
+avoid_regions(_Offset, _Ehdr) -> [].
+
+%% Regions is a very short list (max 3 elements).
+avoid_offset(_Offset, _Regions = []) -> false;
+avoid_offset(Offset, [{Start, End} | Regions]) ->
+  (Offset >= Start andalso Offset =< End) orelse avoid_offset(Offset, Regions).
 
 print_phdr(Phdr) ->
   io:format("  ~-6s 0~12.8.0b 0~12.8.0b 0~12.8.0b 0x~9.16.0b 0x~9.16.0b ~-3s 0x~.16b\n",
@@ -680,36 +712,58 @@ disassemble_section(Shdr, ShNdx, FP, SymTab) ->
              } ->
       io:format("Disassembly of section nr ~.10b ~s:\n\n",
                 [ShNdx, sh_name(Shdr)]),
-      disassemble_unit(ShOffset, ShSize, ShAddr, FP, labels(SymTab, ShNdx));
+      disassemble_unit(ShOffset, ShSize, ShAddr, FP, labels(SymTab, ShNdx), []);
     #elf_Shdr{} ->
       ok
   end.
 
-disassemble_unit(FileOffset, Size, VAddr, FP, Labels) ->
+disassemble_unit(FileOffset, Size, VAddr, FP, Labels, AvoidRegions) ->
   case libelf:fseek(FP, {bof, FileOffset}) of
-    ok -> disassemble_insns(0, Size, VAddr, FP, Labels);
+    ok -> disassemble_insns(0, Size, VAddr, FP, Labels, wordsize(FP), AvoidRegions);
     {error, _Reason} = Error -> Error
   end.
 
-disassemble_insns(Offset, Size, VAddr, FP, Labels) when Offset < Size ->
-  case read_uint36(FP) of
-    {ok, InsnWord} ->
-      RestLabels = print_labels(Labels, Offset),
-      io:format(" 0~12.8.0b:\t0~12.8.0b\t", [VAddr + Offset, InsnWord]),
-      disassemble_insn(InsnWord),
-      disassemble_insns(Offset + 4, Size, VAddr, FP, RestLabels);
+disassemble_insns(Offset, Size, VAddr, FP, Labels, Wordsize, AvoidRegions) when Offset < Size ->
+  case avoid_offset(Offset, AvoidRegions) of
+    true ->
+      ok = libelf:fseek(FP, {cur, Wordsize}),
+      disassemble_insns(Offset + Wordsize, Size, VAddr, FP, Labels, Wordsize, AvoidRegions);
+    false ->
+      case read_uint36(FP) of
+        {ok, InsnWord} ->
+          RestLabels = print_labels(Labels, Offset),
+          io:format(" 0~12.8.0b:\t0~12.8.0b\t", [VAddr + Offset, InsnWord]),
+          disassemble_insn(InsnWord),
+          disassemble_insns(Offset + Wordsize, Size, VAddr, FP, RestLabels, Wordsize, AvoidRegions);
+        {error, _Reason} = Error -> Error
+      end
+  end;
+disassemble_insns(_Offset, _Size, _VAddr, _FP, _Labels, _Wordsize, _AvoidRegions) -> ok.
+
+wordsize({?ELFCLASS64, _}) -> 8;
+wordsize(_) -> 4.
+
+read_uint36({?ELFCLASS64, _} = FP) ->
+  case libelf:fread(8, FP) of
+    {ok, [B0, B1, B2, B3, B4, B5, B6, B7]} ->
+      0 = (B0 bor B2 bor B4 bor B6) band bnot 1, % assert
+      N0 = (B0 bsl 8) bor B1,
+      N1 = (B2 bsl 8) bor B3,
+      N2 = (B4 bsl 8) bor B5,
+      N3 = (B6 bsl 8) bor B7,
+      {ok, make_uint36(N0, N1, N2, N3)};
+    eof -> {error, eof};
     {error, _Reason} = Error -> Error
   end;
-disassemble_insns(_Offset, _Size, _VAddr, _FP, _Labels) -> ok.
-
-%% TODO: for ELF-64 read 4 nonets from 8 octets and combine
-read_uint36(FP) ->
+read_uint36({?ELFCLASS36, _} = FP) ->
   case libelf:fread(4, FP) of
-    {ok, [B0, B1, B2, B3]} ->
-      {ok, (((((B0 bsl 9) bor B1) bsl 9) bor B2) bsl 9) bor B3};
+    {ok, [N0, N1, N2, N3]} -> {ok, make_uint36(N0, N1, N2, N3)};
     eof -> {error, eof};
     {error, _Reason} = Error -> Error
   end.
+
+make_uint36(N0, N1, N2, N3) ->
+  (((((N0 bsl 9) bor N1) bsl 9) bor N2) bsl 9) bor N3.
 
 disassemble_insn(InsnWord) ->
   Models = ?PDP10_KL10_271up,
