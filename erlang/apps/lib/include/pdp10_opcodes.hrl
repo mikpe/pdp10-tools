@@ -203,7 +203,6 @@
           %% the first word, and the A_OPCODE(00) EXTENDED format for the second word.
         , high13 :: 0..((1 bsl 13) - 1)
         , format :: pdp10_insn_format()
-        , a_unused = false :: boolean()
         , e_unused = false :: boolean()
         , extended = false :: boolean()
         , models :: pdp10_cpu_models()
