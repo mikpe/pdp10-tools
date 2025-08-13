@@ -25,9 +25,9 @@
 %%% ELF executables are in general not restricted to section 0, which means we
 %%% have to generate what KLH10 calls "DEC EXE sharable SAVE format" files.
 %%%
-%%% Our representation of 36-bit words in octet files matches what KLH10 calls
-%%% "high-density" or "H36" format, which isn't its default. You'll need to
-%%% "set ld_fmt=h36" before loading the bootable file.
+%%% By default the output is in KLH10's default C36 format.  The --format=h36
+%%% option changes the output to the more compact H36 format, but in that case
+%%% you MUST execute "set ld_fmt=h36" in KLH10's shell before loading the file.
 
 -module(elf2boot).
 -export([ main/1
