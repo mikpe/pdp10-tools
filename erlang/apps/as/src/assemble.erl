@@ -26,6 +26,7 @@
 
 -include("tunit.hrl").
 -include_lib("lib/include/libelf.hrl").
+-include_lib("lib/include/pdp10_relocs.hrl").
 
 -spec tunit(#tunit{}) -> {ok, #tunit{}} | {error, {module(), term()}}.
 tunit(Tunit) ->

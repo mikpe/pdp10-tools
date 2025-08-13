@@ -773,21 +773,6 @@
 -define(ELF36_R_TYPE(I),        ?ELF32_R_TYPE((I))).
 -define(ELF36_R_INFO(S,T),      ?ELF32_R_INFO((S),(T))).
 
-%% Processor-specific relocation types.
-
--define(R_PDP10_NONE,           0).     % no reloc
--define(R_PDP10_IFIW,           1).     % local address to global word (IFIW)
--define(R_PDP10_EFIW,           2).     % global word (EFIW)
--define(R_PDP10_LOCAL_W,        3).     % local word
--define(R_PDP10_LOCAL_B,        4).     % local byte pointer to 9-bit byte
--define(R_PDP10_LOCAL_H,        5).     % local byte pointer to 18-bit halfword
--define(R_PDP10_GLOBAL_B,       6).     % global byte pointer to 9-bit byte
--define(R_PDP10_GLOBAL_H,       7).     % global byte pointer to 18-bit halfword
--define(R_PDP10_LITERAL_W,      8).     % word-sized literal
--define(R_PDP10_LITERAL_H,      9).     % halfword-sized literal
--define(R_PDP10_LITERAL_B,      10).    % byte-sized literal
--define(R_PDP10_max,            10).    % last entry
-
 %% Note segments
 
 -record(elf_Note,

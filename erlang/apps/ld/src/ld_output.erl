@@ -36,6 +36,7 @@
         ]).
 
 -include("ld_internal.hrl").
+-include_lib("lib/include/pdp10_relocs.hrl").
 
 %% Output ======================================================================
 
