@@ -180,23 +180,23 @@ readelf(Opts, [File | Files]) ->
   end.
 
 readelf_file(Opts, File) ->
-  case pdp10_stdio:fopen(File, [raw, read]) of
+  case libelf:fopen(File, [raw, read]) of
     {ok, FP} ->
       try readelf_ehdr(Opts, FP)
-      after pdp10_stdio:fclose(FP) end;
+      after libelf:fclose(FP) end;
     {error, _Reason} = Error -> Error
   end.
 
-readelf_ehdr(Opts, FP) ->
-  case libelf:read_Ehdr(?ELFCLASS36, FP) of
+readelf_ehdr(Opts, {EC, IoDev} = FP) ->
+  case libelf:read_Ehdr(EC, IoDev) of
     {ok, Ehdr} ->
       print_ehdr(Opts, Ehdr),
       readelf_shtab(Opts, FP, Ehdr);
     {error, _Reason} = Error -> Error
   end.
 
-readelf_shtab(Opts, FP, Ehdr) ->
-  case libelf:read_ShTab(?ELFCLASS36, FP, Ehdr) of
+readelf_shtab(Opts, {EC, IoDev} = FP, Ehdr) ->
+  case libelf:read_ShTab(EC, IoDev, Ehdr) of
     {ok, ShTab} ->
       print_shtab(Opts, ShTab),
       print_phtab(Opts, FP, Ehdr),
@@ -204,8 +204,8 @@ readelf_shtab(Opts, FP, Ehdr) ->
     {error, _Reason} = Error -> Error
   end.
 
-readelf_symtab(Opts, FP, ShTab) ->
-  case libelf:read_SymTab(?ELFCLASS36, FP, ShTab) of
+readelf_symtab(Opts, {EC, IoDev} = FP, ShTab) ->
+  case libelf:read_SymTab(EC, IoDev, ShTab) of
     {ok, {SymTab, ShNdx}} ->
       print_relatab(Opts, FP, SymTab, ShNdx, ShTab),
       print_symtab(Opts, SymTab, ShNdx, ShTab),
@@ -435,8 +435,8 @@ sh_flags([], _I, ShFlags, Mask, Acc) ->
 %% print_phtab =================================================================
 
 print_phtab(#options{segments = false}, _FP, _Ehdr) -> ok;
-print_phtab(Opts, FP, Ehdr) ->
-  case libelf:read_PhTab(?ELFCLASS36, FP, Ehdr) of
+print_phtab(Opts, {EC, IoDev} = FP, Ehdr) ->
+  case libelf:read_PhTab(EC, IoDev, Ehdr) of
     {ok, []} ->
       io:format("There are no program headers in this file.\n\n");
     {ok, PhTab} ->
@@ -537,8 +537,8 @@ print_relatab2([], _FP, _SymTab, _SymTabNdx, _Any = false) ->
 print_relatab2([], _FP, _SymTab, _SymTabNdx, _Any = true) ->
   ok.
 
-print_relatab(Shdr, FP, SymTab) ->
-  case libelf:read_RelaTab(?ELFCLASS36, FP, Shdr) of
+print_relatab(Shdr, {EC, IoDev} = _FP, SymTab) ->
+  case libelf:read_RelaTab(EC, IoDev, Shdr) of
     {ok, Relas} ->
       NrRelas = length(Relas),
       io:format("Relocation section '~s' at offset 0x~.16b contains ~.10b entr~s:\n",
@@ -686,7 +686,7 @@ disassemble_section(Shdr, ShNdx, FP, SymTab) ->
   end.
 
 disassemble_unit(FileOffset, Size, VAddr, FP, Labels) ->
-  case pdp10_stdio:fseek(FP, {bof, FileOffset}) of
+  case libelf:fseek(FP, {bof, FileOffset}) of
     ok -> disassemble_insns(0, Size, VAddr, FP, Labels);
     {error, _Reason} = Error -> Error
   end.
@@ -704,7 +704,7 @@ disassemble_insns(_Offset, _Size, _VAddr, _FP, _Labels) -> ok.
 
 %% TODO: for ELF-64 read 4 nonets from 8 octets and combine
 read_uint36(FP) ->
-  case pdp10_stdio:fread(1, 4, FP) of
+  case libelf:fread(4, FP) of
     {ok, [B0, B1, B2, B3]} ->
       {ok, (((((B0 bsl 9) bor B1) bsl 9) bor B2) bsl 9) bor B3};
     eof -> {error, eof};

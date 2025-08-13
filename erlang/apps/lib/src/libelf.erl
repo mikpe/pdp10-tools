@@ -20,7 +20,11 @@
 
 -module(libelf).
 
--export([ read_Ehdr/2
+-export([ fclose/1
+        , fopen/2
+        , fread/2
+        , fseek/2
+        , read_Ehdr/2
         , read_Ehdr/4
         , read_PhTab/3
         , read_PhTab/5
@@ -40,13 +44,17 @@
 -include_lib("lib/include/stdint.hrl").
 
 -type elfclass() :: ?ELFCLASS32 | ?ELFCLASS36 | ?ELFCLASS64.
+-type file() :: {elfclass(), iodev()}.
+-type iobyte() :: byte() | 0..511.
 -type iodev() :: stdio8:file() | stdio9:file().
+-type location() :: file:location().
 
 -export_type([ elfclass/0
+             , file/0
+             , iobyte/0
              , iodev/0
+             , location/0
              ]).
-
--type file() :: {elfclass(), iodev()}.
 
 -type read_field() :: fun((file())
                       -> {ok, integer()} | {error, {module(), term()}}).
@@ -57,6 +65,55 @@
         { tag :: atom()
         , fields :: [{read_field(), write_field()}]
         }).
+
+%% Open an ELF file, detect if it's ELF-32/64 or ELF-36 ========================
+
+-spec fopen(file:name_all(), [file:mode()]) -> {ok, file()} | {error, {module(), term()}}.
+fopen(Path, Modes) ->
+  fopen(Path, Modes, fun stdio8:fopen/2, ?ELFCLASS32, fun fopen9/2).
+
+fopen9(Path, Modes) ->
+  fopen(Path, Modes, fun stdio9:fopen/2, ?ELFCLASS36, fun fallback9/2).
+
+fallback9(_Path, _Modes) ->
+  {error, {?MODULE, not_elf}}.
+
+fopen(Path, Modes, Fopen, EC0, Fallback) ->
+  case Fopen(Path, Modes) of
+    {ok, IoDev} ->
+      File = {EC0, IoDev},
+      case get_ec(File) of
+        {ok, EC1} ->
+          case fseek(File, {bof, 0}) of
+            ok -> {ok, {EC1, IoDev}};
+            {error, _Reason} = Error -> Error
+          end;
+        false ->
+          case fclose(File) of
+            ok -> Fallback(Path, Modes);
+            {error, _Reason} = Error -> Error
+          end;
+        EofOrError ->
+          _ = fclose(File),
+          EofOrError % if we can't read 5 bytes then the fallback can't either
+      end;
+    {error, _Reason} = Error ->
+      Error % if we can't open the file then the fallback can't either
+  end.
+
+get_ec(FP) ->
+  case fread(5, FP) of
+    {ok, [?ELFMAG0, ?ELFMAG1, ?ELFMAG2, ?ELFMAG3, EC]} ->
+      case is_valid_ec(FP, EC) of
+        true -> {ok, EC};
+        false -> false
+      end;
+    {ok, _} -> false;
+    EofOrError -> EofOrError
+  end.
+
+is_valid_ec({?ELFCLASS36, _}, EC) -> EC =:= ?ELFCLASS36;
+is_valid_ec({_, _}, EC) -> EC =:= ?ELFCLASS64 orelse EC =:= ?ELFCLASS32.
 
 %% I/O of #elf_Ehdr{} ==========================================================
 
@@ -336,7 +393,7 @@ read_PhTab(EC, IoDev, Base, Limit, Ehdr) ->
   if PhOff =:= 0; PhNum =:= 0 ->
        {ok, []};
      true ->
-       true = PhEntSize =:= ?ELF36_PHDR_SIZEOF, % assert
+       true = PhEntSize =:= phdr_sizeof(EC), % assert
        %% FIXME: if PhNum = ?PN_XNUM the real PhNum is stored in Shdr0.sh_info
        case fseek(FP, {bof, Base + PhOff}) of
          ok ->
@@ -359,6 +416,9 @@ do_read_PhTab(FP, PhNum, Phdrs) ->
     {error, _Reason} = Error -> Error
   end.
 
+phdr_sizeof(?ELFCLASS64) -> ?ELF64_PHDR_SIZEOF;
+phdr_sizeof(_) -> ?ELF32_PHDR_SIZEOF. % ELF-36 is the same
+
 %% I/O of relocation tables ====================================================
 
 -spec read_RelaTab(elfclass(), iodev(), #elf_Shdr{})
@@ -377,11 +437,12 @@ read_RelaTab(EC, IoDev, Base, Limit, Shdr) ->
            } = Shdr,
   case ShType of
     ?SHT_RELA ->
+      RelaSizeof = rela_sizeof(EC),
       case ShEntSize of
-        ?ELF36_RELA_SIZEOF ->
-          case ShSize rem ?ELF36_RELA_SIZEOF of
+        RelaSizeof ->
+          case ShSize rem RelaSizeof of
             0 ->
-              RelaNum = ShSize div ?ELF36_RELA_SIZEOF,
+              RelaNum = ShSize div RelaSizeof,
               case RelaNum of
                 0 -> {ok, []};
                 _ ->
@@ -411,6 +472,9 @@ do_read_RelaTab(FP, RelaNum, Relas) when RelaNum > 0 ->
     {ok, Rela} -> do_read_RelaTab(FP, RelaNum - 1, [Rela | Relas]);
     {error, _Reason} = Error -> Error
   end.
+
+rela_sizeof(?ELFCLASS64) -> ?ELF64_RELA_SIZEOF;
+rela_sizeof(_) -> ?ELF32_RELA_SIZEOF. % ELF-36 is the same
 
 %% I/O of ShTab ================================================================
 
@@ -550,14 +614,15 @@ read_SymTab(EC, IoDev, Base, Limit, ShTab) ->
                , sh_size = ShSize
                , sh_offset = ShOffset
                } = Shdr,
-      if ShEntSize =/= ?ELF36_SYM_SIZEOF ->
+      SymSizeof = sym_sizeof(EC),
+      if ShEntSize =/= SymSizeof ->
            {error, {?MODULE, {wrong_symtab_sh_entsize, ShEntSize}}};
-         (ShSize rem ?ELF36_SYM_SIZEOF) =/= 0 ->
+         (ShSize rem ShEntSize) =/= 0 ->
            {error, {?MODULE, {wrong_symtab_sh_size, ShSize}}};
          true ->
            case read_StrTab(FP, Base, Limit, ShTab, ShLink) of
              {ok, StrTab} ->
-               SymNum = ShSize div ?ELF36_SYM_SIZEOF,
+               SymNum = ShSize div ShEntSize,
                case SymNum of
                  0 -> {ok, {[], ShNdx}};
                  _ ->
@@ -589,6 +654,9 @@ do_read_SymTab(FP, SymNum, Syms) when SymNum > 0 ->
     {ok, Sym} -> do_read_SymTab(FP, SymNum - 1, [Sym | Syms]);
     {error, _Reason} = Error -> Error
   end.
+
+sym_sizeof(?ELFCLASS64) -> ?ELF64_SYM_SIZEOF;
+sym_sizeof(_) -> ?ELF32_SYM_SIZEOF. % ELF-36 is the same
 
 find_SymTab(ShTab) -> find_SymTab(ShTab, 0).
 
@@ -848,21 +916,31 @@ write_u8(FP, Word) ->
 
 %% I/O dispatchers =============================================================
 
+-spec fclose(file()) -> ok | {error, {module(), term()}}.
+fclose({?ELFCLASS36, IoDev}) -> stdio9:fclose(IoDev);
+fclose({_, IoDev}) -> stdio8:fclose(IoDev).
+
+-spec fgetc(file()) -> {ok, iobyte()} | eof | {error, {module(), term()}}.
 fgetc({?ELFCLASS36, IoDev}) -> stdio9:fgetc(IoDev);
 fgetc({_, IoDev}) -> stdio8:fgetc(IoDev).
 
+-spec fputc(iobyte(), file()) -> ok | {error, {module(), term()}}.
 fputc(Byte, {?ELFCLASS36, IoDev}) -> stdio9:fputc(Byte, IoDev);
 fputc(Byte, {_, IoDev}) -> stdio8:fputc(Byte, IoDev).
 
+-spec fputs([iobyte()], file()) -> ok | {error, {module(), term()}}.
 fputs(Bytes, {?ELFCLASS36, IoDev}) -> stdio9:fputs(Bytes, IoDev);
 fputs(Bytes, {_, IoDev}) -> stdio8:fputs(Bytes, IoDev).
 
+-spec fread(non_neg_integer(), file()) -> {ok, [iobyte()]} | eof | {error, {module(), term()}}.
 fread(NrBytes, {?ELFCLASS36, IoDev}) -> stdio9:fread(NrBytes, IoDev);
 fread(NrBytes, {_, IoDev}) -> stdio8:fread(NrBytes, IoDev).
 
+-spec fseek(file(), location()) -> ok | {error, {module(), term()}}.
 fseek({?ELFCLASS36, IoDev}, Position) -> stdio9:fseek(IoDev, Position);
 fseek({_, IoDev}, Position) -> stdio8:fseek(IoDev, Position).
 
+-spec ftell(file()) -> non_neg_integer().
 ftell({?ELFCLASS36, IoDev}) -> stdio9:ftell(IoDev);
 ftell({_, IoDev}) -> stdio8:ftell(IoDev).
 
@@ -928,6 +1006,8 @@ format_error(Reason) ->
       "string table not NUL-terminated";
     {limit, What} ->
       io_lib:format("~s extends beyond limit of embedded file", [What]);
+    not_elf ->
+      "not an ELF file";
     _ ->
       io_lib:format("~p", [Reason])
   end.
