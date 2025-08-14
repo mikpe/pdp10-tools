@@ -32,6 +32,7 @@
         , uint32_from_ext/1
         , uint32_to_ext/1
         , uint36_from_ext/1
+        , uint36_from_s64/1
         , uint36_to_c36/1
         , uint36_to_ext/1
         , uint64_from_ext/1
@@ -76,6 +77,19 @@ uint36_from_ext([B0, B1, B2, B3]) ->
   ((B1 band ?UINT9_MAX) bsl 18) bor
   ((B2 band ?UINT9_MAX) bsl  9) bor
    (B3 band ?UINT9_MAX).
+
+%% S64 is the sparse representation of a 36-bit word in 64 bits where
+%% each 9-bit field is zero-extended to 16 bits, i.e. two octets.
+%% The PDP-10 port of GNU binutils uses this format.
+%% This converts S64-encoded data back to a 36-bit word.
+-spec uint36_from_s64([uint8_t()]) -> uint36_t().
+uint36_from_s64([B0, B1, B2, B3, B4, B5, B6, B7]) ->
+  0 = (B0 bor B2 bor B4 bor B6) band bnot 1, % assert
+  N0 = (B0 bsl 8) bor B1,
+  N1 = (B2 bsl 8) bor B3,
+  N2 = (B4 bsl 8) bor B5,
+  N3 = (B6 bsl 8) bor B7,
+  uint36_from_ext([N0, N1, N2, N3]).
 
 -spec uint36_to_ext(uint36_t()) -> [uint9_t()].
 uint36_to_ext(U36) ->

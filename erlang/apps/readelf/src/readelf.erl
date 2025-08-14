@@ -745,25 +745,16 @@ wordsize(_) -> 4.
 
 read_uint36({?ELFCLASS64, _} = FP) ->
   case libelf:fread(8, FP) of
-    {ok, [B0, B1, B2, B3, B4, B5, B6, B7]} ->
-      0 = (B0 bor B2 bor B4 bor B6) band bnot 1, % assert
-      N0 = (B0 bsl 8) bor B1,
-      N1 = (B2 bsl 8) bor B3,
-      N2 = (B4 bsl 8) bor B5,
-      N3 = (B6 bsl 8) bor B7,
-      {ok, make_uint36(N0, N1, N2, N3)};
+    {ok, Bytes} -> {ok, extint:uint36_from_s64(Bytes)};
     eof -> {error, eof};
     {error, _Reason} = Error -> Error
   end;
 read_uint36({?ELFCLASS36, _} = FP) ->
   case libelf:fread(4, FP) of
-    {ok, [N0, N1, N2, N3]} -> {ok, make_uint36(N0, N1, N2, N3)};
+    {ok, Nonets} -> {ok, extint:uint36_from_ext(Nonets)};
     eof -> {error, eof};
     {error, _Reason} = Error -> Error
   end.
-
-make_uint36(N0, N1, N2, N3) ->
-  (((((N0 bsl 9) bor N1) bsl 9) bor N2) bsl 9) bor N3.
 
 disassemble_insn(InsnWord) ->
   Models = ?PDP10_KL10_271up,
