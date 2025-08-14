@@ -288,13 +288,7 @@ outfp_fseekw({h36, OutFP}, WordOffset) ->
   stdio9:fseek(OutFP, {bof, WordOffset*4}).
 
 outfp_fputw(Word, {c36, IoDev}) ->
-  B4 =  Word         band 15,
-  B3 = (Word bsr 4)  band 255,
-  B2 = (Word bsr 12) band 255,
-  B1 = (Word bsr 20) band 255,
-  B0 = (Word bsr 28) band 255,
-  Bytes = [B0, B1, B2, B3, B4],
-  stdio8:fputs(Bytes, IoDev);
+  stdio8:fputs(extint:uint36_to_c36(Word), IoDev);
 outfp_fputw(Word, {h36, OutFP}) ->
   stdio9:fputs(extint:uint36_to_ext(Word), OutFP).
 

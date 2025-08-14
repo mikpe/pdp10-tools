@@ -32,6 +32,7 @@
         , uint32_from_ext/1
         , uint32_to_ext/1
         , uint36_from_ext/1
+        , uint36_to_c36/1
         , uint36_to_ext/1
         , uint64_from_ext/1
         , uint64_to_ext/1
@@ -82,6 +83,15 @@ uint36_to_ext(U36) ->
    _B1 = (U36 bsr 18) band ?UINT9_MAX,
    _B2 = (U36 bsr  9) band ?UINT9_MAX,
    _B3 =  U36         band ?UINT9_MAX].
+
+%% This converts a 36-bit word to 5 octets in KLH10's C36 format.
+-spec uint36_to_c36(uint36_t()) -> [uint8_t()].
+uint36_to_c36(U36) ->
+  [_B0 = (U36 bsr 28) band 255,
+   _B1 = (U36 bsr 20) band 255,
+   _B2 = (U36 bsr 12) band 255,
+   _B3 = (U36 bsr  4) band 255,
+   _B4 =  U36         band  15].
 
 -spec uint64_from_ext([uint8_t()]) -> uint64_t().
 uint64_from_ext([B0, B1, B2, B3, B4, B5, B6, B7]) ->
