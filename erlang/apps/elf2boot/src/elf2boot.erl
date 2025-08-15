@@ -108,12 +108,12 @@ elf2boot(_Opts, _Files) ->
 
 elf2boot(Opts, InFile, OutFile) ->
   case read_elf(InFile) of
-    {ok, {InFP, Entry, Frags}} ->
-      print_entry(Opts, Entry, Frags),
+    {ok, {InFP, EntryWordNr, Frags}} ->
+      print_entry(Opts, EntryWordNr, Frags),
       try
-        write_boot(Opts, InFP, Entry, Frags, OutFile)
+        write_boot(Opts, InFP, EntryWordNr, Frags, OutFile)
       after
-        stdio9:fclose(InFP)
+        libelf:fclose(InFP)
       end;
     {error, Reason} ->
       escript_runtime:errmsg("~s\n", [error:format(Reason)]),
@@ -141,8 +141,8 @@ elf2boot(Opts, InFile, OutFile) ->
         , dst :: pagenr() % offset in output file
         }).
 
-write_boot(Opts, InFP, Entry, Frags, OutFile) ->
-  #frag{mem = EntryPageNr} = EntryFrag = entry_frag(Entry),
+write_boot(Opts, InFP, EntryWordNr, Frags, OutFile) ->
+  #frag{mem = EntryPageNr} = EntryFrag = entry_frag(EntryWordNr),
   Groups = groups([EntryFrag | Frags]),
   print_groups(Opts, Groups),
   case outfp_fopen(Opts#options.format, OutFile) of
@@ -216,8 +216,8 @@ write_words([Word | Words], DstFP) ->
 %% Copy data between I/O devices ===============================================
 
 iocpy(DstFP, SrcFP, SrcPageNr, NrWords) ->
-  SrcWordOffset = nrpages_to_nrwords(SrcPageNr),
-  case infp_fseekw(SrcFP, SrcWordOffset) of
+  SrcWordNr = nrpages_to_nrwords(SrcPageNr),
+  case infp_fseekw(SrcFP, SrcWordNr) of
     ok -> iocpy(DstFP, SrcFP, NrWords);
     {error, _Reason} = Error -> Error
   end.
@@ -237,17 +237,21 @@ iocpy(DstFP, SrcFP, NrWords) ->
 %% Word-oriented input file abstraction ========================================
 
 infp_fseekw(InFP, WordOffset) ->
-  stdio9:fseek(InFP, {bof, WordOffset*4}).
+  Wordsize = infp_wordsize(InFP),
+  libelf:fseek(InFP, {bof, WordOffset * Wordsize}).
 
-infp_fgetw(SrcFP) ->
-  infp_fgetw(_NrBytes = 4, SrcFP, _Acc = 0).
-
-infp_fgetw(0, _SrcFP, Word) -> {ok, Word};
-infp_fgetw(N, SrcFP, Acc) ->
-  case stdio9:fgetc(SrcFP) of
-    {ok, Nonet} -> infp_fgetw(N - 1, SrcFP, (Acc bsl 9) bor Nonet);
-    Else -> Else
+infp_fgetw(InFP) ->
+  Wordsize = infp_wordsize(InFP),
+  case libelf:fread(Wordsize, InFP) of
+    {ok, Bytes} ->
+      case Wordsize of
+        8 -> {ok, extint:uint36_from_s64(Bytes)};
+        4 -> {ok, extint:uint36_from_ext(Bytes)}
+      end;
+    EofOrError -> EofOrError
   end.
+
+infp_wordsize({EC, _IoDev}) -> wordsize(EC).
 
 %% Word-oriented output file abstraction =======================================
 %%
@@ -294,9 +298,9 @@ outfp_fputw(Word, {h36, OutFP}) ->
 
 %% Optional debugging output ===================================================
 
-print_entry(Opts, Entry, Frags) ->
+print_entry(Opts, EntryWordNr, Frags) ->
   case Opts#options.verbose of
-    true -> io:format("ELF:\tentry ~s\n\tfrags ~p\n", [format_lh(Entry bsr 2), Frags]);
+    true -> io:format("ELF:\tentry ~s\n\tfrags ~p\n", [format_lh(EntryWordNr), Frags]);
     false -> ok
   end.
 
@@ -425,39 +429,39 @@ groups(Frag, Frags, PageNr, Groups) ->
 %% - We use XJRSTF and a flag-PC double-word to jump to the real entry point,
 %%   and lay them out as an entry vector followed by the flag-PC double-word.
 
-entry_frag(Entry) ->
-  0 = Entry band 3, % assert
-  EntryPC = Entry bsr 2,
+entry_frag(EntryWordNr) ->
   MemPageNr = 1, % section 0 page 1 TODO: use Frags to find a free section 0 page
   Src =
     [ 8#254240_001003 % 0,,001000 XJRSTF 001003 ; entry vector word 0: start instr
     , 8#254240_001003 % 0,,001001 XJRSTF 001003 ; entry vector word 1: restart instr
     , 8#000000_000000 % 0,,001002 0             ; entry vector word 2: version info
     , 8#000000_000000 % 0,,001003 0             ; flag-PC double-word: program flags
-    , EntryPC         % 0,,001004 EntryPC       ; flag-PC double-word: PC
+    , EntryWordNr     % 0,,001004 EntryWordNr   ; flag-PC double-word: PC
     ],
   #frag{nrwords = length(Src), src = Src, mem = MemPageNr}.
 
 %% Reading ELF =================================================================
 
--spec read_elf(string()) -> {ok, {stdio9:file(), word(), [#frag{}]}} | {error, any()}.
+-spec read_elf(string()) -> {ok, {libelf:file(), word(), [#frag{}]}} | {error, any()}.
 read_elf(File) ->
-  case stdio9:fopen(File, [raw, read]) of
-    {ok, FP} ->
-      case libelf:read_Ehdr(?ELFCLASS36, FP) of
+  case libelf:fopen(File, [raw, read]) of
+    {ok, {EC, IoDev} = FP} ->
+      case libelf:read_Ehdr(EC, IoDev) of
         {ok, Ehdr} -> read_elf(FP, Ehdr);
         {error, _Reason} = Error -> Error
       end;
     {error, _Reason} = Error -> Error
   end.
 
-read_elf(FP, Ehdr) ->
+read_elf({EC, IoDev} = FP, Ehdr) ->
+  Log2NrBytesPerWord = log2_nr_bytes_per_word(EC),
+  Wordsize = 1 bsl Log2NrBytesPerWord,
   case Ehdr of
-    #elf_Ehdr{e_type = ?ET_EXEC, e_entry = Entry} when Entry band 3 =:= 0 ->
-      case libelf:read_PhTab(?ELFCLASS36, FP, Ehdr) of
+    #elf_Ehdr{e_type = ?ET_EXEC, e_entry = Entry} when Entry band (Wordsize - 1) =:= 0 ->
+      case libelf:read_PhTab(EC, IoDev, Ehdr) of
         {ok, PhTab} ->
-          case frags(PhTab) of
-            {ok, Frags} -> {ok, {FP, Entry, Frags}};
+          case frags(EC, PhTab) of
+            {ok, Frags} -> {ok, {FP, Entry bsr Log2NrBytesPerWord, Frags}};
             {error, _Reason} = Error -> Error
           end;
         {error, _Reason} = Error -> Error
@@ -465,17 +469,17 @@ read_elf(FP, Ehdr) ->
     _ -> {error, {?MODULE, invalid_ehdr}}
   end.
 
-frags(PhTab) -> frags(PhTab, 0, []).
+frags(EC, PhTab) -> frags(PhTab, EC, 0, []).
 
-frags([], _PhdrIx, Frags) -> {ok, lists:reverse(Frags)};
-frags([Phdr | PhTab], PhdrIx, Frags) ->
-  case frag(Phdr) of
+frags([], _EC, _PhdrIx, Frags) -> {ok, lists:reverse(Frags)};
+frags([Phdr | PhTab], EC, PhdrIx, Frags) ->
+  case frag(EC, Phdr) of
     error -> {error, {?MODULE, {invalid_phdr, PhdrIx}}};
-    false -> frags(PhTab, PhdrIx + 1, Frags);
-    Frag -> frags(PhTab, PhdrIx + 1, [Frag | Frags])
+    false -> frags(PhTab, EC, PhdrIx + 1, Frags);
+    Frag -> frags(PhTab, EC, PhdrIx + 1, [Frag | Frags])
   end.
 
-frag(Phdr) ->
+frag(EC, Phdr) ->
   case Phdr of
     #elf_Phdr{p_type = ?PT_NULL} -> false;
     #elf_Phdr{p_type = ?PT_LOAD, p_filesz = 0} -> false;
@@ -486,12 +490,19 @@ frag(Phdr) ->
              , p_memsz = MemSz
              , p_flags = Flags
              } ->
-      case (is_page_aligned(Offset) andalso
-            is_page_aligned(VAddr) andalso
+      Log2NrBytesPerWord = log2_nr_bytes_per_word(EC),
+      Wordsize = 1 bsl Log2NrBytesPerWord,
+      Log2NrWordsPerPage = 9,
+      Pagesize = Wordsize bsl Log2NrWordsPerPage,
+      case ((Offset band (Pagesize - 1)) =:= 0 andalso
+            (VAddr band (Pagesize - 1)) =:= 0 andalso
             MemSz >= FileSz andalso
             no_excess_flags(Flags)) of
         true ->
-          #frag{nrwords = nrbytes_to_nrwords(FileSz), src = nrbytes_to_nrpages(Offset), mem = nrbytes_to_nrpages(VAddr)};
+          #frag{ nrwords = (FileSz + (Wordsize - 1)) bsr Log2NrBytesPerWord
+               , src = (Offset + (Pagesize - 1)) bsr (Log2NrBytesPerWord + Log2NrWordsPerPage)
+               , mem = (VAddr + (Pagesize - 1)) bsr (Log2NrBytesPerWord + Log2NrWordsPerPage)
+               };
         false -> error
       end;
     _ -> error
@@ -502,21 +513,15 @@ no_excess_flags(Flags) ->
 
 %% Operations on bytes and pages ===============================================
 
+log2_nr_bytes_per_word(?ELFCLASS64) -> 3;
+log2_nr_bytes_per_word(?ELFCLASS36) -> 2.
+
+wordsize(EC) -> 1 bsl log2_nr_bytes_per_word(EC).
+
 -define(LOG2_NR_WORDS_PER_PAGE, 9). % 512 words per page
--define(LOG2_NR_BYTES_PER_WORD, 2). % 4 bytes (nonets) per word
--define(LOG2_NR_BYTES_PER_PAGE, (2 + 9)). % 4 bytes per word, 512 words per page
-
-is_page_aligned(Address) ->
-  (Address band ((1 bsl ?LOG2_NR_BYTES_PER_PAGE) - 1)) =:= 0.
-
-nrbytes_to_nrpages(NrBytes) ->
-  (NrBytes + ((1 bsl ?LOG2_NR_BYTES_PER_PAGE) - 1)) bsr ?LOG2_NR_BYTES_PER_PAGE.
 
 nrpages_to_nrwords(NrPages) ->
   NrPages bsl ?LOG2_NR_WORDS_PER_PAGE.
-
-nrbytes_to_nrwords(NrBytes) ->
-  (NrBytes + ((1 bsl ?LOG2_NR_BYTES_PER_WORD) - 1)) bsr ?LOG2_NR_BYTES_PER_WORD.
 
 nrwords_to_nrpages(NrWords) ->
   (NrWords + ((1 bsl ?LOG2_NR_WORDS_PER_PAGE) - 1)) bsr ?LOG2_NR_WORDS_PER_PAGE.
