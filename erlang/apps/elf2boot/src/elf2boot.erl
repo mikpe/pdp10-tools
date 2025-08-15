@@ -88,6 +88,7 @@ scan_option({$f, Format}, Opts) -> % -f / --format
 %% elf2boot ====================================================================
 
 -type pagenr() :: non_neg_integer().
+-type wordnr() :: non_neg_integer().
 -type word() :: non_neg_integer().
 
 -record(frag,
@@ -95,6 +96,7 @@ scan_option({$f, Format}, Opts) -> % -f / --format
         , src :: pagenr() % offset in input ELF file
                | [word()] % stub
         , mem :: pagenr() % offset in physical memory
+        , excluded :: [{wordnr(), wordnr()}]
         }).
 
 elf2boot(Opts, [InFile]) ->
@@ -173,10 +175,10 @@ write_groups([Group | Groups], HdrNrPages, OutFP, InFP) ->
   end.
 
 write_group(Group, HdrNrPages, OutFP, InFP) ->
-  #group{frag = #frag{nrwords = NrWords, src = Src}, dst = DstPageNr} = Group,
+  #group{frag = #frag{nrwords = NrWords, src = Src, excluded = Excluded}, dst = DstPageNr} = Group,
   case padto(OutFP, HdrNrPages + DstPageNr) of
     ok ->
-      case write_src(NrWords, Src, OutFP, InFP) of
+      case write_src(NrWords, Src, Excluded, OutFP, InFP) of
         ok ->
           NrPages = nrwords_to_nrpages(NrWords),
           padto(OutFP, HdrNrPages + DstPageNr + NrPages);
@@ -185,10 +187,10 @@ write_group(Group, HdrNrPages, OutFP, InFP) ->
     {error, _Reason} = Error -> Error
   end.
 
-write_src(NrWords, Src, DstFP, SrcFP) ->
+write_src(NrWords, Src, Excluded, DstFP, SrcFP) ->
   case Src of
     SrcPageNr when is_integer(SrcPageNr) ->
-      iocpy(DstFP, SrcFP, SrcPageNr, NrWords);
+      iocpy(DstFP, SrcFP, SrcPageNr, Excluded, NrWords);
     Words when is_list(Words) ->
       write_words(Words, DstFP)
   end.
@@ -215,23 +217,32 @@ write_words([Word | Words], DstFP) ->
 
 %% Copy data between I/O devices ===============================================
 
-iocpy(DstFP, SrcFP, SrcPageNr, NrWords) ->
+iocpy(DstFP, SrcFP, SrcPageNr, Excluded, NrWords) ->
   SrcWordNr = nrpages_to_nrwords(SrcPageNr),
   case infp_fseekw(SrcFP, SrcWordNr) of
-    ok -> iocpy(DstFP, SrcFP, NrWords);
+    ok -> iocpy_loop(DstFP, SrcFP, SrcWordNr, Excluded, NrWords);
     {error, _Reason} = Error -> Error
   end.
 
-iocpy(_DstFP, _SrcFP, _NrWords = 0) -> ok;
-iocpy(DstFP, SrcFP, NrWords) ->
-  case infp_fgetw(SrcFP) of
+iocpy_loop(_DstFP, _SrcFP, _SrcWordNr, _Excluded, _NrWords = 0) -> ok;
+iocpy_loop(DstFP, SrcFP, SrcWordNr, Excluded, NrWords) ->
+  case iocpy_fgetw(SrcFP, SrcWordNr, Excluded) of
     {ok, Word} ->
       case outfp_fputw(Word, DstFP) of
-        ok -> iocpy(DstFP, SrcFP, NrWords - 1);
+        ok -> iocpy_loop(DstFP, SrcFP, SrcWordNr + 1, Excluded, NrWords - 1);
         {error, _Reason} = Error -> Error
       end;
     {error, _Reason} = Error -> Error;
     eof -> {error, eof}
+  end.
+
+iocpy_fgetw(SrcFP, SrcWordNr, Excluded) ->
+  case is_excluded(SrcWordNr, Excluded) of
+    true ->
+      ok = infp_fseekw(SrcFP, SrcWordNr + 1),
+      {ok, 0};
+    false ->
+     infp_fgetw(SrcFP)
   end.
 
 %% Word-oriented input file abstraction ========================================
@@ -317,7 +328,7 @@ print_group(Group) ->
   print_frag(Frag).
 
 print_frag(Frag) ->
-  #frag{nrwords = NrWords, src = Src, mem = MemPageNr} = Frag,
+  #frag{nrwords = NrWords, src = Src, mem = MemPageNr, excluded = Excluded} = Frag,
   io:format("\tnrwords ~p\n", [NrWords]),
   io:format("\tmem ~s\n", [format_lh(MemPageNr bsl 9)]),
   case Src of
@@ -326,7 +337,8 @@ print_frag(Frag) ->
     Words when is_list(Words) ->
       io:format("\tsrc words:\n"),
       print_words(Words)
-  end.
+  end,
+  io:format("\texcluded ~p\n", [Excluded]).
 
 print_header(Opts, HdrWords) ->
   case Opts#options.verbose of
@@ -404,9 +416,11 @@ groups(Frag, Frags, PageNr, Groups) ->
     true ->
       NrPages = nrwords_to_nrpages(?MAX_GROUP_NRWORDS),
       Group = #group{frag = Frag#frag{nrwords = ?MAX_GROUP_NRWORDS}, dst = PageNr},
+      SrcPageNr = Frag#frag.src + NrPages,
       NewFrag = Frag#frag{ nrwords = NrWords - ?MAX_GROUP_NRWORDS
-                         , src = (Frag#frag.src) + NrPages
+                         , src = SrcPageNr
                          , mem = (Frag#frag.mem) + NrPages
+                         , excluded = trim_excluded(SrcPageNr bsl 9, Frag#frag.excluded)
                          },
       groups(NewFrag, Frags, PageNr + NrPages, [Group | Groups]);
     false ->
@@ -438,7 +452,7 @@ entry_frag(EntryWordNr) ->
     , 8#000000_000000 % 0,,001003 0             ; flag-PC double-word: program flags
     , EntryWordNr     % 0,,001004 EntryWordNr   ; flag-PC double-word: PC
     ],
-  #frag{nrwords = length(Src), src = Src, mem = MemPageNr}.
+  #frag{nrwords = length(Src), src = Src, mem = MemPageNr, excluded = []}.
 
 %% Reading ELF =================================================================
 
@@ -460,7 +474,7 @@ read_elf({EC, IoDev} = FP, Ehdr) ->
     #elf_Ehdr{e_type = ?ET_EXEC, e_entry = Entry} when Entry band (Wordsize - 1) =:= 0 ->
       case libelf:read_PhTab(EC, IoDev, Ehdr) of
         {ok, PhTab} ->
-          case frags(EC, PhTab) of
+          case frags(EC, Ehdr, PhTab) of
             {ok, Frags} -> {ok, {FP, Entry bsr Log2NrBytesPerWord, Frags}};
             {error, _Reason} = Error -> Error
           end;
@@ -469,17 +483,17 @@ read_elf({EC, IoDev} = FP, Ehdr) ->
     _ -> {error, {?MODULE, invalid_ehdr}}
   end.
 
-frags(EC, PhTab) -> frags(PhTab, EC, 0, []).
+frags(EC, Ehdr, PhTab) -> frags(PhTab, EC, Ehdr, 0, []).
 
-frags([], _EC, _PhdrIx, Frags) -> {ok, lists:reverse(Frags)};
-frags([Phdr | PhTab], EC, PhdrIx, Frags) ->
-  case frag(EC, Phdr) of
+frags([], _EC, _Ehdr, _PhdrIx, Frags) -> {ok, lists:reverse(Frags)};
+frags([Phdr | PhTab], EC, Ehdr, PhdrIx, Frags) ->
+  case frag(EC, Ehdr, Phdr) of
     error -> {error, {?MODULE, {invalid_phdr, PhdrIx}}};
-    false -> frags(PhTab, EC, PhdrIx + 1, Frags);
-    Frag -> frags(PhTab, EC, PhdrIx + 1, [Frag | Frags])
+    false -> frags(PhTab, EC, Ehdr, PhdrIx + 1, Frags);
+    Frag -> frags(PhTab, EC, Ehdr, PhdrIx + 1, [Frag | Frags])
   end.
 
-frag(EC, Phdr) ->
+frag(EC, Ehdr, Phdr) ->
   case Phdr of
     #elf_Phdr{p_type = ?PT_NULL} -> false;
     #elf_Phdr{p_type = ?PT_LOAD, p_filesz = 0} -> false;
@@ -502,6 +516,7 @@ frag(EC, Phdr) ->
           #frag{ nrwords = (FileSz + (Wordsize - 1)) bsr Log2NrBytesPerWord
                , src = (Offset + (Pagesize - 1)) bsr (Log2NrBytesPerWord + Log2NrWordsPerPage)
                , mem = (VAddr + (Pagesize - 1)) bsr (Log2NrBytesPerWord + Log2NrWordsPerPage)
+               , excluded = build_excluded(EC, Offset, Ehdr)
                };
         false -> error
       end;
@@ -510,6 +525,40 @@ frag(EC, Phdr) ->
 
 no_excess_flags(Flags) ->
   (Flags band 8#7) =:= Flags.
+
+%% GNU ld tends to create executables with the ELF header and program and section
+%% tables mapped into the main PF_X PT_LOAD segment.  We need to avoid processing
+%% such meta-data as if it was proper PDP-10 encoded code or data.
+build_excluded(_EC = ?ELFCLASS64, _Offset = 0, Ehdr) ->
+  #elf_Ehdr{ e_phoff = PhOff
+           , e_shoff = ShOff
+           , e_ehsize = EhSize
+           , e_phentsize = PhEntSize
+           , e_phnum = PhNum
+           , e_shentsize = ShEntSize
+           , e_shnum = ShNum
+           } = Ehdr,
+  ShArea =
+    case ShNum of
+      0 -> [];
+      _ -> [{ShOff bsr 3, ((ShOff + ShNum * ShEntSize) bsr 3) - 1}]
+    end,
+  PhArea =
+    case PhNum of
+      0 -> [];
+      _ -> [{PhOff bsr 3, ((PhOff + PhNum * PhEntSize) bsr 3) - 1}]
+    end,
+  EhArea = [{0, (EhSize bsr 3) - 1}],
+  EhArea ++ PhArea ++ ShArea;
+build_excluded(_EC, _Offset, _Ehdr) -> [].
+
+is_excluded(_WordNr, _Excluded = []) -> false;
+is_excluded(WordNr, [{StartNr, EndNr} | Rest]) ->
+  (WordNr >= StartNr andalso WordNr =< EndNr) orelse is_excluded(WordNr, Rest).
+
+trim_excluded(_SrcWordNr, []) -> [];
+trim_excluded(SrcWordNr, [{_, End} | Rest]) when SrcWordNr > End -> trim_excluded(SrcWordNr, Rest);
+trim_excluded(SrcWordNr, [First | Rest]) -> [First | trim_excluded(SrcWordNr, Rest)].
 
 %% Operations on bytes and pages ===============================================
 
