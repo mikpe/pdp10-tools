@@ -1,5 +1,5 @@
 # README for pdp10-tools
-# Copyright (C) 2013-2023  Mikael Pettersson <mikpelinux@gmail.com>
+# Copyright (C) 2013-2025  Mikael Pettersson <mikpelinux@gmail.com>
 #
 # This file is part of pdp10-tools.
 #
@@ -20,28 +20,29 @@
 PDP10-TOOLS
 ===========
 
-pdp10-tools is a collection of utilities for pdp10-elf.
+pdp10-tools is a collection of utilities for pdp10-elf:
+
+elf2boot:	converts PDP-10 ELF-36 and ELF-64 executables to KLH10-bootable files
+libelf:		reading and writing ELF-32, ELF-36, and ELF-64 object files
+sim:            a simulator for running PDP-10 ELF-36 executables on a
+                hypothetical fully-extended PDP10 called the KE10
+stdio9:		reading and writing nonet-based files on an octet-based host
+
+The following components were developed for the PDP-10 ELF-36 project
+and are now deprecated given the PDP-10 ELF-64 support in GNU binutils:
 
 ar:		archiver for pdp10-elf object files
+archive:	reading and writing archives containing pdp10-elf object files
 as:		assembler producing pdp10-elf object files
 		intended primarily as an assembler for GCC output;
 		the syntax is modelled after normal UNIX/ELF syntax
 		rather than classic TOPS-10, TOPS-20, or ITS syntax
-elf2boot:	converts pdp10-elf executables to KLH10-bootable files
 ld:		linker for pdp10-elf object files
 nm:		list symbols from pdp10-elf object files
 od:		file dumper for binary files with 9-bit bytes (nonets)
 ranlib:		add an index to a pdp10-elf archive (same as `ar s`)
 readelf:	display information about pdp10-elf object files,
 		extended with an option to disassemble .text sections
-sim:            a simulator for running pdp10-elf executables on a
-                hypothetical fully-extended PDP10 called the KE10
 8to9:		a utility to convert octet files to nonet files and back
-
-Support libraries include:
-
-archive:	reading and writing archives containing pdp10-elf object files
-pdp10_elf36:	reading and writing pdp10-elf (aka Elf36) object files
-pdp10_stdio:	reading and writing nonet-based files on an octet-based host
 
 See the TODO file for known omissions and planned improvements.
