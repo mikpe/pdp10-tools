@@ -514,9 +514,13 @@ frag(EC, Ehdr, Phdr) ->
             MemSz >= FileSz andalso
             no_excess_flags(Flags)) of
         true ->
-          #frag{ nrwords = (FileSz + (Wordsize - 1)) bsr Log2NrBytesPerWord
-               , src = (Offset + (Pagesize - 1)) bsr (Log2NrBytesPerWord + Log2NrWordsPerPage)
-               , mem = (VAddr + (Pagesize - 1)) bsr (Log2NrBytesPerWord + Log2NrWordsPerPage)
+          NrWords = ((Offset band (Pagesize - 1)) + FileSz + Wordsize - 1) bsr Log2NrBytesPerWord,
+          Log2NrBytesPerPage = Log2NrBytesPerWord + Log2NrWordsPerPage,
+          SrcPageNr = Offset bsr Log2NrBytesPerPage,
+          MemPageNr = VAddr bsr Log2NrBytesPerPage,
+          #frag{ nrwords = NrWords
+               , src = SrcPageNr
+               , mem = MemPageNr
                , excluded = build_excluded(EC, Offset, Ehdr)
                };
         false -> error
@@ -541,6 +545,10 @@ no_excess_flags(Flags) ->
 %% GNU ld tends to create executables with the ELF header and program and section
 %% tables mapped into the main PF_X PT_LOAD segment.  We need to avoid processing
 %% such meta-data as if it was proper PDP-10 encoded code or data.
+%%
+%% Another use case occurs when the PT_LOAD segment isn't page-aligned or isn't
+%% an integral number of pages in size.  In that case the frag needs to skip the
+%% leading and/or trailing parts of the page range.
 build_excluded(_EC = ?ELFCLASS64, _Offset = 0, Ehdr) ->
   #elf_Ehdr{ e_phoff = PhOff
            , e_shoff = ShOff
@@ -562,7 +570,15 @@ build_excluded(_EC = ?ELFCLASS64, _Offset = 0, Ehdr) ->
     end,
   EhArea = [{0, (EhSize bsr 3) - 1}],
   EhArea ++ PhArea ++ ShArea;
-build_excluded(_EC, _Offset, _Ehdr) -> [].
+build_excluded(EC, Offset, _Ehdr) ->
+  Log2NrBytesPerWord = log2_nr_bytes_per_word(EC),
+  Wordsize = 1 bsl Log2NrBytesPerWord,
+  Log2NrWordsPerPage = 9,
+  Pagesize = Wordsize bsl Log2NrWordsPerPage,
+  case (Offset band (Pagesize - 1)) bsr Log2NrBytesPerWord of
+    0 -> [];
+    WordOffset -> [{0, WordOffset - 1}]
+  end.
 
 is_excluded(_WordNr, _Excluded = []) -> false;
 is_excluded(WordNr, [{StartNr, EndNr} | Rest]) ->
