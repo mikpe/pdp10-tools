@@ -503,13 +503,14 @@ frag(EC, Ehdr, Phdr) ->
              , p_filesz = FileSz
              , p_memsz = MemSz
              , p_flags = Flags
+             , p_align = Align
              } ->
       Log2NrBytesPerWord = log2_nr_bytes_per_word(EC),
       Wordsize = 1 bsl Log2NrBytesPerWord,
       Log2NrWordsPerPage = 9,
       Pagesize = Wordsize bsl Log2NrWordsPerPage,
-      case ((Offset band (Pagesize - 1)) =:= 0 andalso
-            (VAddr band (Pagesize - 1)) =:= 0 andalso
+      case (check_alignment(Offset, VAddr, Pagesize - 1) andalso
+            check_p_align(Offset, VAddr, Align) andalso
             MemSz >= FileSz andalso
             no_excess_flags(Flags)) of
         true ->
@@ -522,6 +523,17 @@ frag(EC, Ehdr, Phdr) ->
       end;
     _ -> error
   end.
+
+check_p_align(Offset, VAddr, PAlign) ->
+  case PAlign of
+    0 -> true;
+    1 -> true;
+    _ when (PAlign band (PAlign - 1)) =:= 0 -> check_alignment(Offset, VAddr, PAlign - 1);
+    _ -> false
+  end.
+
+check_alignment(Offset, VAddr, Mask) ->
+  (Offset band Mask) =:= (VAddr band Mask).
 
 no_excess_flags(Flags) ->
   (Flags band 8#7) =:= Flags.
