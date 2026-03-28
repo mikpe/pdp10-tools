@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% strtol() for Erlang
-%%% Copyright (C) 2018-2023  Mikael Pettersson
+%%% Copyright (C) 2018-2026  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -59,7 +59,7 @@ scan_base(String, Base, Minus) ->
         [$0, C | Rest] when C =:= $x; C =:= $X ->
           scan_digits(Rest, _Base = 16, Minus);
         [$0 | Rest] ->
-          scan_digits(Rest, _Base = 8, Minus);
+          scan_digits(Rest, _Value = 0, _Base = 8, Minus);
         _ ->
           scan_digits(String, _Base = 10, Minus)
       end;
