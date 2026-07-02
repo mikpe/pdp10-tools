@@ -26,12 +26,12 @@
 %%% Since Erlang has bignums, this code performs no overflow checks.
 
 -module(strtol).
--export([parse/2, format_error/1]).
+-export([parse/2]).
 
 -type base() :: 0 | 2..36.
 
 -spec parse(string(), base())
-      -> {ok, {integer(), string()}} | {error, {module(), term()}}.
+      -> {ok, {integer(), string()}} | {error, no_digits}.
 parse(String, Base) ->
   scan_spaces(String, Base).
 
@@ -73,7 +73,8 @@ scan_base(String, Base, Minus) ->
     _ when Base >= 2, Base =< 36 ->
       scan_digits(String, Base, Minus);
     _ ->
-      {error, {?MODULE, {invalid_base, Base}}}
+      %% This case is a type error, so deserves an exception not an error return.
+      error({invalid_base, Base})
   end.
 
 scan_digits(String, Base, Minus) ->
@@ -102,7 +103,7 @@ return(Rest, Value0, Minus) ->
   {ok, {Value, Rest}}.
 
 no_digits() ->
-  mkerror(no_digits).
+  {error, no_digits}.
 
 isspace(C) ->
   case C of
@@ -120,17 +121,4 @@ digit_value(C) ->
      C >= $A, C =< $Z -> C - $A + 10;
      C >= $a, C =< $z -> C - $a + 10;
      true -> 255 % out-of-band value >= any valid base
-  end.
-
-%% Error Formatting ------------------------------------------------------------
-
-mkerror(Tag) ->
-  {error, {?MODULE, Tag}}.
-
--spec format_error(term()) -> io_lib:chars().
-format_error(Reason) ->
-  case Reason of
-    no_digits -> "no valid digits found";
-    {invalid_base, Base} -> io_lib:format("invalid base: ~p", [Base]);
-    _ -> io_lib:format("~p", [Reason])
   end.
