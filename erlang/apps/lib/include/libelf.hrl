@@ -1,7 +1,7 @@
 %%% -*- erlang-indent-level: 2 -*-
 %%%
 %%% libelf.hrl -- ELF definitions for Erlang
-%%% Copyright (C) 2013-2025  Mikael Pettersson
+%%% Copyright (C) 2013-2026  Mikael Pettersson
 %%%
 %%% This file is part of pdp10-tools.
 %%%
@@ -585,6 +585,21 @@
 -define(SHT_CHECKSUM,                   16#6ffffff8). % Checksum for DSO content.
 -define(SHT_GNU_OBJECT_ONLY,            16#6ffffff9). % Object only
 
+-define(SHT_SUNW_ctf,                   16#6fffffeb).
+-define(SHT_SUNW_symnsort,              16#6fffffec).
+-define(SHT_SUNW_phname,                16#6fffffed).
+-define(SHT_SUNW_ancillary,             16#6fffffee).
+-define(SHT_SUNW_capchain,              16#6fffffef).
+-define(SHT_SUNW_capinfo,               16#6ffffff0).
+-define(SHT_SUNW_symsort,               16#6ffffff1).
+-define(SHT_SUNW_tlssort,               16#6ffffff2).
+-define(SHT_SUNW_LDYNSYM,               16#6ffffff3).
+-define(SHT_SUNW_dof,                   16#6ffffff4).
+-define(SHT_SUNW_cap,                   16#6ffffff5).
+-define(SHT_SUNW_SIGNATURE,             16#6ffffff6).
+-define(SHT_SUNW_ANNOTATE,              16#6ffffff7).
+-define(SHT_SUNW_DEBUGSTR,              16#6ffffff8).
+-define(SHT_SUNW_DEBUG,                 16#6ffffff9).
 -define(SHT_SUNW_move,                  16#6ffffffa).
 -define(SHT_SUNW_COMDAT,                16#6ffffffb).
 -define(SHT_SUNW_syminfo,               16#6ffffffc).
@@ -825,6 +840,8 @@
 -define(NT_X86_SHSTK,           16#204).        % x86 SHSTK state.
                                                 % This replaces NT_X86_CET (16#203).
                                                 %   note name must be "LINUX".
+-define(NT_X86_XSAVE_LAYOUT,    16#205).        % XSAVE layout description
+                                                %   note name must be "LINUX".
 -define(NT_S390_HIGH_GPRS,      16#300).        % S/390 upper halves of GPRs
                                                 %   note name must be "LINUX".
 -define(NT_S390_TIMER,          16#301).        % S390 timer
@@ -882,6 +899,8 @@
 -define(NT_ARM_ZA,              16#40c).        % AArch64 SME ZA register.
                                                 %   Note: name must be "LINUX".
 -define(NT_ARM_ZT,              16#40d).        % AArch64 SME2 ZT registers.
+                                                %   Note: name must be "LINUX".
+-define(NT_ARM_FPMR,            16#40e).        % AArch64 FPMR.
                                                 %   Note: name must be "LINUX".
 -define(NT_ARM_GCS,             16#410).        % AArch64 Guarded Control Stack
                                                 % registers.
@@ -1547,6 +1566,11 @@
 
 -define(VERSYM_HIDDEN,          16#8000).
 
+%% This flag appears in a Versym structure.  It means that the symbol
+%% is the base version.
+
+-define(VERSYM_BASE,            16#0001).
+
 %% This is the mask for the rest of the Versym information.
 
 -define(VERSYM_VERSION,         16#7fff).
@@ -1623,6 +1647,8 @@
 -define(AT_HWCAP2,      26).            % Extension of AT_HWCAP.
 -define(AT_RSEQ_FEATURE_SIZE, 27).      % rseq supported feature size
 -define(AT_RSEQ_ALIGN,  28).            % rseq allocation alignment
+-define(AT_HWCAP3,      29).            % Extension of AT_HWCAP.
+-define(AT_HWCAP4,      30).            % Extension of AT_HWCAP.
 -define(AT_EXECFN,      31).            % Filename of executable.
 %% Pointer to the global system page used for system calls and other
 %% nice things.
