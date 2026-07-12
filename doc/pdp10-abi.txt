@@ -534,35 +534,32 @@ Shared libraries depend on position-independent code (PIC).  However, the PDP10 
 absolute addressing of both code and data, via 18-bit local addresses (offsets from the current
 section), or via 30- or 36-bit global addresses.
 
-This ABI specifies that each shared library is aligned on a section boundary, as that allows most
-local code references in the shared library to use local absolute addresses.  To retrieve its
-global offset table (GOT) pointer, a function in the shared library executes the following code:
+Each position-independent shared object (library or main executable) has its own GOT (global
+offset table) and PLT (procedure linkage table).  Both are accessed via the GOT pointer.
+To retrieve the GOT pointer, a function in a shared object executes the following code:
 
-        JSP 0, _GET_GOT_
+0:	XMOVEI 016, .
+	ADDI 016, _LOCAL_GOT_ - 0b
 
-where _GET_GOT_ is a linker-generated function containing:
+This copies the current PC as a global address into AC 016, and then adds a linker-generated
+offset from it to this shared object's GOT.
 
-_GET_GOT_:
-        HLLZ 016, 0 # copy section number
-        HRRI 016, L # insert local section offset for L
-L:      ADD 016, @[_GLOBAL_OFFSET_TABLE_-.]
-        JRST 0
+The word in "var@GOT(016)" is the global address for "var".  The variable can be read using:
 
-This places a return address in AC 0, jumps via a local absolute address to the linker-generated
-function _GET_GOT_, which computes into AC 016 the GOT address via the section number in AC 0 and
-the link-time constant offset from _GET_GOT_ to the GOT, and then returns via AC 0.  Each section
-in a shared library must contain its own specific _GET_GOT_ function.
+	MOVE 1, @var@GOT(016)
 
-Note -- It is possible to lift the restriction that shared libraries are section-aligned.
-In this case, to compute its GOT a function could execute:
+Every function call in a shared object must go via the PLT, which is addressed off the GOT.
+The code in "func@PLT(016)" is a PLT entry which indirects to the actual code for "func":
 
-        MOVSI 0, 025400 # assemble "JRST 016" in AC 0
-        HRR 0, 016
-        JSP 016, 0      # place PC in AC 016, jump to AC 0
-        ADD 016, @[_GLOBAL_OFFSET_TABLE_-.]
+	PUSHJ 017, func@PLT(016)
 
-In this case, even local code references within the shared library would have to be
-indirect via the GOT.  This ABI does not support this model for shared libraries.
+Restrictions:
+
+- A shared object, including its .text, .data, .bss, GOT, and PLT, cannot be larger
+  than one section minus 16 words, since (a) all intra-object references must fit in
+  18-bit offsets from the local PC section, and (b) the first 20 words alias the ACs
+  and cannot be used.  (The size restriction could be lifted as the expense of more
+  expensive address computations, i.e. a "huge PIC" code model.)
 
 Virtual Address Assignments
 
